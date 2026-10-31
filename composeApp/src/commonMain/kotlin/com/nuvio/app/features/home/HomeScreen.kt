@@ -156,6 +156,7 @@ fun HomeScreen(
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val homeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyListState = homeListState)
     val continueWatchingListState = rememberLazyListState()
     val upcomingListState = rememberLazyListState()
     ScreenActivityEffect(homeListState, continueWatchingListState, upcomingListState) { active ->

@@ -20,6 +20,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.deeplink.handleAppUrl
+import com.nuvio.app.controller.DesktopControllerWindowHost
 import com.nuvio.app.core.diagnostics.SentryInitializer
 import com.nuvio.app.core.ui.NuvioTheme
 import com.nuvio.app.core.ui.ProvideDesktopWindowInsets
@@ -217,7 +218,7 @@ fun main(args: Array<String>) {
 
             if (smokePlayerUrl == null) {
                 ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
-                    MiddleClickAutoscroll { App() }
+                    DesktopControllerWindowHost(window = window) { MiddleClickAutoscroll { App() } }
                 }
             } else {
                 // The player surface reads LocalNuvioPlatformDensity, which only

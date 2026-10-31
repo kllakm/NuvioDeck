@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
@@ -78,6 +80,29 @@ internal fun ProviderFilterRow(
     }
     if (addonGroups.isEmpty() && onRefresh == null) return
 
+    val filterOptions = remember(addonGroups) { listOf<String?>(null) + addonGroups.map { it.addonId } }
+    RegisterControllerHandler(
+        onBumperLeft = {
+            if (filterOptions.size <= 1) return@RegisterControllerHandler false
+            val idx = filterOptions.indexOf(selectedFilter).coerceAtLeast(0)
+            val prevIdx = if (idx > 0) idx - 1 else filterOptions.lastIndex
+            onFilterSelected(filterOptions[prevIdx])
+            true
+        },
+        onBumperRight = {
+            if (filterOptions.size <= 1) return@RegisterControllerHandler false
+            val idx = filterOptions.indexOf(selectedFilter).coerceAtLeast(0)
+            val nextIdx = (idx + 1) % filterOptions.size
+            onFilterSelected(filterOptions[nextIdx])
+            true
+        },
+        onTertiaryAction = if (onRefresh != null) {
+            {
+                onRefresh()
+                true
+            }
+        } else null,
+    )
     val scrollState = rememberScrollState()
     Row(
         modifier = modifier
@@ -181,6 +206,11 @@ private fun FilterChip(
             .height(36.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
+            .controllerFocusable(
+                shape = RoundedCornerShape(16.dp),
+                onSelect = onClick,
+                selectLabel = label ?: contentDescription ?: "Filter",
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

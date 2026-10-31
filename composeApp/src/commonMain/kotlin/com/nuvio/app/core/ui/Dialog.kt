@@ -1,4 +1,7 @@
 package com.nuvio.app.core.ui
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -55,6 +58,7 @@ fun DialogSurface(
 ) {
     val tokens = MaterialTheme.nuvio
     BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
+        RegisterControllerHandler(onBack = { onDismissRequest(); true })
         Surface(
             modifier = modifier
                 .fillMaxWidth()
@@ -141,7 +145,17 @@ fun DialogButton(
     val contentColor = if (style == DialogButtonStyle.Secondary) tokens.colors.textPrimary else tokens.colors.onAccent
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = NuvioTokens.Space.s48),
+        modifier = modifier
+            .heightIn(min = NuvioTokens.Space.s48)
+            .controllerFocusable(
+                zone = ControllerFocusZone.Overlay,
+                groupKey = "dialog_buttons",
+                enabled = enabled && !loading,
+                shape = tokens.shapes.button,
+                scaleOnFocus = 1.02f,
+                onSelect = onClick,
+                selectLabel = text,
+            ),
         enabled = enabled && !loading,
         elevation = ButtonDefaults.buttonElevation(
             hoveredElevation = 0.dp,
@@ -186,6 +200,15 @@ fun DialogOption(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                zone = ControllerFocusZone.Overlay,
+                groupKey = "dialog_options",
+                enabled = enabled,
+                shape = tokens.shapes.compactCard,
+                scaleOnFocus = 1.01f,
+                onSelect = onClick,
+                selectLabel = text,
+            )
             .clip(tokens.shapes.compactCard)
             .background(
                 if (selected) {

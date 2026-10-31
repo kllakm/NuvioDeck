@@ -1,4 +1,7 @@
 package com.nuvio.app.core.ui
+import androidx.compose.runtime.collectAsState
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.controllerFocusable
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -99,6 +102,7 @@ fun <T> NuvioShelfSection(
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()
     }
+    com.nuvio.app.controller.ProvideControllerRowLazyListState(state) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap + NuvioTokens.Space.s2),
@@ -117,7 +121,12 @@ fun <T> NuvioShelfSection(
             modifier = rowModifier
                 .nuvioHorizontalScrollBleed(LocalVerticalBarPadding.current)
                 .nuvioDesktopDragScroll(state),
-            contentPadding = rowContentPadding.withVerticalBar(),
+            contentPadding = PaddingValues(
+                start = rowContentPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                top = maxOf(rowContentPadding.calculateTopPadding(), 8.dp),
+                end = rowContentPadding.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                bottom = maxOf(rowContentPadding.calculateBottomPadding(), 12.dp),
+            ).withVerticalBar(),
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             if (duplicateSafeEntries != null) {
@@ -145,6 +154,7 @@ fun <T> NuvioShelfSection(
                 }
             }
         }
+    }
     }
 }
 
@@ -268,18 +278,18 @@ fun NuvioPosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(shape.aspectRatio)
-                .clip(cardShape)
-                .background(tokens.colors.surface)
-                .nuvioCardDepth(
-                    shape = cardShape,
-                    surface = NuvioCardDepthSurface.Posters,
-                )
                 .posterCardClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                     zoomImageUrl = imageUrl,
                     zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
                     hoverScaleEnabled = false,
+                )
+                .clip(cardShape)
+                .background(tokens.colors.surface)
+                .nuvioCardDepth(
+                    shape = cardShape,
+                    surface = NuvioCardDepthSurface.Posters,
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -449,7 +459,21 @@ private fun NuvioViewAllPill(
                 color = tokens.colors.surface,
                 shape = RoundedCornerShape(NuvioTokens.Radius.xl),
             )
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(
+                if (onClick != null) {
+                    val pillId = remember { "view_all_pill_${onClick.hashCode()}" }
+                    Modifier
+                        .controllerFocusable(
+                            id = pillId,
+                            cornerRadius = NuvioTokens.Radius.xl,
+                            selectLabel = viewAllText,
+                            onSelect = onClick,
+                        )
+                        .clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -561,7 +585,9 @@ internal fun Modifier.desktopPosterHoverScale(
 ): Modifier {
     if (!enabled || !isDesktop) return this
 
-    val hovered by interactionSource.collectIsHoveredAsState()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val rawHovered by interactionSource.collectIsHoveredAsState()
+    val hovered = rawHovered && !isControllerActive
     val scale by animateFloatAsState(
         targetValue = if (hovered) DesktopPosterHoverScale else 1f,
         animationSpec = spring(

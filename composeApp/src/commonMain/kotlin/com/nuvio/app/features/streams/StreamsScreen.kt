@@ -76,6 +76,10 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.RegisterControllerVerticalScroll
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
@@ -821,6 +825,7 @@ internal fun StreamList(
     }
     val torrentNotSupportedText = stringResource(Res.string.streams_torrent_not_supported)
     val listState = rememberLazyListState()
+    RegisterControllerVerticalScroll(lazyListState = listState)
     val fetchingText = stringResource(Res.string.streams_fetching)
     val findingStreamsText = stringResource(Res.string.streams_finding_streams)
     val checkingMoreAddonsText = stringResource(Res.string.streams_checking_more_addons)
@@ -1161,7 +1166,8 @@ private fun StreamActionsHost(
 ) {
     if (target == null) return
 
-    if (useDesktopContextMenu) {
+    val isControllerActive by ControllerManager.isControllerActive.collectAsStateWithLifecycle()
+    if (useDesktopContextMenu && !isControllerActive && target.anchorInRoot != null) {
         val anchor = target.anchorInRoot ?: return
         DesktopStreamActionsMenu(
             stream = target.stream,
@@ -1304,6 +1310,12 @@ private fun DesktopStreamActionRow(
                 },
             )
             .hoverable(interactionSource)
+            .controllerFocusable(
+                zone = ControllerFocusZone.Overlay,
+                shape = rowShape,
+                onSelect = onSelected,
+                selectLabel = action.title,
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

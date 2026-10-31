@@ -62,10 +62,10 @@ object AvatarRepository {
     private val log = Logger.withTag("AvatarRepository")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
-    private val _avatars = MutableStateFlow<List<AvatarCatalogItem>>(emptyList())
+    private val _avatars = MutableStateFlow<List<AvatarCatalogItem>>(DEFAULT_STANDARD_AVATARS)
     val avatars: StateFlow<List<AvatarCatalogItem>> = _avatars.asStateFlow()
 
-    private var standardCatalog = emptyList<AvatarCatalogItem>()
+    private var standardCatalog = DEFAULT_STANDARD_AVATARS
     private var memberCatalog = emptyList<AvatarCatalogItem>()
     private var memberCatalogMetadata = emptyList<MemberAvatarCatalogItem>()
     private var standardLoaded = false
@@ -78,7 +78,8 @@ object AvatarRepository {
     private var lastMemberRefresh: TimeMark? = null
 
     suspend fun shareableImageUrl(profile: NuvioProfile): String? {
-        val storage = "${ServerConfigurationRepository.active.value.backendUrl}/storage/v1/object/"
+        val base = ServerConfigurationRepository.active.value.backendUrl.trim().trimEnd('/').ifBlank { "https://api.nuvio.tv" }
+        val storage = "$base/storage/v1/object/"
         normalizedAvatarUrl(profile.avatarUrl)?.let { url -> return url.takeIf { it.startsWith(storage) } }
         val avatar = profile.avatarId?.let { id -> avatars.value.firstOrNull { it.id == id } } ?: return null
         if (!avatar.memberOnly) return avatar.storagePath.takeIf { it.isNotBlank() }?.let(::avatarStorageUrl)
@@ -121,16 +122,20 @@ object AvatarRepository {
         cacheHydrated = true
 
         val payload = AvatarStorage.loadPayload().orEmpty().trim()
-        if (payload.isEmpty()) return
+        if (payload.isEmpty()) {
+            standardCatalog = DEFAULT_STANDARD_AVATARS
+            standardLoaded = true
+            publishCatalog()
+            return
+        }
 
         val stored = runCatching {
             json.decodeFromString<StoredAvatarCatalogPayload>(payload)
-        }.getOrNull() ?: return
+        }.getOrNull()
 
-        standardCatalog = stored.items
-            .filter { it.isActive }
+        standardCatalog = (stored?.items?.filter { it.isActive }?.takeIf { it.isNotEmpty() } ?: DEFAULT_STANDARD_AVATARS)
             .sortedWith(compareBy({ it.category }, { it.sortOrder }))
-        memberCatalogMetadata = stored.memberItems
+        memberCatalogMetadata = stored?.memberItems ?: emptyList()
         memberCatalog = memberCatalogMetadata
             .mapNotNull(::loadCachedMemberAvatar)
             .sortedWith(compareBy({ it.category }, { it.sortOrder }))

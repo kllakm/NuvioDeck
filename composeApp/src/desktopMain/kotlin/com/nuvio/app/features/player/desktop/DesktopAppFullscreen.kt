@@ -210,6 +210,8 @@ internal class DesktopAppFullscreenController {
         )
         window.toFront()
         window.requestFocus()
+        (window as? javax.swing.RootPaneContainer)?.contentPane?.requestFocusInWindow()
+        com.nuvio.app.controller.WindowsControllerService.activateAndFocusWindow(window)
     }
 
     private fun exitWindowsFullscreen(window: Window, windowState: WindowState? = null) {

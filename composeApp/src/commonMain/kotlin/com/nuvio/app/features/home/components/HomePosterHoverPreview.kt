@@ -40,6 +40,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import com.nuvio.app.controller.ControllerManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -132,7 +134,7 @@ internal fun HomePosterHoverPreview(
         return
     }
 
-    if (PosterZoomOverlayCoordinator.isVisible) {
+    if (PosterZoomOverlayCoordinator.isVisible || ControllerManager.isControllerActive.collectAsState().value) {
         content(modifier)
         return
     }

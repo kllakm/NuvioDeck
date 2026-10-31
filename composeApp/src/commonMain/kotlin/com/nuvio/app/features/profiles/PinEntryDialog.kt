@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +55,17 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.ControllerHintItem
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.ControllerScreenContext
+import com.nuvio.app.controller.ControllerScreenType
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.XboxGlyph
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.DialogSurface
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
@@ -113,8 +124,44 @@ fun PinEntryDialog(
         }
     }
 
+    val pinHints = remember {
+        listOf(
+            ControllerHintItem(XboxGlyph.A, "Enter Digit"),
+            ControllerHintItem(XboxGlyph.X, "Delete"),
+            ControllerHintItem(XboxGlyph.B, "Cancel"),
+        )
+    }
+
+    RegisterControllerHandler(
+        key = "pin_entry_dialog",
+        screenContext = ControllerScreenContext(
+            screenType = ControllerScreenType.Modal,
+            customHints = pinHints,
+        ),
+        onBack = {
+            onDismiss()
+            true
+        },
+        onActionX = {
+            deleteDigit()
+            true
+        },
+    )
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+        if (ControllerManager.isControllerActive.value || ControllerManager.connectedControllerCount.value > 0) {
+            ControllerManager.notifyControllerInput()
+            delay(50)
+            ControllerFocusEngine.ensureValidFocus()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+            ControllerFocusEngine.ensureValidFocus()
+        }
     }
 
     DialogSurface(
@@ -269,6 +316,18 @@ private fun PinKeypad(
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
+                                    .controllerFocusable(
+                                        id = "pin_key_backspace",
+                                        zone = ControllerFocusZone.Overlay,
+                                        groupKey = "pin_keypad",
+                                        isDefaultFocus = false,
+                                        shape = CircleShape,
+                                        scaleOnFocus = 1.10f,
+                                        onSelect = onBackspace,
+                                        selectLabel = "Delete",
+                                        onSecondaryAction = onBackspace,
+                                        secondaryActionLabel = "Delete",
+                                    )
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable(onClick = onBackspace),
@@ -276,7 +335,7 @@ private fun PinKeypad(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.Backspace,
-                                    contentDescription = null,
+                                    contentDescription = "Delete",
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp),
                                 )
@@ -286,6 +345,18 @@ private fun PinKeypad(
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
+                                    .controllerFocusable(
+                                        id = "pin_key_$key",
+                                        zone = ControllerFocusZone.Overlay,
+                                        groupKey = "pin_keypad",
+                                        isDefaultFocus = key == "1",
+                                        shape = CircleShape,
+                                        scaleOnFocus = 1.10f,
+                                        onSelect = { onDigit(key) },
+                                        selectLabel = "Enter Digit",
+                                        onSecondaryAction = onBackspace,
+                                        secondaryActionLabel = "Delete",
+                                    )
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable { onDigit(key) },

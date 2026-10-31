@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -174,7 +175,16 @@ fun NuvioFloatingPrompt(
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
-                modifier = Modifier.onSizeChanged { promptHeightPx = it.height },
+                modifier = Modifier
+                    .onSizeChanged { promptHeightPx = it.height }
+                    .controllerFocusable(
+                        shape = tokens.shapes.card,
+                        scaleOnFocus = 1.02f,
+                        onSelect = actionWithHaptic,
+                        selectLabel = actionLabel,
+                        onSecondaryAction = onDismiss,
+                        secondaryActionLabel = "Dismiss",
+                    ),
                 shape = tokens.shapes.card,
                 color = tokens.colors.surfacePopover,
                 tonalElevation = tokens.elevation.playerControls,

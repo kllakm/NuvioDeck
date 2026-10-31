@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.gestures.stopScroll
+import com.nuvio.app.controller.RegisterControllerVerticalScroll
 import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1094,6 +1095,7 @@ private fun TabletSettingsScreen(
                 }
 
                 val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+                RegisterControllerVerticalScroll(lazyListState = listState)
                 ScreenActivityEffect(listState) { active ->
                     if (!active) listState.stopScroll()
                 }

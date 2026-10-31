@@ -105,6 +105,25 @@ fun FolderDetailScreen(
     val useNativeNavigation = LocalUseNativeNavigation.current
     val coverImageUrl = folder?.coverImageUrl?.takeIf { it.isNotBlank() }
 
+    com.nuvio.app.controller.RegisterControllerHandler(
+        onBumperLeft = {
+            val tabCount = uiState.tabs.size
+            if (tabCount > 1) {
+                val prevIndex = if (uiState.selectedTabIndex > 0) uiState.selectedTabIndex - 1 else tabCount - 1
+                FolderDetailRepository.selectTab(prevIndex)
+                true
+            } else false
+        },
+        onBumperRight = {
+            val tabCount = uiState.tabs.size
+            if (tabCount > 1) {
+                val nextIndex = (uiState.selectedTabIndex + 1) % tabCount
+                FolderDetailRepository.selectTab(nextIndex)
+                true
+            } else false
+        },
+    )
+
     if (!isDesktop) {
         MobileFolderDetailContent(
             uiState = uiState,
@@ -219,6 +238,25 @@ private fun MobileFolderDetailContent(
 ) {
     val folder = uiState.folder
     val density = LocalDensity.current
+
+    com.nuvio.app.controller.RegisterControllerHandler(
+        onBumperLeft = {
+            val tabCount = uiState.tabs.size
+            if (tabCount > 1) {
+                val prevIndex = if (uiState.selectedTabIndex > 0) uiState.selectedTabIndex - 1 else tabCount - 1
+                FolderDetailRepository.selectTab(prevIndex)
+                true
+            } else false
+        },
+        onBumperRight = {
+            val tabCount = uiState.tabs.size
+            if (tabCount > 1) {
+                val nextIndex = (uiState.selectedTabIndex + 1) % tabCount
+                FolderDetailRepository.selectTab(nextIndex)
+                true
+            } else false
+        },
+    )
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val maxHeroHeightPx = with(density) { FolderCoverHeight.toPx() }
     var heroHeightPx by remember(coverImageUrl, maxHeroHeightPx) {
@@ -341,6 +379,7 @@ private fun TabbedGridContent(
     onPosterClick: (MetaPreview) -> Unit,
 ) {
     val gridState = rememberLazyGridState()
+    com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyGridState = gridState)
 
     LaunchedEffect(gridState, uiState.selectedTabIndex, uiState.selectedTabCanLoadMore, uiState.selectedTabIsLoadingMore) {
         snapshotFlow { gridState.layoutInfo }
@@ -486,6 +525,7 @@ private fun RowsContent(
 ) {
     val sections = FolderDetailRepository.getCatalogSectionsForRows()
     val listState = rememberLazyListState()
+    com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyListState = listState)
 
     if (uiState.isLoading && sections.isEmpty()) {
         LoadingIndicator()

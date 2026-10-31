@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -368,6 +370,22 @@ private fun SeriesSeasonSelector(
     onLongPress: ((Int) -> Unit)?,
 ) {
     if (seasons.size <= 1) return
+    RegisterControllerHandler(
+        onBumperLeft = {
+            val idx = seasons.indexOf(currentSeason)
+            if (idx > 0) {
+                onSelect(seasons[idx - 1])
+                true
+            } else false
+        },
+        onBumperRight = {
+            val idx = seasons.indexOf(currentSeason)
+            if (idx >= 0 && idx < seasons.lastIndex) {
+                onSelect(seasons[idx + 1])
+                true
+            } else false
+        },
+    )
 
     var seasonViewMode by remember {
         mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
@@ -469,6 +487,11 @@ private fun SeasonViewModeToggle(
                 color = Color.White.copy(alpha = 0.2f),
                 shape = RoundedCornerShape(8.dp),
             )
+            .controllerFocusable(
+                shape = RoundedCornerShape(8.dp),
+                onSelect = onClick,
+                selectLabel = "Toggle Season View",
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
@@ -529,6 +552,13 @@ private fun SeasonTextChipScrollRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(sizing.seasonChipRadius))
+                    .controllerFocusable(
+                        shape = RoundedCornerShape(sizing.seasonChipRadius),
+                        onSelect = { onSelect(season) },
+                        selectLabel = "Select Season",
+                        onSecondaryAction = onSecondaryClick,
+                        secondaryActionLabel = "Season Options",
+                    )
                     .background(
                         if (isSelected) {
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -1211,6 +1241,14 @@ private fun EpisodeListCard(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongPress,
+            )
+            .controllerFocusable(
+                enabled = onClick != null || onLongPress != null,
+                shape = cardShape,
+                onSelect = { onClick?.invoke() },
+                selectLabel = "Play Episode",
+                onSecondaryAction = onLongPress,
+                secondaryActionLabel = "Episode Options",
             )
             .secondaryClick(onLongPress),
     ) {

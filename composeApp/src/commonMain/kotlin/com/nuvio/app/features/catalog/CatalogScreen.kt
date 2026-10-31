@@ -117,6 +117,7 @@ fun CatalogScreen(
         initialFirstVisibleItemIndex = initialScrollPosition.firstVisibleItemIndex,
         initialFirstVisibleItemScrollOffset = initialScrollPosition.firstVisibleItemScrollOffset,
     )
+    com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyGridState = gridState)
     var headerHeightPx by remember { mutableIntStateOf(0) }
     var observedOfflineState by remember { mutableStateOf(false) }
 
@@ -388,18 +389,18 @@ private fun CatalogPosterTile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(item.posterShape.catalogAspectRatio())
-                    .clip(RoundedCornerShape(cornerRadiusDp.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .nuvioCardDepth(
-                        shape = RoundedCornerShape(cornerRadiusDp.dp),
-                        surface = NuvioCardDepthSurface.Posters,
-                    )
                     .posterCardClickable(
                         onClick = onClick,
                         onLongClick = onLongClick,
                         zoomImageUrl = item.poster,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
+                    )
+                    .clip(RoundedCornerShape(cornerRadiusDp.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .nuvioCardDepth(
+                        shape = RoundedCornerShape(cornerRadiusDp.dp),
+                        surface = NuvioCardDepthSurface.Posters,
                     ),
             ) {
                 if (item.poster != null) {

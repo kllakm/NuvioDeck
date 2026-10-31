@@ -1,6 +1,7 @@
 package com.nuvio.app.core.ui
 
 import androidx.compose.animation.core.Animatable
+import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -255,6 +256,7 @@ fun NuvioPosterZoomActionOverlay(
     PlatformBackHandler(enabled = true) {
         close()
     }
+    com.nuvio.app.controller.RegisterControllerHandler(onBack = { close(); true })
 
     BoxWithConstraints(
         modifier = modifier
@@ -525,6 +527,15 @@ private fun PosterZoomMenuRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                zone = com.nuvio.app.controller.ControllerFocusZone.Overlay,
+                groupKey = "poster_zoom_actions",
+                enabled = enabled,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(NuvioTokens.Space.s14),
+                scaleOnFocus = 1f,
+                onSelect = onSelected,
+                selectLabel = action.label,
+            )
             .clickable(enabled = enabled, onClick = onSelected)
             .padding(horizontal = NuvioTokens.Space.s18, vertical = NuvioTokens.Space.s16),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),

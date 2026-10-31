@@ -3719,3 +3719,126 @@ svg {
   align-items: center;
   gap: 6px;
 }
+
+
+.player.controller-active,
+.player.controller-active * {
+  cursor: none !important;
+}
+
+.player.controller-active .action:hover:not(.focused),
+.player.controller-active .track-row:hover:not(:focus),
+.player.controller-active .subtitle-language-row:hover:not(:focus),
+.player.controller-active .filter-chip:hover:not(:focus) {
+  background: inherit;
+}
+
+.player.controller-active .track-row:focus,
+.player.controller-active .subtitle-language-row:focus,
+.player.controller-active .filter-chip:focus,
+.player.controller-active .panel-button:focus,
+.player.controller-active .action.focused {
+  outline: 2.5px solid #ffffff !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.45);
+}
+
+.controller-hint-toolbar {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(16, 16, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 240ms var(--ease-out),
+    bottom 220ms var(--ease-out);
+}
+
+.controller-hint-toolbar.visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.controller-hint-toolbar.lifted {
+  bottom: 84px;
+}
+
+.controller-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.controller-hint-label {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.controller-hint-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.xbox-glyph-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1.25px solid rgba(255, 255, 255, 0.4);
+}
+
+.xbox-glyph-a { background: #107C10; }
+.xbox-glyph-b { background: #D83B01; }
+.xbox-glyph-x { background: #0078D4; }
+.xbox-glyph-y { background: #C19C00; }
+
+.xbox-glyph-bumper {
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: #2B2B33;
+  border: 1.25px solid rgba(255, 255, 255, 0.45);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.xbox-glyph-dpad {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xbox-glyph-dpad svg {
+  width: 20px;
+  height: 20px;
+}

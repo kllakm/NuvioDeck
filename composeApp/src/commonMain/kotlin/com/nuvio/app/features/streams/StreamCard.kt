@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.secondaryClickAt
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.SkeletonBlock
@@ -120,6 +121,18 @@ internal fun StreamCard(
                 } else {
                     Modifier
                 },
+            )
+            .controllerFocusable(
+                enabled = enabled,
+                shape = cardShape,
+                onSelect = onClick,
+                selectLabel = "Play Stream",
+                onSecondaryAction = if (isDesktop && enabled && onSecondaryClick != null) {
+                    { onSecondaryClick(cardPositionInRoot + Offset(40f, 34f)) }
+                } else {
+                    onLongClick
+                },
+                secondaryActionLabel = "Stream Options",
             )
             .combinedClickable(
                 enabled = enabled,

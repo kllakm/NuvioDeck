@@ -1,4 +1,5 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.controller.controllerFocusable
 
 import androidx.compose.animation.animateContentSize
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
@@ -997,6 +998,14 @@ private fun DesktopHeroContentBlock(
                 Surface(
                     modifier = Modifier
                         .height(48.dp)
+                        .controllerFocusable(
+                            id = "home_hero_desktop_cta_${item.id}",
+                            groupKey = "home_hero",
+                            shape = RoundedCornerShape(40.dp),
+                            scaleOnFocus = 1.04f,
+                            onSelect = { onItemClick(item) },
+                            selectLabel = "View Details",
+                        )
                         .clickable { onItemClick(item) },
                     color = colorScheme.onBackground,
                     contentColor = colorScheme.background,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.constrainHeight
@@ -39,6 +40,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.FloatingNavigationItem
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.gradientMask
@@ -109,6 +112,15 @@ internal fun JellyTabTargets(
             }
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
+                    .controllerFocusable(
+                        id = "top_nav_${item.label}_$index",
+                        zone = ControllerFocusZone.Navigation,
+                        groupKey = "top_nav",
+                        shape = RoundedCornerShape(50),
+                        scaleOnFocus = 1f,
+                        onSelect = onClick,
+                        selectLabel = item.label,
+                    )
                     .selectable(
                         selected = item.selected,
                         role = Role.Tab,

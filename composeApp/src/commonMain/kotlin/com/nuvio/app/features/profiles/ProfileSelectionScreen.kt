@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.ControllerScreenContext
+import com.nuvio.app.controller.ControllerScreenType
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
@@ -91,6 +98,48 @@ fun ProfileSelectionScreen(
     var pinDialogProfile by remember { mutableStateOf<NuvioProfile?>(null) }
     var isEditMode by remember { mutableStateOf(false) }
     var hoveredProfileIndex by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(isEditMode, onBack != null) {
+        ControllerManager.updateScreenContext(
+            ControllerScreenContext(
+                screenType = ControllerScreenType.ProfileSelection,
+                selectLabel = if (isEditMode) "Edit Profile" else "Select Profile",
+                secondaryActionLabel = if (isEditMode) "Done" else "Manage Profiles",
+                backLabel = if (onBack != null || isEditMode) "Back" else null,
+            ),
+        )
+    }
+
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+
+    LaunchedEffect(interactionEnabled, profileState.profiles.size, isControllerActive) {
+        if (interactionEnabled && profileState.profiles.isNotEmpty() && isControllerActive) {
+            delay(60)
+            ControllerFocusEngine.ensureValidFocus()
+        }
+    }
+
+    RegisterControllerHandler(
+        onBack = {
+            if (isEditMode) {
+                isEditMode = false
+                true
+            } else if (onBack != null) {
+                onBack()
+                true
+            } else {
+                false
+            }
+        },
+        onSecondaryAction = {
+            if (interactionEnabled) {
+                isEditMode = !isEditMode
+                true
+            } else {
+                false
+            }
+        },
+    )
 
     val titleAlpha = remember { Animatable(0f) }
     val titleOffset = remember { Animatable(20f) }
@@ -229,7 +278,9 @@ fun ProfileSelectionScreen(
                                         isEditMode = isEditMode,
                                         animDelay = currentIndex * 80,
                                         enabled = interactionEnabled,
+                                        isDefaultFocus = currentIndex == 0,
                                         onHoverChange = { isHovered -> updateHoveredProfile(profile, isHovered) },
+                                        onEditProfile = { onEditProfile(profile) },
                                         onClick = {
                                             onProfileClick(profile)
                                         },
@@ -266,7 +317,9 @@ fun ProfileSelectionScreen(
                                                 isEditMode = isEditMode,
                                                 animDelay = currentIndex * 80,
                                                 enabled = interactionEnabled,
+                                                isDefaultFocus = currentIndex == 0,
                                                 onHoverChange = { isHovered -> updateHoveredProfile(profile, isHovered) },
+                                                onEditProfile = { onEditProfile(profile) },
                                                 onClick = {
                                                     onProfileClick(profile)
                                                 },
@@ -292,9 +345,23 @@ fun ProfileSelectionScreen(
 
                 Spacer(modifier = Modifier.height(if (isTabletLayout) 28.dp else 48.dp))
 
+                val manageLabel = if (isEditMode) {
+                    stringResource(Res.string.action_done)
+                } else {
+                    stringResource(Res.string.profile_manage_profiles)
+                }
                 Box(
                     modifier = Modifier
                         .graphicsLayer { alpha = manageAlpha.value }
+                        .controllerFocusable(
+                            id = "profile_manage_button",
+                            groupKey = "profile_manage",
+                            enabled = interactionEnabled,
+                            shape = RoundedCornerShape(24.dp),
+                            scaleOnFocus = 1.04f,
+                            onSelect = { isEditMode = !isEditMode },
+                            selectLabel = manageLabel,
+                        )
                         .clip(RoundedCornerShape(24.dp))
                         .background(
                             if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -310,11 +377,7 @@ fun ProfileSelectionScreen(
                         .padding(horizontal = 24.dp, vertical = 10.dp),
                 ) {
                     Text(
-                        text = if (isEditMode) {
-                            stringResource(Res.string.action_done)
-                        } else {
-                            stringResource(Res.string.profile_manage_profiles)
-                        },
+                        text = manageLabel,
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (isEditMode) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -360,7 +423,9 @@ private fun ProfileAvatarCard(
     isEditMode: Boolean,
     animDelay: Int,
     enabled: Boolean,
+    isDefaultFocus: Boolean = false,
     onHoverChange: (Boolean) -> Unit,
+    onEditProfile: () -> Unit,
     onClick: () -> Unit,
 ) {
     val avatarColor = remember(profile.avatarColorHex) {
@@ -387,7 +452,12 @@ private fun ProfileAvatarCard(
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val rawHovered by interactionSource.collectIsHoveredAsState()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val focusId = "profile_card_${profile.profileIndex}"
+    val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
+    val isControllerFocused = isControllerActive && focusedNodeId == focusId
+    val isHovered = (!isControllerActive && rawHovered) || isControllerFocused
     val currentOnHoverChange = rememberUpdatedState(onHoverChange)
     val pressScale = if (isPressed) 0.95f else 1f
 
@@ -415,6 +485,18 @@ private fun ProfileAvatarCard(
                 scaleY = animScale.value * pressScale
                 translationY = animOffset.value
             }
+            .controllerFocusable(
+                id = focusId,
+                groupKey = "profile_cards",
+                isDefaultFocus = isDefaultFocus,
+                enabled = enabled,
+                shape = RoundedCornerShape(20.dp),
+                scaleOnFocus = 1.04f,
+                onSelect = onClick,
+                selectLabel = if (isEditMode) "Edit Profile" else "Select Profile",
+                onSecondaryAction = onEditProfile,
+                secondaryActionLabel = "Edit Profile",
+            )
             .clip(RoundedCornerShape(20.dp))
             .then(
                 if (isDesktop) {
@@ -562,6 +644,7 @@ private fun AddProfileCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale = if (isPressed) 0.95f else 1f
+    val addLabel = stringResource(Res.string.compose_profile_add_profile)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -573,6 +656,15 @@ private fun AddProfileCard(
                 scaleY = animScale.value * pressScale
                 translationY = animOffset.value
             }
+            .controllerFocusable(
+                id = "profile_card_add",
+                groupKey = "profile_cards",
+                enabled = enabled,
+                shape = RoundedCornerShape(20.dp),
+                scaleOnFocus = 1.04f,
+                onSelect = onClick,
+                selectLabel = addLabel,
+            )
             .clip(RoundedCornerShape(20.dp))
             .clickable(
                 enabled = enabled,
@@ -610,7 +702,7 @@ private fun AddProfileCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = stringResource(Res.string.compose_profile_add_profile),
+            text = addLabel,
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,

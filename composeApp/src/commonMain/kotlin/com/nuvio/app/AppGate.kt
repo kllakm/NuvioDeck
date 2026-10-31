@@ -1,4 +1,5 @@
-package com.nuvio.app
+﻿package com.nuvio.app
+import com.nuvio.app.controller.ControllerGateOverlay
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.MutableTransitionState
@@ -34,6 +35,7 @@ import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.core.ui.NativeProfileSwitcherController
 import com.nuvio.app.core.ui.NativeTabBridge
+import com.nuvio.app.core.ui.CinematicBackground
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.PlatformBackHandler
@@ -480,11 +482,10 @@ internal fun AppGate(
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
+                        CinematicBackground(modifier = Modifier.fillMaxSize())
                         NuvioLoadingIndicator()
                     }
                 }
@@ -497,11 +498,9 @@ internal fun AppGate(
                     )
                 }
                 AppGateScreen.ProfileSelection.name -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CinematicBackground(modifier = Modifier.fillMaxSize())
+                    }
                 }
                 AppGateScreen.ProfileEdit.name -> {
                     PlatformBackHandler(enabled = gateScreen == AppGateScreen.ProfileEdit.name) {
@@ -638,5 +637,6 @@ internal fun AppGate(
                 }
             }
         }
+        ControllerGateOverlay(visible = gateScreen != AppGateScreen.Main.name || profileOverlayVisible)
     }
 }

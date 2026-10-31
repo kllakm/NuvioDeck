@@ -31,6 +31,7 @@ import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
 import com.nuvio.app.features.player.inferForcedSubtitleTrack
 import com.nuvio.app.features.player.toStorageHexString
+import com.nuvio.app.controller.ControllerManager
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -117,6 +118,8 @@ internal class NativePlayerController(
     private var pendingSubtitleStyle: SubtitleStyleState? = null
     private var pendingUseLibass: Boolean = false
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
+    private var lastControllerCommand: String = ""
+    private var controllerCommandToken: Int = 0
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
     private var onScrubChange: (Long) -> Boolean = { false }
@@ -449,6 +452,8 @@ internal class NativePlayerController(
             state = stateWithVolume.nativeControlsStructureKey(),
             isFullscreen = isFullscreen,
             isInPip = DesktopPlayerPictureInPicture.isEnabled,
+            isControllerActive = ControllerManager.isControllerActive.value,
+            controllerCommandToken = controllerCommandToken,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -458,7 +463,30 @@ internal class NativePlayerController(
                 "speed=${stateWithVolume.playbackSpeedLabel} audioLabel=${stateWithVolume.audioLabel} " +
                 "subsLabel=${stateWithVolume.subtitlesLabel} fullscreen=$isFullscreen"
         }
-        NativePlayerBridge.updateControls(current, stateWithVolume.toControlsJson(isFullscreen, ::refreshControlsForImage))
+        NativePlayerBridge.updateControls(
+            current,
+            stateWithVolume.toControlsJson(
+                isFullscreen = isFullscreen,
+                isControllerActive = ControllerManager.isControllerActive.value,
+                controllerCommand = lastControllerCommand,
+                controllerCommandToken = controllerCommandToken,
+                onImageReady = ::refreshControlsForImage,
+            ),
+        )
+    }
+
+    @Synchronized
+    fun onControllerActiveChanged() {
+        lastSentControlsStructureKey = null
+        updateControls(controlsState)
+    }
+
+    @Synchronized
+    fun dispatchControllerCommand(command: String) {
+        controllerCommandToken += 1
+        lastControllerCommand = command
+        lastSentControlsStructureKey = null
+        updateControls(controlsState)
     }
 
     private fun refreshControlsForImage() {
@@ -1267,15 +1295,31 @@ private fun String.toPlayerControlsAction(): PlayerControlsAction? =
         else -> null
     }
 
+
 private data class NativeControlsStructureKey(
     val state: PlayerControlsState,
     val isFullscreen: Boolean,
+
     val isInPip: Boolean,
+    val isControllerActive: Boolean = false,
+    val controllerCommandToken: Int = 0,
 )
 
-private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageReady: () -> Unit): String =
+private fun PlayerControlsState.toControlsJson(
+    isFullscreen: Boolean,
+    isControllerActive: Boolean,
+    controllerCommand: String,
+    controllerCommandToken: Int,
+    onImageReady: () -> Unit,
+): String =
     buildString {
         append('{')
+        appendJsonField("isControllerActive", isControllerActive)
+        append(',')
+        appendJsonField("controllerCommand", controllerCommand)
+        append(',')
+        appendJsonField("controllerCommandToken", controllerCommandToken)
+        append(',')
         appendJsonField("title", title)
         append(',')
         appendJsonField("episodeText", episodeText)

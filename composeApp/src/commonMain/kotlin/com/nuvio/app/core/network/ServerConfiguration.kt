@@ -50,15 +50,17 @@ object ServerConfigurationRepository {
 }
 
 internal fun officialConfiguration() = ServerConfiguration(
-    backendUrl = SupabaseConfig.URL.trim().trimEnd('/'),
-    publishableKey = SupabaseConfig.ANON_KEY.trim(),
+    backendUrl = SupabaseConfig.URL.trim().trimEnd('/').ifBlank { "https://api.nuvio.tv" },
+    publishableKey = SupabaseConfig.ANON_KEY.trim().ifBlank {
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgxNTIxMzQ2LCJleHAiOjE5MzkyMDEzNDZ9.tmQaj682pwzehpqlgCDMnySOqiUvpgRbrE43T4VJpDI"
+    },
     capabilities = ServerCapabilities(
         emailPasswordAuth = true,
         tvLogin = true,
         watchParty = true,
     ),
     isCustom = false,
-    fallbackBackendUrl = SupabaseConfig.FALLBACK_URL.trim().trimEnd('/').takeIf { it.isNotBlank() },
+    fallbackBackendUrl = SupabaseConfig.FALLBACK_URL.trim().trimEnd('/').takeIf { it.isNotBlank() } ?: "https://api.nuvio.tv",
 )
 
 internal fun isPublicServerHost(url: String): Boolean {

@@ -31,6 +31,10 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.LocalControllerFocusZone
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
 
 private val SheetShape = RoundedCornerShape(NuvioTokens.Space.s28)
 
@@ -47,15 +51,18 @@ fun NuvioModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (usesNativeNuvioBottomSheet) {
-        NuvioNativeModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            modifier = modifier,
-            containerColor = containerColor,
-            contentColor = contentColor,
-            showDragHandle = showDragHandle,
-            fullHeight = fullHeight,
-            content = content,
-        )
+        CompositionLocalProvider(LocalControllerFocusZone provides ControllerFocusZone.Overlay) {
+            RegisterControllerHandler(onBack = { onDismissRequest(); true })
+            NuvioNativeModalBottomSheet(
+                onDismissRequest = onDismissRequest,
+                modifier = modifier,
+                containerColor = containerColor,
+                contentColor = contentColor,
+                showDragHandle = showDragHandle,
+                fullHeight = fullHeight,
+                content = content,
+            )
+        }
     } else {
         val tokens = MaterialTheme.nuvio
         ModalBottomSheet(
@@ -67,7 +74,11 @@ fun NuvioModalBottomSheet(
             scrimColor = tokens.colors.overlayScrim,
             dragHandle = null,
         ) {
-            CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
+            CompositionLocalProvider(
+                LocalBottomInsetsConsumed provides true,
+                LocalControllerFocusZone provides ControllerFocusZone.Overlay,
+            ) {
+                RegisterControllerHandler(onBack = { onDismissRequest(); true })
                 Column(
                     modifier = modifier
                         .padding(NuvioTokens.Space.s10)
@@ -112,6 +123,14 @@ fun NuvioBottomSheetActionRow(
             .fillMaxWidth()
             .padding(horizontal = NuvioTokens.Space.s8)
             .heightIn(min = NuvioTokens.Space.s56)
+            .controllerFocusable(
+                zone = ControllerFocusZone.Overlay,
+                groupKey = "bottom_sheet_actions",
+                shape = tokens.shapes.compactCard,
+                scaleOnFocus = 1.01f,
+                onSelect = onClick,
+                selectLabel = title,
+            )
             .clip(tokens.shapes.compactCard)
             .background(if (selected) tokens.colors.accent.copy(alpha = tokens.opacity.hover) else Color.Transparent)
             .clickable(onClick = onClick)

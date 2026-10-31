@@ -1,4 +1,4 @@
-package com.nuvio.app.features.auth
+﻿package com.nuvio.app.features.auth
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.nuvio.app.core.ui.CinematicBackground
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -267,10 +268,9 @@ fun AuthScreen(
             val compactLargeScreen = screenWidth < 1100.dp
 
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .authGradientBackground(largeScreen = largeScreen),
+                modifier = Modifier.fillMaxSize(),
             ) {
+                CinematicBackground(modifier = Modifier.fillMaxSize())
                 if (largeScreen) {
                     val largeScale = largeAuthScale(screenWidth)
                     val formPaneWidth = (screenWidth * 0.30f).coerceIn(460.dp * largeScale, 720.dp * largeScale)

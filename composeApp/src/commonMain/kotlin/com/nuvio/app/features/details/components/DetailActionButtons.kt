@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.secondaryClick
@@ -116,6 +117,16 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .controllerFocusable(
+                            enabled = playEnabled,
+                            shape = playShape,
+                            useHaloFocusRing = true,
+                            focusScale = 1.04f,
+                            onSelect = onPlayClick,
+                            selectLabel = playLabel,
+                            onSecondaryAction = onPlayLongClick,
+                            secondaryActionLabel = "Select Stream",
+                        )
                         .combinedClickable(
                             enabled = playEnabled,
                             onClick = {
@@ -221,6 +232,14 @@ fun DetailActionButtons(
                     Box(
                         modifier = Modifier
                             .size(iconButtonSize)
+                            .controllerFocusable(
+                                shape = CircleShape,
+                                onSelect = {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    actionsExpanded = !actionsExpanded
+                                },
+                                selectLabel = actionsMenuLabel,
+                            )
                             .clickable(role = Role.Button) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 actionsExpanded = !actionsExpanded
@@ -330,6 +349,13 @@ internal fun DetailIconAction(
         Box(
             modifier = Modifier
                 .size(size)
+                .controllerFocusable(
+                    shape = CircleShape,
+                    onSelect = onClick,
+                    selectLabel = label,
+                    onSecondaryAction = onLongClick,
+                    secondaryActionLabel = "Options",
+                )
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,

@@ -38,6 +38,12 @@ import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
 import com.nuvio.app.features.autosync.DesktopAutoSyncCoordinator
+import com.nuvio.app.controller.ControllerDirection
+import com.nuvio.app.controller.ControllerEvent
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.XboxButton
+import com.nuvio.app.controller.controllerFocusable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -258,6 +264,95 @@ private fun NativePlayerSurface(
         DesktopPlayerPictureInPicture.setWindowTitle(playerControlsState.pipWindowTitle)
     }
 
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    LaunchedEffect(controller, host, isControllerActive) {
+        host.syncControllerCursor(isControllerActive)
+        controller.onControllerActiveChanged()
+    }
+
+    DisposableEffect(controller) {
+        ControllerFocusEngine.setPlayerEventHandler { event ->
+            when (event) {
+                is ControllerEvent.ButtonPressed -> {
+                    when (event.button) {
+                        XboxButton.A -> {
+                            controller.dispatchControllerCommand("controllerSelect")
+                            true
+                        }
+                        XboxButton.B -> {
+                            controller.dispatchControllerCommand("controllerBack")
+                            true
+                        }
+                        XboxButton.X -> {
+                            controller.dispatchControllerCommand("controllerAudio")
+                            true
+                        }
+                        XboxButton.Y -> {
+                            controller.dispatchControllerCommand("controllerSubtitles")
+                            true
+                        }
+                        XboxButton.LB -> {
+                            controller.dispatchControllerCommand("controllerLB")
+                            true
+                        }
+                        XboxButton.RB -> {
+                            controller.dispatchControllerCommand("controllerRB")
+                            true
+                        }
+                        XboxButton.LT -> {
+                            controller.dispatchControllerCommand("controllerLT")
+                            true
+                        }
+                        XboxButton.RT -> {
+                            controller.dispatchControllerCommand("controllerRT")
+                            true
+                        }
+                        XboxButton.View -> {
+                            controller.dispatchControllerCommand("controllerSources")
+                            true
+                        }
+                        XboxButton.Menu -> {
+                            controller.dispatchControllerCommand("controllerMenu")
+                            true
+                        }
+                        XboxButton.LS -> {
+                            controller.dispatchControllerCommand("controllerResize")
+                            true
+                        }
+                        XboxButton.RS -> {
+                            controller.dispatchControllerCommand("controllerSpeed")
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                is ControllerEvent.Navigate -> {
+                    when (event.direction) {
+                        ControllerDirection.Left -> controller.dispatchControllerCommand("controllerNavLeft")
+                        ControllerDirection.Right -> controller.dispatchControllerCommand("controllerNavRight")
+                        ControllerDirection.Up -> controller.dispatchControllerCommand("controllerNavUp")
+                        ControllerDirection.Down -> controller.dispatchControllerCommand("controllerNavDown")
+                    }
+                    true
+                }
+                is ControllerEvent.AnalogScroll -> {
+                    if (kotlin.math.abs(event.dy) > 0.3f) {
+                        if (event.dy > 0f) {
+                            controller.dispatchControllerCommand("controllerScrollDown")
+                        } else {
+                            controller.dispatchControllerCommand("controllerScrollUp")
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+        onDispose {
+            ControllerFocusEngine.setPlayerEventHandler(null)
+        }
+    }
+
     LaunchedEffect(controller) {
         DesktopPlayerPictureInPicture.changes.drop(1).collect {
             controller.updateControls(latestPlayerControlsState.value)
@@ -334,6 +429,11 @@ private fun NativePlayerSurface(
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = { DesktopPlayerPictureInPicture.clear() },
+                        modifier = Modifier.controllerFocusable(
+                            id = "pip_restore_btn",
+                            actionLabel = playerControlsState.pipRestoreLabel,
+                            onSelect = { DesktopPlayerPictureInPicture.clear() },
+                        ),
                     ) {
                         Text(playerControlsState.pipRestoreLabel)
                     }

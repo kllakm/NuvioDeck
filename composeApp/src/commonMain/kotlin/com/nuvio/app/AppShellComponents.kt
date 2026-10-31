@@ -1,4 +1,4 @@
-package com.nuvio.app
+﻿package com.nuvio.app
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -61,8 +62,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.DisintegrationRequest
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
+import com.nuvio.app.core.ui.CinematicBackground
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioTokens
@@ -329,7 +335,10 @@ internal fun TabletFloatingTopBar(
     val tokens = MaterialTheme.nuvio
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val rawHovered by interactionSource.collectIsHoveredAsState()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val isControllerNavExpanded by ControllerFocusEngine.isNavigationZoneExpanded.collectAsState()
+    val isHovered = (!isControllerActive && rawHovered) || isControllerNavExpanded
     var isProfileSwitcherOpen by remember { mutableStateOf(false) }
 
     val isNarrowWindow = windowWidth != null && windowWidth < 800.dp
@@ -639,7 +648,16 @@ private fun TabletTopPillItem(
         tonalElevation = if (selected) tokens.elevation.raised else tokens.elevation.flat,
         modifier = Modifier
             .height(pillHeight)
-            .clip(itemShape),
+            .clip(itemShape)
+            .controllerFocusable(
+                id = "tablet_top_nav_$label",
+                zone = ControllerFocusZone.Navigation,
+                groupKey = "top_nav",
+                shape = itemShape,
+                scaleOnFocus = 1f,
+                onSelect = onClick,
+                selectLabel = label,
+            ),
     ) {
         Row(
             modifier = Modifier
@@ -686,6 +704,7 @@ internal fun AppLoadingContent(
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
+        CinematicBackground(modifier = Modifier.fillMaxSize())
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -786,6 +805,15 @@ internal fun DesktopHoverSidebar(
                     .fillMaxWidth()
                     .height(DesktopSidebarItemHeight)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .controllerFocusable(
+                        id = "sidebar_profile_trigger",
+                        zone = ControllerFocusZone.Navigation,
+                        groupKey = "sidebar",
+                        shape = RoundedCornerShape(16.dp),
+                        scaleOnFocus = 1f,
+                        onSelect = { onProfileStackVisibleChange(!profileStackVisible) },
+                        selectLabel = activeProfileName,
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -949,15 +977,25 @@ private fun DesktopSidebarItem(
     val tokens = MaterialTheme.nuvio
     val contentColor = if (selected) tokens.colors.textPrimary else tokens.colors.textMuted
     val iconColor = if (selected) tokens.colors.onAccent else contentColor
+    val shape = RoundedCornerShape(16.dp)
 
     Surface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(DesktopSidebarItemHeight)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .controllerFocusable(
+                id = "sidebar_item_$label",
+                zone = ControllerFocusZone.Navigation,
+                groupKey = "sidebar",
+                shape = shape,
+                scaleOnFocus = 1f,
+                onSelect = onClick,
+                selectLabel = label,
+            ),
         color = Color.Transparent,
-        shape = RoundedCornerShape(16.dp),
+        shape = shape,
     ) {
         Row(
             modifier = Modifier

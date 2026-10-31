@@ -11,6 +11,7 @@ import java.awt.event.ComponentEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.image.BufferedImage
+import com.nuvio.app.controller.ControllerManager
 
 internal class NativePlayerHost : Canvas() {
     var onPeerReady: (() -> Unit)? = null
@@ -75,10 +76,15 @@ internal class NativePlayerHost : Canvas() {
 
     fun setControlsVisible(visible: Boolean) {
         controlsVisible = visible
-        setCursorVisible(visible)
+        setCursorVisible(visible && !ControllerManager.isControllerActive.value)
+    }
+
+    fun syncControllerCursor(isControllerActive: Boolean) {
+        setCursorVisible(controlsVisible && !isControllerActive)
     }
 
     fun noteCursorActivity() {
+        ControllerManager.notifyMouseOrKeyboardInput()
         onCursorActivity?.invoke()
     }
 

@@ -1,4 +1,4 @@
-package com.nuvio.app.features.player.desktop
+﻿package com.nuvio.app.features.player.desktop
 
 import com.nuvio.app.core.storage.DesktopStorage
 
@@ -26,8 +26,7 @@ internal object DesktopWindowModeStorage {
     private const val WindowHeightKey = "window_height"
     private val store = DesktopStorage.store("nuvio_window_state")
 
-    fun loadWasFullscreen(): Boolean =
-        store.getBoolean(WasFullscreenKey) ?: false
+    fun loadWasFullscreen(): Boolean = true
 
     fun saveWasFullscreen(fullscreen: Boolean) {
         store.putBoolean(WasFullscreenKey, fullscreen)

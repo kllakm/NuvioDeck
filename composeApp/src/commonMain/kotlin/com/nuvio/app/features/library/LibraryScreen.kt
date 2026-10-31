@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewAgenda
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.DisintegratingContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -879,6 +880,11 @@ private fun LibraryChip(
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
+            .controllerFocusable(
+                shape = RoundedCornerShape(18.dp),
+                onSelect = onClick,
+                selectLabel = "Select",
+            )
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = if (selected) colorScheme.primaryContainer else colorScheme.surfaceContainerLow,
@@ -913,6 +919,12 @@ private fun CloudLibraryRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
+            .controllerFocusable(
+                enabled = playableCount > 0,
+                shape = MaterialTheme.shapes.medium,
+                onSelect = onClick,
+                selectLabel = "Play",
+            )
             .clickable(enabled = playableCount > 0, onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,

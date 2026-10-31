@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioBackButton
@@ -173,6 +174,11 @@ internal fun SettingsSidebarItem(
             .fillMaxWidth()
             .padding(horizontal = tokens.spacing.listGap, vertical = NuvioTokens.Space.s2)
             .background(background, RoundedCornerShape(NuvioTokens.Space.s10))
+            .controllerFocusable(
+                shape = RoundedCornerShape(NuvioTokens.Space.s10),
+                onSelect = onClick,
+                selectLabel = "Select Category",
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.listGap),
         verticalAlignment = Alignment.CenterVertically,
@@ -249,6 +255,12 @@ internal fun SettingsNavigationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                enabled = enabled,
+                shape = tokens.shapes.compactCard,
+                onSelect = onClick,
+                selectLabel = "Open",
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
             .alpha(if (enabled) NuvioTokens.Opacity.visible else tokens.opacity.medium),
@@ -329,6 +341,12 @@ internal fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                enabled = enabled,
+                shape = tokens.shapes.compactCard,
+                onSelect = { onCheckedChange(!checked) },
+                selectLabel = "Toggle",
+            )
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         horizontalArrangement = Arrangement.Start,
@@ -437,6 +455,13 @@ internal fun HomescreenCatalogRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                shape = tokens.shapes.compactCard,
+                onSelect = { onEnabledChange(!item.enabled) },
+                selectLabel = "Toggle Visibility",
+                onSecondaryAction = { onExpandedChange(!expanded) },
+                secondaryActionLabel = "Rename",
+            )
             .clickable { onExpandedChange(!expanded) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),

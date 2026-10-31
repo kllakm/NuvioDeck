@@ -20,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerManager
 import com.nuvio.app.core.ui.LocalNuvioBottomNavigationOverlayPadding
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
@@ -62,6 +65,7 @@ import nuvio.composeapp.generated.resources.compose_nav_settings
 import nuvio.composeapp.generated.resources.sidebar_library
 import nuvio.composeapp.generated.resources.sidebar_search
 import org.jetbrains.compose.resources.stringResource
+
 @Composable
 internal fun MainTabsDestination(
     selectedTab: AppScreenTab,
@@ -118,12 +122,15 @@ internal fun MainTabsDestination(
         val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
 
         val sidebarHoverSource = remember { MutableInteractionSource() }
-        val isSidebarHovered by sidebarHoverSource.collectIsHoveredAsState()
+        val rawSidebarHovered by sidebarHoverSource.collectIsHoveredAsState()
+        val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+        val isControllerNavExpanded by ControllerFocusEngine.isNavigationZoneExpanded.collectAsState()
+        val isSidebarHovered = (!isControllerActive && rawSidebarHovered) || isControllerNavExpanded
         var isProfileStackVisible by remember { mutableStateOf(false) }
 
         val isSidebarExpanded = when (navBarStyleSetting) {
             NavBarStyle.EXPANDED -> true
-            NavBarStyle.COMPACT -> isProfileStackVisible
+            NavBarStyle.COMPACT -> isProfileStackVisible || isControllerNavExpanded
             else -> isSidebarHovered || isProfileStackVisible // ADAPTIVE
         }
 

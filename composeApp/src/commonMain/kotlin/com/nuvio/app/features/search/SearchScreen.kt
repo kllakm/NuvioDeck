@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.ui.NuvioInputField
@@ -290,9 +291,23 @@ fun SearchScreen(
                             placeholder = stringResource(Res.string.compose_search_placeholder),
                             modifier = Modifier
                                 .focusRequester(focusRequester)
+                                .controllerFocusable(
+                                    isTextInput = true,
+                                    shape = RoundedCornerShape(16.dp),
+                                    onSelect = {
+                                        focusRequester.requestFocus()
+                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show()
+                                    },
+                                    selectLabel = "Type with Keyboard",
+                                    onSecondaryAction = if (query.isNotEmpty()) { { query = "" } } else null,
+                                    secondaryActionLabel = "Clear",
+                                )
                                 .onFocusChanged {
                                     isSearchFocused = it.isFocused
                                     if (query.isNotBlank()) focusRequester.captureFocus()
+                                    if (!it.isFocused) {
+                                        com.nuvio.app.controller.PlatformVirtualKeyboard.hide()
+                                    }
                                 },
                             trailingContent = if (query.isNotBlank()) {
                                 {
@@ -320,7 +335,10 @@ fun SearchScreen(
                 item(key = "recent_searches") {
                     SearchRecentSection(
                         recentSearches = recentSearches,
-                        onSearchPress = { recentQuery -> query = recentQuery },
+                        onSearchPress = { recentQuery ->
+                            query = recentQuery
+                            com.nuvio.app.controller.PlatformVirtualKeyboard.hide()
+                        },
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
                     )
                 }
@@ -522,6 +540,13 @@ private fun SearchRecentRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onSearchPress)
+            .controllerFocusable(
+                shape = RoundedCornerShape(16.dp),
+                onSelect = onSearchPress,
+                selectLabel = "Search",
+                onSecondaryAction = onRemovePress,
+                secondaryActionLabel = "Remove",
+            )
             .padding(vertical = 2.dp)
             .background(
                 color = MaterialTheme.colorScheme.background,

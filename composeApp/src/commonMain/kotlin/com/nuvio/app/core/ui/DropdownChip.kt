@@ -25,6 +25,7 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.launch
 
@@ -58,10 +61,18 @@ fun NuvioDropdownChip(
     var isSheetVisible by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
 
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
+                .controllerFocusable(
+                    enabled = enabled,
+                    shape = tokens.shapes.compactCard,
+                    scaleOnFocus = 1.03f,
+                    onSelect = { if (enabled) isSheetVisible = true },
+                    selectLabel = title,
+                )
                 .clip(tokens.shapes.compactCard)
                 .background(tokens.colors.surface)
                 .then(
@@ -90,7 +101,7 @@ fun NuvioDropdownChip(
             )
         }
 
-        if (isDesktop) {
+        if (isDesktop && !isControllerActive) {
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { isSheetVisible = false },
@@ -127,7 +138,7 @@ fun NuvioDropdownChip(
         }
     }
 
-    if (isSheetVisible && !isDesktop) {
+    if (isSheetVisible && (!isDesktop || isControllerActive)) {
         NuvioDropdownOptionsSheet(
             title = title,
             options = options,

@@ -203,6 +203,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.ControllerNavigationHost
+import com.nuvio.app.controller.ControllerMainOverlay
+
+
+
+
+
 import com.nuvio.app.features.player.dispatchNavigationBack
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalComposeUiApi::class)
@@ -1314,6 +1322,68 @@ internal fun MainAppContent(
             controller = appUpdaterController,
             modifier = Modifier.fillMaxSize(),
         ) {
+            ControllerNavigationHost(
+                currentRoute = currentRoute,
+                selectedTab = selectedTab,
+                isModalOverlayOpen = selectedPosterActionTarget != null ||
+                    selectedContinueWatchingForActions != null ||
+                    showExitConfirmation ||
+                    showLibraryListPicker ||
+                    pendingTrackingRemoval != null,
+                onBack = {
+                    val routeAtRequest = navController.currentRoute
+                    if (routeAtRequest !is TabsRoute) {
+                        dispatchNavigationBack(
+                            isPlayerRoute = routeAtRequest is PlayerRoute,
+                            playerBack = registeredPlayerSystemBack
+                                ?.takeIf { (route, _) -> route == routeAtRequest }
+                                ?.second,
+                            pop = { navController.popBackStack() },
+                        )
+                        true
+                    } else if (selectedTab != AppScreenTab.Home) {
+                        activateTab(AppScreenTab.Home)
+                        true
+                    } else {
+                        showExitConfirmation = !showExitConfirmation
+                        true
+                    }
+                },
+                onShoulderLeft = if (currentRoute is TabsRoute) {
+                    {
+                        val tabs = AppScreenTab.entries
+                        val currentIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
+                        val prevIndex = (currentIndex - 1 + tabs.size) % tabs.size
+                        activateTab(tabs[prevIndex])
+                        true
+                    }
+                } else null,
+                onShoulderRight = if (currentRoute is TabsRoute) {
+                    {
+                        val tabs = AppScreenTab.entries
+                        val currentIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
+                        val nextIndex = (currentIndex + 1) % tabs.size
+                        activateTab(tabs[nextIndex])
+                        true
+                    }
+                } else null,
+                onTertiaryAction = if (currentRoute is TabsRoute) {
+                    {
+                        if (selectedTab != AppScreenTab.Search) {
+                            activateTab(AppScreenTab.Search)
+                        }
+                        searchFocusRequestCount++
+                        true
+                    }
+                } else null,
+                onViewAction = if (currentRoute is TabsRoute) {
+                    {
+                        onSwitchProfile()
+                        true
+                    }
+                } else null,
+                onMenuAction = null,
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2163,6 +2233,8 @@ internal fun MainAppContent(
                     .align(Alignment.TopCenter)
                     .zIndex(20f),
             )
+
+            ControllerMainOverlay(currentRoute = currentRoute)
 
             }
         }

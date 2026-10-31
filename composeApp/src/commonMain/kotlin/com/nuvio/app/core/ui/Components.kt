@@ -85,6 +85,7 @@ fun NuvioScreen(
 ) {
     val tokens = MaterialTheme.nuvio
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyListState = listState)
     Box(
         modifier = modifier
             .fillMaxSize()

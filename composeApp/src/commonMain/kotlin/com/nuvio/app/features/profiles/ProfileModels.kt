@@ -85,27 +85,82 @@ val PROFILE_COLORS = listOf(
     "#7CB342", "#039BE5", "#FFB300", "#6D4C41",
 )
 
-fun avatarStorageUrl(storagePath: String): String =
+fun avatarStorageUrl(storagePath: String): String {
     if (storagePath.startsWith("https://") || storagePath.startsWith("http://")) {
-        storagePath
-    } else {
-        "${com.nuvio.app.core.network.ServerConfigurationRepository.active.value.backendUrl}/storage/v1/object/public/avatars/$storagePath"
+        return storagePath
     }
+    val cleanPath = storagePath.trim().trimStart('/')
+    val base = com.nuvio.app.core.network.ServerConfigurationRepository.active.value.backendUrl
+        .trim().trimEnd('/')
+        .ifBlank { "https://api.nuvio.tv" }
+    return "$base/storage/v1/object/public/avatars/$cleanPath"
+}
 
 fun avatarImageUrl(avatar: AvatarCatalogItem): String? =
     avatar.localImageUrl
         ?: avatar.storagePath.takeIf { it.isNotBlank() && !avatar.memberOnly }?.let(::avatarStorageUrl)
 
-fun normalizedAvatarUrl(url: String?): String? =
-    url?.trim()?.takeIf { it.isValidAvatarUrl() }
+fun normalizedAvatarUrl(url: String?): String? {
+    if (url.isNullOrBlank()) return null
+    val raw = url.trim()
+    if (!raw.isValidAvatarUrl()) return null
+    return formatAvatarUrl(raw)
+}
+
+fun formatAvatarUrl(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.length >= 3 && trimmed[1] == ':' && (trimmed[2] == '\\' || trimmed[2] == '/')) {
+        val normalized = trimmed.replace('\\', '/')
+        val encoded = normalized.split('/').joinToString("/") { segment ->
+            if (segment.contains(':')) segment else segment.replace(" ", "%20")
+        }
+        return "file:///$encoded"
+    }
+    if (trimmed.startsWith("file:///", ignoreCase = true)) {
+        return "file:///" + trimmed.removePrefix("file:///").removePrefix("FILE:///").replace(" ", "%20")
+    }
+    if (trimmed.startsWith("file:/", ignoreCase = true)) {
+        return "file:///" + trimmed.removePrefix("file:/").removePrefix("FILE:/").trimStart('/').replace(" ", "%20")
+    }
+    if (trimmed.startsWith("/")) {
+        return "file://" + trimmed.replace(" ", "%20")
+    }
+    return trimmed.replace(" ", "%20")
+}
 
 fun String.isValidAvatarUrl(): Boolean {
     val value = trim()
-    return value.length <= 2048 &&
-        !value.any { it.isWhitespace() } &&
-        (value.startsWith("https://") || value.startsWith("http://"))
+    if (value.isEmpty() || value.length > 2048) return false
+    if (value.startsWith("https://", ignoreCase = true) || value.startsWith("http://", ignoreCase = true)) {
+        return true
+    }
+    if (value.startsWith("file://", ignoreCase = true) || value.startsWith("file:/", ignoreCase = true)) {
+        return true
+    }
+    if (value.startsWith("res://", ignoreCase = true) || value.startsWith("app://", ignoreCase = true)) {
+        return true
+    }
+    if (value.length >= 3 && value[1] == ':' && (value[2] == '\\' || value[2] == '/')) {
+        return true
+    }
+    if (value.startsWith("/")) {
+        return true
+    }
+    val lower = value.lowercase()
+    return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+        lower.endsWith(".webp") || lower.endsWith(".svg") || lower.endsWith(".gif")
 }
 
-fun profileAvatarImageUrl(profile: NuvioProfile, avatar: AvatarCatalogItem?): String? =
-    normalizedAvatarUrl(profile.avatarUrl)
-        ?: avatar?.let(::avatarImageUrl)
+fun profileAvatarImageUrl(profile: NuvioProfile, avatar: AvatarCatalogItem?): String? {
+    normalizedAvatarUrl(profile.avatarUrl)?.let { return it }
+    avatar?.let(::avatarImageUrl)?.let { return it }
+    val avatarId = profile.avatarId?.trim()
+    if (!avatarId.isNullOrBlank()) {
+        if (avatarId.isValidAvatarUrl()) {
+            return formatAvatarUrl(avatarId)
+        }
+        val path = if (avatarId.contains(".")) avatarId else "$avatarId.png"
+        return avatarStorageUrl(path)
+    }
+    return null
+}

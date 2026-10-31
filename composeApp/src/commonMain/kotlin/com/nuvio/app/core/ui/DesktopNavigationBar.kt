@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,6 +27,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerManager
 import com.nuvio.app.core.ui.jelly.JellyNavigationBar
 import com.nuvio.app.features.settings.NavBarStyle
 import dev.chrisbanes.haze.HazeState
@@ -46,7 +49,10 @@ internal fun DesktopNavigationBar(
 ) {
     if (items.isEmpty()) return
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val rawHovered by interactionSource.collectIsHoveredAsState()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val isControllerNavExpanded by ControllerFocusEngine.isNavigationZoneExpanded.collectAsState()
+    val isHovered = (!isControllerActive && rawHovered) || isControllerNavExpanded
     val isHomeSelected = items.first().selected
     val isSettingsSelected = items.last().selected
     val scrollOffset = scrollState?.totalScrollOffset ?: 0f
