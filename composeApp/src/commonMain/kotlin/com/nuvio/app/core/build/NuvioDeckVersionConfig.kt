@@ -5,7 +5,7 @@ object NuvioDeckVersionConfig {
      * NuvioDeck fork version name.
      * Rule: Incremented by 1 in the last digit after each update (unless a major revision is specified).
      */
-    const val FORK_VERSION_NAME = "0.1.04"
+    const val FORK_VERSION_NAME = "0.1.05"
 
     /**
      * Upstream Nuvio base version tag that this fork is derived from.
@@ -14,6 +14,10 @@ object NuvioDeckVersionConfig {
 
     const val FORK_NAME = "NuvioDeck"
     const val DEVELOPER_NAME = "kllakm"
+
+    const val GITHUB_OWNER = "kllakm"
+    const val GITHUB_REPO = "NuvioDeck"
+    const val GITHUB_RELEASE_SOURCE_NAME = "NuvioDeck"
 
     val dualVersionDisplayString: String
         get() = "$FORK_NAME v$FORK_VERSION_NAME (based on Nuvio v$UPSTREAM_BASE_VERSION_NAME)"

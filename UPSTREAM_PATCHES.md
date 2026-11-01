@@ -16,12 +16,17 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | File Path | Nature of Patch | Purpose / Justification |
 | :--- | :--- | :--- |
 | `composeApp/build.gradle.kts` | Packaging target & dependencies | Sets `packageName = "NuvioDeck"` and `menuGroup = "NuvioDeck"` to compile standalone binary as `NuvioDeck.exe`. Includes `jna` dependency in `desktopMain` and fallback API endpoint properties during build execution. |
+| `composeApp/Configuration/DesktopVersion.properties` | Version properties synchronization | Sets `VERSION_NAME=0.1.05` and `VERSION_CODE=5` aligned with fork version bump. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/storage/DesktopStorage.kt` | Isolated storage & legacy migration hook | Redirects persistent storage to `%APPDATA%\NuvioDeck` (and `%LOCALAPPDATA%\NuvioDeck\Cache`). On first run, automatically and non-destructively migrates/copies `.properties` files from legacy `%APPDATA%\Nuvio`. |
 | `composeApp/src/desktopMain/native/windows/player_bridge.cpp` | Native player bridge directory isolation | Redirects WebView2 user data directory and MPV shader cache directory to `%LOCALAPPDATA%\NuvioDeck\`. |
-| `composeApp/src/commonMain/kotlin/com/nuvio/app/core/build/NuvioDeckVersionConfig.kt` | Central version configuration | Standalone constants for fork version name (`0.1.01`), upstream base version (`0.1.33`), dual-version display string, and fork attribution. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/core/build/NuvioDeckVersionConfig.kt` | Central version & repo configuration | Standalone constants for fork version name (`0.1.05`), upstream base version (`0.1.33`), fork repo (`kllakm/NuvioDeck`), dual-version display string, and fork attribution. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/build/AppVersionPolicy.desktop.kt` | User agent & dual version policy hook | Connects `displayVersionName` and `basedOnVersionName` to `NuvioDeckVersionConfig` and sets `userAgentAppName` to `"NuvioDeck"`. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/auth/DeviceSessionRegistration.desktop.kt` | Session registration hook | Registers client device name as `"NuvioDeck"`. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/network/ServerConfiguration.kt` | Fallback configuration hook | Injects default Supabase production endpoints (`https://api.nuvio.tv`) and public keys when local properties are unset. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/updater/AppUpdaterPlatform.desktop.kt` | Auto-updater fork repo redirection | Points GitHub release source to `kllakm/NuvioDeck` and compares releases against `NuvioDeckVersionConfig.FORK_VERSION_NAME`. |
+| `composeApp/src/androidFull/kotlin/com/nuvio/app/features/updater/AppUpdaterPlatform.android.kt` | Auto-updater fork repo redirection (Android) | Points release source to `kllakm/NuvioDeck`. |
+| `composeApp/src/iosMain/kotlin/com/nuvio/app/features/updater/AppUpdaterPlatform.ios.kt` | Auto-updater fork repo redirection (iOS) | Points release source to `kllakm/NuvioDeck`. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/features/updater/AppUpdaterRepository.kt` | Graceful updater fallback | Treats HTTP 404 or missing release lists as `NoChannelReleaseException()`, preventing upstream overwrite prompts and suppressing errors. |
 
 ### 2. Root Application & Shell Mounting
 | File Path | Nature of Patch | Purpose / Justification |

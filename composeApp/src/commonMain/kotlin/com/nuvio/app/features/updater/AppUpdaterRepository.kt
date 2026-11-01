@@ -75,9 +75,9 @@ internal object AppUpdaterRepository {
             body = "",
         )
         currentCoroutineContext().ensureActive()
-        if (response.status == 404) throw NoChannelReleaseException()
+        if (response.status == 404 || response.status !in 200..299) throw NoChannelReleaseException()
         if (response.status !in 200..299) {
-            error(getString(Res.string.updates_github_api_error, response.status))
+            throw NoChannelReleaseException()
         }
         selectUpdate(
             responseBody = response.body,

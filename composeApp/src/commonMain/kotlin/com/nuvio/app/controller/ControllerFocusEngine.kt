@@ -625,20 +625,24 @@ object ControllerFocusEngine {
         if (isNavigatingLazyRow) return
         val rowState = node.rowLazyListState ?: return
         val scope = node.coroutineScope ?: activeCoroutineScope ?: return
-        val bounds = node.boundsInRoot
-        if (bounds.width <= 0f || bounds.height <= 0f) return
 
-        val viewportWidth = rowState.layoutInfo.viewportSize.width.toFloat().takeIf { it > 100f } ?: 1920f
-        val leftSafeZone = 120f
-        val rightSafeZone = viewportWidth - 140f
+        val layoutInfo = rowState.layoutInfo
+        val viewportStart = layoutInfo.viewportStartOffset.toFloat()
+        val viewportEnd = layoutInfo.viewportEndOffset.toFloat().takeIf { it > 100f } ?: 1920f
+        val edgeMargin = 100f
+        val safeRight = (viewportEnd - edgeMargin).coerceAtLeast(viewportStart + 100f)
+        val safeLeft = viewportStart + edgeMargin
 
-        if (bounds.right > rightSafeZone) {
-            val delta = bounds.right - rightSafeZone + 40f
+        val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+        val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull()
+
+        if (lastVisible != null && (lastVisible.offset + lastVisible.size) > safeRight) {
+            val delta = ((lastVisible.offset + lastVisible.size) - safeRight + 30f).coerceAtLeast(0f)
             scope.launch {
                 runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
             }
-        } else if (bounds.left < leftSafeZone) {
-            val delta = bounds.left - leftSafeZone - 40f
+        } else if (firstVisible != null && firstVisible.offset < safeLeft) {
+            val delta = (firstVisible.offset - safeLeft - 30f).coerceAtMost(0f)
             scope.launch {
                 runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
             }
@@ -1282,24 +1286,48 @@ object ControllerFocusEngine {
                 val scope = current.coroutineScope ?: activeCoroutineScope
                 if (scope != null) {
                     val groupKey = current.groupKey
-                    val currentBounds = current.boundsInRoot
+                    val layoutInfo = rowState.layoutInfo
+                    val edgeMargin = 100f
+                    val viewportStart = layoutInfo.viewportStartOffset.toFloat()
+                    val viewportEnd = layoutInfo.viewportEndOffset.toFloat().takeIf { it > 100f } ?: 1920f
+                    val safeRight = (viewportEnd - edgeMargin).coerceAtLeast(viewportStart + 100f)
+                    val safeLeft = viewportStart + edgeMargin
+
                     val scrollDelta = if (direction == ControllerDirection.Right) {
-                        max(currentBounds.width * 1.5f, 260f)
+                        val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                        val cardWidth = lastVisible?.size?.toFloat()
+                            ?: current.boundsInRoot.width.takeIf { it > 50f }
+                            ?: 280f
+                        val gap = 16f
+                        val lastEnd = (lastVisible?.let { it.offset + it.size }?.toFloat()) ?: viewportEnd
+                        val overflow = (lastEnd - safeRight).coerceAtLeast(0f)
+                        (overflow + cardWidth + gap + 30f)
                     } else {
-                        -max(currentBounds.width * 1.5f, 260f)
+                        val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull()
+                        val cardWidth = firstVisible?.size?.toFloat()
+                            ?: current.boundsInRoot.width.takeIf { it > 50f }
+                            ?: 280f
+                        val gap = 16f
+                        val firstStart = firstVisible?.offset?.toFloat() ?: viewportStart
+                        val underflow = (safeLeft - firstStart).coerceAtLeast(0f)
+                        -(underflow + cardWidth + gap + 30f)
                     }
+
                     scope.launch {
-                        runCatching { rowState.animateScrollBy(scrollDelta, tween(160, easing = SnappyEaseOut)) }
-                        delay(100)
-                        val refreshed = nodes.values.filter {
-                            it.zone == activeZone &&
-                                it.isVisibleAndValid &&
-                                it.id != current.id &&
-                                (groupKey == null || it.groupKey == groupKey)
-                        }
-                        val newlyVisible = findBestSpatialCandidate(current, refreshed, direction)
-                        if (newlyVisible != null) {
-                            focusNodeInternal(newlyVisible, triggerScroll = true, suppressVerticalScroll = true)
+                        runCatching { rowState.animateScrollBy(scrollDelta, tween(180, easing = SnappyEaseOut)) }
+                        for (attempt in 0..6) {
+                            delay(35)
+                            val refreshed = nodes.values.filter {
+                                it.zone == activeZone &&
+                                    it.isVisibleAndValid &&
+                                    it.id != current.id &&
+                                    (groupKey == null || it.groupKey == groupKey)
+                            }
+                            val newlyVisible = findBestSpatialCandidate(current, refreshed, direction)
+                            if (newlyVisible != null) {
+                                focusNodeInternal(newlyVisible, triggerScroll = false, suppressVerticalScroll = true)
+                                break
+                            }
                         }
                     }
                     return true

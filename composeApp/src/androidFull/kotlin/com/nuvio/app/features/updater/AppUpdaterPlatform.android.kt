@@ -1,6 +1,7 @@
 package com.nuvio.app.features.updater
 
 import com.nuvio.app.core.build.AppVersionConfig
+import com.nuvio.app.core.build.NuvioDeckVersionConfig
 
 actual object AppUpdaterPlatform {
     actual val isSupported: Boolean = true
@@ -9,8 +10,8 @@ actual object AppUpdaterPlatform {
     actual val hasSingleUpdateChannel: Boolean = false
 
     actual val releaseSource: AppUpdateReleaseSource = AppUpdateReleaseSource(
-        owner = "NuvioMedia",
-        repo = "NuvioMobile",
+        owner = NuvioDeckVersionConfig.GITHUB_OWNER,
+        repo = NuvioDeckVersionConfig.GITHUB_REPO,
         channelBranch = "cmp-rewrite",
         userAgent = "NuvioMobile",
     )
