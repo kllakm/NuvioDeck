@@ -667,6 +667,24 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.10` and `VERSION_CODE=10`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.10`. Dual-version display string updated to `"NuvioDeck v0.1.10 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-02] Full Row & Header Viewport Bring-Into-View on Vertical Navigation (v0.1.11)
+
+#### 1. Full Row & Section Header Bring-Into-View on Vertical Focus Change (`ControllerFocusEngine.kt`)
+- **Eliminated Partial Off-Screen Focus Landing:** Fixed the issue where navigating `Up` or `Down` between catalog rows allowed focus to land on a partially clipped shelf without automatically scrolling it into full view (requiring a second press to trigger the scroll).
+- **Target Row Container & Section Header Evaluation:**
+  - Evaluates the target row's full container bounds (`rowCardTop` and `rowCardBottom`) and associated section header bounds (`headerTop` via `view_all_pill_` or density-aware header clearance) relative to the active vertical viewport safe margins.
+  - Accounts for the full bottom footprint of the row, including card height, title below, metadata detail line, and shelf bottom content padding (`rowBottom = rowCardBottom + 85f * scaleFactor`).
+- **Unified Single-Motion Bring-Into-View Execution:**
+  - On `Down` traversal: If any part of the target row or its bottom details extends beyond `maxBottomSafeZone` (`rowBottom > maxBottomSafeZone`), immediately calculates the exact delta needed to bring the entire row into view and executes `animateScrollBy` in a single fluid motion, bounded so the section header never leaves the top safe zone.
+  - On `Up` traversal: If the section header or top of the row is clipped above `topChromeSafeMargin` (`headerTop < topChromeSafeMargin`), immediately executes a smooth upward `animateScrollBy` so the section title locks cleanly into view with safe top headroom.
+  - Never allows focus to settle in a partially clipped state without triggering this automatic scroll.
+- **Uncapped Off-Screen Shelf Streaming Distance:** Increased fallback scroll streaming distance to `(currentRow.bottom - currentRow.top + 160f * scaleFactor).coerceIn(380f * scaleFactor, 540f * scaleFactor)` and enabled `suppressVerticalScroll = false` so newly composed rows immediately finish bringing their headers and artwork 100% into view.
+
+#### 2. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.11` and `VERSION_CODE=11`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.11`. Dual-version display string updated to `"NuvioDeck v0.1.11 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 
