@@ -14,7 +14,7 @@
 
 ---
 
-## 🎮 About This Fork: NuvioDeck (Windows 11 Controller & Handheld Edition)
+## About This Fork: NuvioDeck (Windows 11 Controller & Handheld Edition)
 
 This fork, **NuvioDeck**, is purpose-built to bring a first-class, **native Windows 11 controller & 10-foot / handheld experience** to Nuvio Desktop (ideal for Steam Deck Windows installations, HTPCs, living-room setups, Xbox/PlayStation/Switch controllers on PC, and Windows handhelds like ROG Ally, Legion Go, and Claw).
 
