@@ -651,6 +651,23 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.09` and `VERSION_CODE=9`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.09`. Dual-version display string updated to `"NuvioDeck v0.1.09 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-01] Deterministic Row-by-Row Navigation & Zero Row Skipping (v0.1.10)
+
+#### 1. Fix Occasional Row Skipping on Vertical Navigation (`ControllerFocusEngine.kt`)
+- **Relative Row Index Resolution After Edge Scrolling:** Eliminated post-scroll coordinate comparison bug (`it.centerY > oldCenterY + 40f`) that compared pre-scroll coordinates against post-scroll positions, causing newly composed rows to be rejected and focus to jump multiple shelves ahead.
+- **Strict Shelf Index Traversal:**
+  - After edge scrolling, `currentInRefreshed` locates the exact previous shelf in `refreshedRows` via row list state or node ID matching.
+  - On `Down`, focus strictly advances to `refreshedRows[currentInRefreshed + 1]`.
+  - On `Up`, focus strictly advances to `refreshedRows[currentInRefreshed - 1]`.
+- **Spatial Fallback for Unmatched Row IDs:** Added `effectiveRowIndex` spatial fallback (`minByOrNull { abs(composedRows[it].centerY - currentCenterY) }`), preventing transient ID mismatches from dropping into edge scrolling prematurely.
+- **Direction-Aware Scroll Gating:** `scrollVerticalContainerToNode` now accepts `direction: ControllerDirection?`. Downward navigation only scrolls forward to reveal clipped bottom edges (never scrolling upward), and upward navigation only scrolls backward to reveal clipped top headers (never scrolling downward).
+- **Isolated Shelf Row Clustering:** `getComposedContentRows()` strictly segregates `LazyRow` instances so distinct shelf rows cannot merge or skip.
+
+#### 2. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.10` and `VERSION_CODE=10`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.10`. Dual-version display string updated to `"NuvioDeck v0.1.10 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 

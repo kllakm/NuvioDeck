@@ -454,7 +454,7 @@ object ControllerFocusEngine {
         if (triggerScroll) {
             node.onFocusedWithOption?.invoke(!suppressVerticalScroll) ?: node.onFocused?.invoke()
             if (!suppressVerticalScroll) {
-                scrollVerticalContainerToNode(node)
+                scrollVerticalContainerToNode(node, direction)
             }
             if (node.rowLazyListState != null && !suppressHorizontalScroll) {
                 val effectiveDirection = direction ?: lastNavigationDirection
@@ -759,10 +759,10 @@ object ControllerFocusEngine {
         for (node in contentNodes) {
             val matchingRow = rows.firstOrNull { cluster ->
                 val sample = cluster.first()
-                if (node.rowLazyListState != null && sample.rowLazyListState != null) {
-                    node.rowLazyListState === sample.rowLazyListState
-                } else if (!node.groupKey.isNullOrEmpty() && node.groupKey == sample.groupKey) {
-                    true
+                if (node.rowLazyListState != null || sample.rowLazyListState != null) {
+                    node.rowLazyListState != null && node.rowLazyListState === sample.rowLazyListState
+                } else if (!node.groupKey.isNullOrEmpty() || !sample.groupKey.isNullOrEmpty()) {
+                    node.groupKey == sample.groupKey
                 } else {
                     val sampleCenterY = cluster.map { it.boundsInRoot.center.y }.average().toFloat()
                     val overlap = min(node.boundsInRoot.bottom, sample.boundsInRoot.bottom) -
@@ -819,7 +819,10 @@ object ControllerFocusEngine {
         return candidates.minByOrNull { abs(it.boundsInRoot.center.x - currentCenterX) }
     }
 
-    private fun scrollVerticalContainerToNode(node: ControllerFocusNode) {
+    private fun scrollVerticalContainerToNode(
+        node: ControllerFocusNode,
+        direction: ControllerDirection? = null,
+    ) {
         if (node.zone != ControllerFocusZone.Content) return
         val activeScroll = getActiveScrollable()
         val listState = activeScroll?.lazyListState
@@ -867,39 +870,65 @@ object ControllerFocusEngine {
             val cardTop = node.boundsInRoot.top
             val cardBottom = node.boundsInRoot.bottom + (80f * scaleFactor)
 
-            if (cardBottom > maxBottomSafeZone) {
-                val delta = cardBottom - maxBottomSafeZone
-                if (delta > 4f) {
-                    if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
-                    else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
-                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+            val needsBottomScroll = cardBottom > maxBottomSafeZone
+            val needsTopScroll = cardTop < minCardTopSafeZone
+
+            if (direction == ControllerDirection.Down) {
+                // When navigating Down, only scroll forward to reveal clipped bottom. Never scroll backward.
+                if (needsBottomScroll) {
+                    val delta = cardBottom - maxBottomSafeZone
+                    if (delta > 4f) {
+                        if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                        else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                    }
                 }
-            } else if (cardTop < minCardTopSafeZone) {
-                val delta = cardTop - minCardTopSafeZone
-                if (delta < -4f) {
-                    if (listState != null) {
-                        // Smoothly scroll by relative offset, clamped at index 0 offset so it never jumps to page top
-                        val effectiveDelta = if (listState.firstVisibleItemIndex == 0) {
+            } else if (direction == ControllerDirection.Up) {
+                // When navigating Up, only scroll backward to reveal clipped header/top. Never scroll forward.
+                if (needsTopScroll) {
+                    val delta = cardTop - minCardTopSafeZone
+                    if (delta < -4f) {
+                        val effectiveDelta = if (listState?.firstVisibleItemIndex == 0) {
                             delta.coerceAtLeast(-listState.firstVisibleItemScrollOffset.toFloat())
-                        } else {
-                            delta
-                        }
-                        if (abs(effectiveDelta) > 2f) {
-                            runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        }
-                    } else if (gridState != null) {
-                        val effectiveDelta = if (gridState.firstVisibleItemIndex == 0) {
+                        } else if (gridState?.firstVisibleItemIndex == 0) {
                             delta.coerceAtLeast(-gridState.firstVisibleItemScrollOffset.toFloat())
+                        } else if (scrollState != null) {
+                            delta.coerceAtLeast(-scrollState.value.toFloat())
                         } else {
                             delta
                         }
                         if (abs(effectiveDelta) > 2f) {
-                            runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
                         }
-                    } else if (scrollState != null) {
-                        val effectiveDelta = delta.coerceAtLeast(-scrollState.value.toFloat())
+                    }
+                }
+            } else {
+                // Direction unspecified (click, direct focus transfer, horizontal traversal)
+                if (needsBottomScroll) {
+                    val delta = cardBottom - maxBottomSafeZone
+                    if (delta > 4f) {
+                        if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                        else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                    }
+                } else if (needsTopScroll) {
+                    val delta = cardTop - minCardTopSafeZone
+                    if (delta < -4f) {
+                        val effectiveDelta = if (listState?.firstVisibleItemIndex == 0) {
+                            delta.coerceAtLeast(-listState.firstVisibleItemScrollOffset.toFloat())
+                        } else if (gridState?.firstVisibleItemIndex == 0) {
+                            delta.coerceAtLeast(-gridState.firstVisibleItemScrollOffset.toFloat())
+                        } else if (scrollState != null) {
+                            delta.coerceAtLeast(-scrollState.value.toFloat())
+                        } else {
+                            delta
+                        }
                         if (abs(effectiveDelta) > 2f) {
-                            runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                            else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
                         }
                     }
                 }
@@ -1186,15 +1215,21 @@ object ControllerFocusEngine {
             }
         }
 
-        val currentRowIndex = composedRows.indexOfFirst { row -> row.nodes.any { it.id == current.id } }
-        val currentRow = if (currentRowIndex != -1) composedRows[currentRowIndex] else null
+        val rawRowIndex = composedRows.indexOfFirst { row -> row.nodes.any { it.id == current.id } }
+        val effectiveRowIndex = if (rawRowIndex != -1) {
+            rawRowIndex
+        } else {
+            val currentCenterY = current.boundsInRoot.center.y
+            composedRows.indices.minByOrNull { abs(composedRows[it].centerY - currentCenterY) } ?: 0
+        }
+        val currentRow = composedRows[effectiveRowIndex]
 
         // 2. Strict Rule for Row Header Chevrons:
         // A row's chevron can be focused when:
         // (1) The user is currently focused on the very last (rightmost) poster card of that exact same row, AND
         // (2) The user presses Up.
         if (direction == ControllerDirection.Up && !current.id.startsWith("view_all_pill_")) {
-            val isFarRightCard = currentRow != null && (
+            val isFarRightCard = (
                 current.id == currentRow.nodes.lastOrNull()?.id ||
                 (current.rowItemIndex >= 0 && current.rowTotalCount > 0 && current.rowItemIndex == current.rowTotalCount - 1) ||
                 currentRow.nodes.none { it.boundsInRoot.center.x > current.boundsInRoot.center.x + 15f }
@@ -1221,8 +1256,8 @@ object ControllerFocusEngine {
         val scope = activeScroll?.scope ?: activeCoroutineScope ?: current.coroutineScope
 
         if (direction == ControllerDirection.Down) {
-            if (currentRowIndex != -1 && currentRowIndex < composedRows.lastIndex) {
-                val nextRow = composedRows[currentRowIndex + 1]
+            if (effectiveRowIndex < composedRows.lastIndex) {
+                val nextRow = composedRows[effectiveRowIndex + 1]
                 val targetNode = selectBestTargetNodeInRow(current, nextRow)
                 if (targetNode != null) {
                     focusNodeInternal(targetNode, triggerScroll = true, direction = direction)
@@ -1239,9 +1274,7 @@ object ControllerFocusEngine {
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
                 val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
-                val rowHeight = currentRow?.let { it.bottom - it.top + 70f * scaleFactor }
-                    ?: (current.boundsInRoot.height + 140f * scaleFactor)
-                val scrollDistance = max(rowHeight, 420f * scaleFactor)
+                val scrollDistance = (currentRow.bottom - currentRow.top + 60f * scaleFactor).coerceIn(300f * scaleFactor, 420f * scaleFactor)
 
                 activeVerticalScrollJob?.cancel()
                 activeVerticalScrollJob = scope.launch {
@@ -1254,11 +1287,18 @@ object ControllerFocusEngine {
                     }
                     delay(210)
                     val refreshedRows = getComposedContentRows()
-                    val oldCenterY = currentRow?.centerY ?: current.boundsInRoot.center.y
-                    val newRow = refreshedRows.firstOrNull { it.centerY > oldCenterY + 40f }
-                        ?: refreshedRows.lastOrNull()
-                    if (newRow != null) {
-                        val target = selectBestTargetNodeInRow(current, newRow)
+                    val currentInRefreshed = refreshedRows.indexOfFirst { r ->
+                        (currentRow.rowLazyListState != null && r.rowLazyListState === currentRow.rowLazyListState) ||
+                        (!currentRow.groupKey.isNullOrEmpty() && r.groupKey == currentRow.groupKey) ||
+                        r.nodes.any { n -> currentRow.nodes.any { it.id == n.id } }
+                    }
+                    val targetRow = if (currentInRefreshed != -1 && currentInRefreshed < refreshedRows.lastIndex) {
+                        refreshedRows[currentInRefreshed + 1]
+                    } else {
+                        refreshedRows.lastOrNull()
+                    }
+                    if (targetRow != null) {
+                        val target = selectBestTargetNodeInRow(current, targetRow)
                         if (target != null) {
                             focusNodeInternal(target, triggerScroll = true, suppressVerticalScroll = true, direction = direction)
                         }
@@ -1268,8 +1308,8 @@ object ControllerFocusEngine {
             }
             return true
         } else if (direction == ControllerDirection.Up) {
-            if (currentRowIndex > 0) {
-                val prevRow = composedRows[currentRowIndex - 1]
+            if (effectiveRowIndex > 0) {
+                val prevRow = composedRows[effectiveRowIndex - 1]
                 val targetNode = selectBestTargetNodeInRow(current, prevRow)
                 if (targetNode != null) {
                     focusNodeInternal(targetNode, triggerScroll = true, direction = direction)
@@ -1286,9 +1326,7 @@ object ControllerFocusEngine {
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
                 val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
-                val rowHeight = currentRow?.let { it.bottom - it.top + 70f * scaleFactor }
-                    ?: (current.boundsInRoot.height + 140f * scaleFactor)
-                val scrollDistance = max(rowHeight, 420f * scaleFactor)
+                val scrollDistance = (currentRow.bottom - currentRow.top + 60f * scaleFactor).coerceIn(300f * scaleFactor, 420f * scaleFactor)
 
                 val isAtTopBoundary = (listState != null && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= scrollDistance) ||
                     (gridState != null && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset <= scrollDistance) ||
@@ -1307,11 +1345,18 @@ object ControllerFocusEngine {
                     }
                     delay(210)
                     val refreshedRows = getComposedContentRows()
-                    val oldCenterY = currentRow?.centerY ?: current.boundsInRoot.center.y
-                    val newRow = refreshedRows.lastOrNull { it.centerY < oldCenterY - 40f }
-                        ?: refreshedRows.firstOrNull()
-                    if (newRow != null) {
-                        val target = selectBestTargetNodeInRow(current, newRow)
+                    val currentInRefreshed = refreshedRows.indexOfFirst { r ->
+                        (currentRow.rowLazyListState != null && r.rowLazyListState === currentRow.rowLazyListState) ||
+                        (!currentRow.groupKey.isNullOrEmpty() && r.groupKey == currentRow.groupKey) ||
+                        r.nodes.any { n -> currentRow.nodes.any { it.id == n.id } }
+                    }
+                    val targetRow = if (currentInRefreshed > 0) {
+                        refreshedRows[currentInRefreshed - 1]
+                    } else {
+                        refreshedRows.firstOrNull()
+                    }
+                    if (targetRow != null) {
+                        val target = selectBestTargetNodeInRow(current, targetRow)
                         if (target != null) {
                             focusNodeInternal(target, triggerScroll = true, suppressVerticalScroll = true, direction = direction)
                         }
