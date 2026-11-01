@@ -579,28 +579,28 @@ private fun SeasonTextChipScrollRow(
                                 {
                                     val nextSeason = seasons[index + 1]
                                     val nextFocusId = "season_text_chip_$nextSeason"
-                                    coroutineScope.launch {
-                                        seasonListState.animateScrollToItem(index + 1)
-                                        for (attempt in 0..4) {
-                                            if (ControllerFocusEngine.requestFocus(nextFocusId)) break
-                                            delay(40)
-                                        }
-                                    }
-                                    true
+                                    ControllerFocusEngine.navigateLazyRowIndex(
+                                        lazyListState = seasonListState,
+                                        targetIndex = index + 1,
+                                        totalItems = seasons.size,
+                                        isMovingRight = true,
+                                        coroutineScope = coroutineScope,
+                                        targetFocusId = nextFocusId,
+                                    )
                                 }
                             } else null,
                             onMoveLeft = if (index > 0) {
                                 {
                                     val prevSeason = seasons[index - 1]
                                     val prevFocusId = "season_text_chip_$prevSeason"
-                                    coroutineScope.launch {
-                                        seasonListState.animateScrollToItem(index - 1)
-                                        for (attempt in 0..4) {
-                                            if (ControllerFocusEngine.requestFocus(prevFocusId)) break
-                                            delay(40)
-                                        }
-                                    }
-                                    true
+                                    ControllerFocusEngine.navigateLazyRowIndex(
+                                        lazyListState = seasonListState,
+                                        targetIndex = index - 1,
+                                        totalItems = seasons.size,
+                                        isMovingRight = false,
+                                        coroutineScope = coroutineScope,
+                                        targetFocusId = prevFocusId,
+                                    )
                                 }
                             } else null,
                         )
@@ -751,28 +751,28 @@ private fun SeasonPosterButton(
                     {
                         val nextSeason = seasons[index + 1]
                         val nextFocusId = "season_poster_$nextSeason"
-                        coroutineScope.launch {
-                            seasonListState.animateScrollToItem(index + 1)
-                            for (attempt in 0..4) {
-                                if (ControllerFocusEngine.requestFocus(nextFocusId)) break
-                                delay(40)
-                            }
-                        }
-                        true
+                        ControllerFocusEngine.navigateLazyRowIndex(
+                            lazyListState = seasonListState,
+                            targetIndex = index + 1,
+                            totalItems = totalSeasons,
+                            isMovingRight = true,
+                            coroutineScope = coroutineScope,
+                            targetFocusId = nextFocusId,
+                        )
                     }
                 } else null,
                 onMoveLeft = if (index > 0) {
                     {
                         val prevSeason = seasons[index - 1]
                         val prevFocusId = "season_poster_$prevSeason"
-                        coroutineScope.launch {
-                            seasonListState.animateScrollToItem(index - 1)
-                            for (attempt in 0..4) {
-                                if (ControllerFocusEngine.requestFocus(prevFocusId)) break
-                                delay(40)
-                            }
-                        }
-                        true
+                        ControllerFocusEngine.navigateLazyRowIndex(
+                            lazyListState = seasonListState,
+                            targetIndex = index - 1,
+                            totalItems = totalSeasons,
+                            isMovingRight = false,
+                            coroutineScope = coroutineScope,
+                            targetFocusId = prevFocusId,
+                        )
                     }
                 } else null,
             )

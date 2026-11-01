@@ -459,7 +459,170 @@ object ControllerFocusEngine {
         }
     }
 
+    private var isNavigatingLazyRow = false
+
+    fun navigateLazyRowIndex(
+        lazyListState: LazyListState,
+        targetIndex: Int,
+        totalItems: Int,
+        isMovingRight: Boolean,
+        coroutineScope: CoroutineScope,
+        targetFocusId: String,
+        edgeMarginPx: Float = 120f,
+    ): Boolean {
+        if (targetIndex < 0 || targetIndex >= totalItems) return false
+
+        val layoutInfo = lazyListState.layoutInfo
+        val viewportStart = layoutInfo.viewportStartOffset.toFloat()
+        val viewportEnd = layoutInfo.viewportEndOffset.toFloat().takeIf { it > 100f } ?: 1920f
+        val leftSafeZone = viewportStart + edgeMarginPx
+        val rightSafeZone = (viewportEnd - edgeMarginPx).coerceAtLeast(leftSafeZone + 100f)
+
+        val targetItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+
+        isNavigatingLazyRow = true
+
+        if (targetItem != null) {
+            val itemStart = targetItem.offset.toFloat()
+            val itemEnd = (targetItem.offset + targetItem.size).toFloat()
+
+            if (isMovingRight) {
+                if (itemEnd <= rightSafeZone) {
+                    // Fully within safe viewport zone: DO NOT scroll, just transfer focus directly
+                    requestFocus(targetFocusId)
+                    isNavigatingLazyRow = false
+                    return true
+                } else {
+                    // Approaches or exceeds right safe threshold: scroll just enough
+                    val delta = (itemEnd - rightSafeZone + 30f).coerceAtLeast(0f)
+                    coroutineScope.launch {
+                        try {
+                            runCatching {
+                                lazyListState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut))
+                            }
+                            for (attempt in 0..5) {
+                                if (requestFocus(targetFocusId)) break
+                                delay(35)
+                            }
+                        } finally {
+                            isNavigatingLazyRow = false
+                        }
+                    }
+                    return true
+                }
+            } else {
+                // Moving Left
+                if (targetIndex == 0) {
+                    if (lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0) {
+                        requestFocus(targetFocusId)
+                        isNavigatingLazyRow = false
+                    } else {
+                        coroutineScope.launch {
+                            try {
+                                runCatching { lazyListState.animateScrollToItem(0, 0) }
+                                for (attempt in 0..5) {
+                                    if (requestFocus(targetFocusId)) break
+                                    delay(35)
+                                }
+                            } finally {
+                                isNavigatingLazyRow = false
+                            }
+                        }
+                    }
+                    return true
+                }
+
+                if (itemStart >= leftSafeZone) {
+                    // Fully within safe viewport zone: DO NOT scroll, just transfer focus directly
+                    requestFocus(targetFocusId)
+                    isNavigatingLazyRow = false
+                    return true
+                } else {
+                    // Approaches or exceeds left safe threshold: scroll just enough left
+                    val delta = itemStart - leftSafeZone - 30f
+                    coroutineScope.launch {
+                        try {
+                            runCatching {
+                                lazyListState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut))
+                            }
+                            for (attempt in 0..5) {
+                                if (requestFocus(targetFocusId)) break
+                                delay(35)
+                            }
+                        } finally {
+                            isNavigatingLazyRow = false
+                        }
+                    }
+                    return true
+                }
+            }
+        } else {
+            // Target item is off-screen (not yet composed in visibleItemsInfo)
+            if (isMovingRight) {
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                val avgSize = layoutInfo.visibleItemsInfo.map { it.size }.average().toFloat().takeIf { it > 20f } ?: 180f
+                val delta = if (lastVisible != null) {
+                    ((lastVisible.offset + lastVisible.size) - rightSafeZone + avgSize + 30f).coerceAtLeast(avgSize)
+                } else {
+                    avgSize + edgeMarginPx
+                }
+                coroutineScope.launch {
+                    try {
+                        runCatching {
+                            lazyListState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut))
+                        }
+                        for (attempt in 0..6) {
+                            if (requestFocus(targetFocusId)) break
+                            delay(40)
+                        }
+                    } finally {
+                        isNavigatingLazyRow = false
+                    }
+                }
+                return true
+            } else {
+                // Moving Left off-screen
+                if (targetIndex == 0) {
+                    coroutineScope.launch {
+                        try {
+                            runCatching { lazyListState.animateScrollToItem(0, 0) }
+                            for (attempt in 0..6) {
+                                if (requestFocus(targetFocusId)) break
+                                delay(40)
+                            }
+                        } finally {
+                            isNavigatingLazyRow = false
+                        }
+                    }
+                } else {
+                    val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull()
+                    val avgSize = layoutInfo.visibleItemsInfo.map { it.size }.average().toFloat().takeIf { it > 20f } ?: 180f
+                    val delta = if (firstVisible != null) {
+                        (firstVisible.offset - leftSafeZone - avgSize - 30f).coerceAtMost(-avgSize)
+                    } else {
+                        -(avgSize + edgeMarginPx)
+                    }
+                    coroutineScope.launch {
+                        try {
+                            runCatching {
+                                lazyListState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut))
+                            }
+                            for (attempt in 0..6) {
+                                if (requestFocus(targetFocusId)) break
+                                delay(40)
+                            }
+                        } finally {
+                            isNavigatingLazyRow = false
+                        }
+                    }
+                }
+                return true
+            }
+        }
+    }
+
     private fun scrollHorizontalContainerToNode(node: ControllerFocusNode) {
+        if (isNavigatingLazyRow) return
         val rowState = node.rowLazyListState ?: return
         val scope = node.coroutineScope ?: activeCoroutineScope ?: return
         val bounds = node.boundsInRoot

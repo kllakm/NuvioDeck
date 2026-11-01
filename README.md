@@ -524,4 +524,28 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Upstream Patch Registry:** Updated Section 6 in `UPSTREAM_PATCHES.md` documenting the new assets and multi-resolution ICO structure.
 - **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.03`. Dual-version display string updated to `"NuvioDeck v0.1.03 (based on Nuvio v0.1.33)"`.
 
+### [2026-11-01] Viewport-Aware Edge-Triggered Season Scrolling & Windows MSI Release Packaging (v0.1.04)
+
+#### 1. Edge-Triggered Viewport-Aware Season Strip Scrolling (`ControllerFocusEngine.kt`, `DetailSeriesContent.kt`)
+- **Stationary Visible-Card Navigation:**
+  - Eliminated premature row jumping where every D-Pad step shifted the horizontal list.
+  - Implemented `ControllerFocusEngine.navigateLazyRowIndex`: queries `lazyListState.layoutInfo.visibleItemsInfo` for the target card and checks bounds against `viewportStartOffset` and `viewportEndOffset` with a 120px edge safe-zone margin.
+  - While target cards are within the safe zone, the horizontal strip remains completely stationary and focus moves seamlessly between cards.
+- **Dynamic Edge Scroll & Peek Margin:**
+  - When moving `Right` and the target card exceeds the right threshold (`item.offset + item.size > viewportEndOffset - edgeMargin`), smoothly scrolls via `animateScrollBy` just enough to reveal the target card and a peek of the following card.
+  - When moving `Left` and approaching the left threshold (`item.offset < viewportStartOffset + edgeMargin`), scrolls left into the safe zone.
+  - When navigating to `index == 0` (Season 1), animates cleanly to `(0, 0)` so the first card and its start padding align perfectly with the container edge.
+  - Gracefully handles off-screen targets with calculated step offsets and retry loops.
+
+#### 2. Windows MSI Installer Packaging (`build.gradle.kts`, `DesktopVersion.properties`)
+- **MSI Packaging Alignment:**
+  - Updated `publishWindowsMsiOutput` in `composeApp/build.gradle.kts` to target `NuvioDeck` package outputs.
+  - Configured distribution artifact naming: `NuvioDeck-Windows-x64-0.1.04.msi` (with architecture and version number appended to the filename).
+  - Synchronized `DesktopVersion.properties` to version `0.1.04`.
+
+#### 3. Documentation & Version Increment (`UPSTREAM_PATCHES.md`, `NuvioDeckVersionConfig.kt`)
+- **Upstream Patch Registry:** Documented `navigateLazyRowIndex` hook in `UPSTREAM_PATCHES.md`.
+- **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.04`. Dual-version display string updated to `"NuvioDeck v0.1.04 (based on Nuvio v0.1.33)"`.
+
+
 
