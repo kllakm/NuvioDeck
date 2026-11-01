@@ -91,12 +91,13 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 
 ---
 
-### 6. Asset & Branding Audit (Logo & Launcher Icons)
-| Asset Category | Format Found | Treatment & Justification |
+### 6. Asset & Branding Integration (Logo & Launcher Icons)
+| Asset Category | Target Resolutions & Formats | Treatment & Deployment |
 | :--- | :--- | :--- |
-| Launcher Icons (`composeApp/src/desktopMain/resources/icons/`) | Multi-resolution `.ico`, `.png`, `.icns` | **Preserved Untouched:** Verified zero vector SVG/XML sources exist. Per repository directive, static raster icon files are strictly left in their original state to prevent muddy artifacting or compression distortion. |
-| Theme Icon Variants (`drawable/app_icon_*.png`) | Raster `.png` (256x256, 512x512) | **Preserved Untouched:** All 12 app theme icon variants (Original, Arctic Blue, Copper, Emerald, Graphite, Rose Gold) remain in native raster format. |
-| Brand Wordmarks (`drawable/app_logo_wordmark*.png`) | Raster `.png` (1085x344) | **Preserved Untouched:** Wordmark rasters remain untouched; "DECK" branding is rendered via the dynamic, resolution-independent vector moniker badge in `AppBrandWordmark.kt`. |
-| Active UI Display (`Main.kt`, `AppBrandWordmark.kt`) | Window icon & Compose image painter | Desktop window icon loads `nuvio-app-icon-transparent.ico` via Gradle packaging and `transparentPreviewResource` PNG at runtime without distortion. |
+| Windows Launcher Icon (`composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent.ico`) | Multi-resolution `.ico` (16x16, 24x24, 32x32, 48x48, 64x64, 128x128, 256x256) | **Regenerated with Full Mipmaps:** Replaced single 256px entry with a comprehensive multi-resolution ICO embedding 7 high-quality downsampled mipmaps for crisp Windows taskbar, window title, alt-tab, and executable icon rendering. |
+| Desktop App Icons (`composeApp/src/desktopMain/resources/icons/`) | 256x256, 512x512, 1024x1024 `.png` | **Updated High-Res Assets:** Deployed the cyan-to-emerald play emblem with centered aspect-ratio geometry across 256x256 (`nuvio-app-icon-transparent.png`, `app-icon-original-transparent.png`), 512x512, and 1024x1024. |
+| Compose Runtime Icons (`composeApp/src/commonMain/composeResources/drawable/`) | 256x256 `.png` | **Updated Runtime Drawables:** Deployed `app_icon_original_transparent.png` (transparent window icon) and `app_icon_original.png` (pure black field theme preview). |
+| Brand Wordmarks (`composeApp/src/commonMain/composeResources/drawable/`) | 1024x324 `.png` | **Updated High-Res Wordmark:** Deployed `app_logo_wordmark.png` and `app_logo_wordmark_original.png` with the new cyan-to-emerald emblem and crisp typography on boot, login, and profile screens. |
+
 
 

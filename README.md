@@ -496,3 +496,32 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Upstream Patch Registry:** Documented asset categories, format audit findings, and raster preservation justification in `UPSTREAM_PATCHES.md`.
 - **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.02`. Dual-version display string updated to `"NuvioDeck v0.1.02 (based on Nuvio v0.1.33)"`.
 
+### [2026-11-01] Cyan-to-Emerald App Logo & Wordmark Integration, Multi-Resolution Windows ICO (v0.1.03)
+
+#### 1. High-Resolution Cyan-to-Emerald Logo & Wordmark Deployment
+- **Wordmark Banner Update (`app_logo_wordmark.png`, `app_logo_wordmark_original.png`):**
+  - Integrated the updated 1024×324 wordmark featuring the digital cyan-to-emerald gradient play emblem and crisp white typography on transparent background across boot, login, and profile selection screens.
+- **Logo Emblem Downscaling & Geometry Centering (`app_logo.png`):**
+  - Extracted the non-transparent emblem geometry (922×1006 px, matching original 0.916 aspect ratio).
+  - Deployed clean bicubic downscaled versions with preserved transparency and centered padding across:
+    - **1024×1024 px:** `composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent-1024.png`
+    - **512×512 px:** `composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent-512.png`
+    - **256×256 px:** `composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent.png`, `app-icon-original-transparent.png`, and `composeApp/src/commonMain/composeResources/drawable/app_icon_original_transparent.png`.
+  - Deployed solid black field variants (0.74 content ratio) to `composeApp/src/commonMain/composeResources/drawable/app_icon_original.png` (Settings appearance picker) and `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png`.
+
+#### 2. Multi-Resolution Windows Launcher Icon Generation (`nuvio-app-icon-transparent.ico`)
+- **Comprehensive Mipmap Stack:** Replaced the legacy single-resolution ICO with a true multi-resolution Windows icon embedding 7 individual mipmap sizes:
+  - `16 × 16 px`: Taskbar small icons & window menu
+  - `24 × 24 px`: Windows 11 high-DPI (150%) taskbar
+  - `32 × 32 px`: Standard taskbar & desktop grid
+  - `48 × 48 px`: Large desktop icon view & search flyout
+  - `64 × 64 px`: Windows 11 high-DPI (200%) tile view
+  - `128 × 128 px`: Extra large view & Start menu
+  - `256 × 256 px`: Windows jumbo icon & File Explorer detail pane
+- **Zero Artifacting:** Each frame is individually resampled using high-quality bicubic interpolation with dedicated alpha channel anti-aliasing for razor-sharp rendering on dark and light Windows shell themes.
+
+#### 3. Upstream Registry & Version Increment (`UPSTREAM_PATCHES.md`, `NuvioDeckVersionConfig.kt`)
+- **Upstream Patch Registry:** Updated Section 6 in `UPSTREAM_PATCHES.md` documenting the new assets and multi-resolution ICO structure.
+- **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.03`. Dual-version display string updated to `"NuvioDeck v0.1.03 (based on Nuvio v0.1.33)"`.
+
+
