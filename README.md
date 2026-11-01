@@ -621,6 +621,17 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.07` and `VERSION_CODE=7`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.07`. Dual-version display string updated to `"NuvioDeck v0.1.07 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized all updated files in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-01] Constrained Relative Vertical Up-Navigation (v0.1.08)
+
+#### 1. Constrained Relative Vertical Scrolling (`ControllerFocusEngine.kt`)
+- **Fixed Page Top Jump on Up-Navigation:** Eliminated the bug where pressing `Up` from lower catalog shelves caused the vertical container to jump all the way to index 0 (page top / hero banner) instead of moving smoothly to the row immediately above.
+- **Relative Offset Calculation:** Replaced absolute reset logic in `scrollVerticalContainerToNode` with relative delta scrolling (`delta = rowTop - minTopSafeZone`). Only when the list is at index 0 and the upward scroll exceeds the top boundary does it clamp to `(0, 0)`.
+- **Upward Row Distance Guard:** Corrected `isAtTopBoundary` in `handleContentVerticalNavigation` to only snap to top when `firstVisibleItemIndex == 0` and remaining offset is within a single row distance. For all other rows, executes a clean, constrained `animateScrollBy(-scrollDistance)` targeting only the row immediately above.
+
+#### 2. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.08` and `VERSION_CODE=8`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.08`. Dual-version display string updated to `"NuvioDeck v0.1.08 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
 
 
 

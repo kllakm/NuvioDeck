@@ -844,7 +844,7 @@ object ControllerFocusEngine {
             return
         }
 
-        val minTopSafeZone = 220f
+        val minTopSafeZone = 180f
 
         activeVerticalScrollJob?.cancel()
         activeVerticalScrollJob = scope.launch {
@@ -863,17 +863,25 @@ object ControllerFocusEngine {
                 else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
                 else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
             } else if (rowTop < minTopSafeZone) {
-                if (gridState != null && (gridState.firstVisibleItemIndex == 0 || rowTop < 100f)) {
-                    runCatching { gridState.animateScrollToItem(0, 0) }
-                } else if (listState != null && (listState.firstVisibleItemIndex == 0 || rowTop < 100f)) {
-                    runCatching { listState.animateScrollToItem(0, 0) }
-                } else if (scrollState != null && scrollState.value < 220) {
-                    runCatching { scrollState.animateScrollTo(0) }
-                } else {
-                    val delta = rowTop - minTopSafeZone
-                    if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
-                    else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
-                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                val delta = rowTop - minTopSafeZone
+                if (listState != null) {
+                    if (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset + delta <= 0f) {
+                        runCatching { listState.animateScrollToItem(0, 0) }
+                    } else {
+                        runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                    }
+                } else if (gridState != null) {
+                    if (gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset + delta <= 0f) {
+                        runCatching { gridState.animateScrollToItem(0, 0) }
+                    } else {
+                        runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                    }
+                } else if (scrollState != null) {
+                    if (scrollState.value + delta.toInt() <= 0) {
+                        runCatching { scrollState.animateScrollTo(0) }
+                    } else {
+                        runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                    }
                 }
             }
         }
@@ -1252,12 +1260,13 @@ object ControllerFocusEngine {
                 val rowHeight = currentRow?.let { it.bottom - it.top + 70f } ?: (current.boundsInRoot.height + 125f)
                 val scrollDistance = max(rowHeight, 420f)
 
-                val isNearTop = (listState != null && listState.firstVisibleItemIndex <= 1 && listState.firstVisibleItemScrollOffset < 220) ||
-                    (gridState != null && gridState.firstVisibleItemIndex <= 1)
+                val isAtTopBoundary = (listState != null && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= scrollDistance) ||
+                    (gridState != null && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset <= scrollDistance) ||
+                    (scrollState != null && scrollState.value <= scrollDistance)
 
                 activeVerticalScrollJob?.cancel()
                 activeVerticalScrollJob = scope.launch {
-                    if (isNearTop) {
+                    if (isAtTopBoundary) {
                         if (listState != null) runCatching { listState.animateScrollToItem(0, 0) }
                         else if (gridState != null) runCatching { gridState.animateScrollToItem(0, 0) }
                         else if (scrollState != null) runCatching { scrollState.animateScrollTo(0) }
