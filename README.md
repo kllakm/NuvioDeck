@@ -586,6 +586,42 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.06` and `VERSION_CODE=6`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.06`. Dual-version display string updated to `"NuvioDeck v0.1.06 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized version references in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-01] Smooth Single-Motion Scrolling, First-Press Snapping, Settings Column Isolation & Accent Selection (v0.1.07)
+
+#### 1. Instant First-Press Left-Navigation Snapping (`ControllerFocusEngine.kt`)
+- **First-Press Clipped Poster Snap:** When navigating back `Left` after scrolling a horizontal shelf, if the target poster is partially clipped at the left edge (`clippedOffset < leftSafeMargin`), an immediate `animateScrollBy` or `animateScrollToItem(0, 0)` is triggered on the *very first* `Left` press, snapping the entire poster and its focus ring 100% into view without requiring a second button press.
+- **Stationary Safe-Zone Navigation:** Maintained stationary list behavior when moving across cards already comfortably positioned inside the viewport.
+
+#### 2. Top-Edge Scrolling in Collection Folders (`ControllerFocusEngine.kt`)
+- **Immediate Top-Edge Reveal:** Increased `minTopSafeZone` from `110f` to `220f` to fully account for top headers and tab rows in collection folder grid/list views.
+- **Top Row Snapping:** When moving `Up` to an item located near the top or above the viewport, immediately triggers vertical scroll (`animateScrollToItem(0, 0)` or smooth offset delta) on the very first press, eliminating hidden focus under the top bar.
+
+#### 3. Single-Motion Scroll for Catalog Rows (Zero Judder) (`ControllerFocusEngine.kt`)
+- **Unified Scroll Calculation:** Consolidated target vertical scroll offset calculation into a single smooth motion (`tween(200, easing = SnappyEaseOut)`).
+- **Eliminated Delayed Secondary Adjustment:** Removed the delayed 220ms post-layout secondary correction scroll that caused the noticeable two-stage stop-and-jerk judder when browsing between catalog rows.
+
+#### 4. "Explore More" Chevron Button Selection (`ControllerFocusEngine.kt`)
+- **Rightmost Card Traversal:** Allowed transitioning focus to the shelf's "Explore More" / chevron pill (`view_all_pill_...`) when focused on the rightmost poster of a row and pressing `Up` or `Right` (when the row cannot scroll forward).
+- **Unrestricted Horizontal Tolerance:** Removed the overly restrictive horizontal distance constraint (`abs(dx) < 260f`), correctly matching far-right chevron buttons with row cards.
+- **Downward Return:** Pressing `Down` from a chevron cleanly returns focus straight back to the rightmost poster card of that row.
+
+#### 5. Strict Vertical Column Isolation in Settings (`SettingsScreen.kt`, `ControllerFocusEngine.kt`)
+- **Group Key Scoping:** Wrapped the Tablet/Desktop Settings sidebar in `LocalControllerGroupKey provides "settings_sidebar"` and the right settings content panel in `LocalControllerGroupKey provides "settings_content"`.
+- **Confined Up/Down Traversal:** `Up` and `Down` navigation inside `settings_sidebar` or `settings_content` is strictly isolated to nodes within that same group, preventing focus from ever hopping laterally across columns during vertical scrolling.
+- **Clean Lateral Handoff:** Pressing `Right` from `settings_sidebar` moves focus smoothly into `settings_content`, and pressing `Left` from `settings_content` moves back to `settings_sidebar`.
+
+#### 6. Solid Accent Background Highlighting on Context Actions (`PosterZoomActionOverlay.kt`)
+- **Solid Accent Fill:** Replaced outer white border rings on the "X" options dialog ("Add to watchlist", "Mark as watched") with a modern solid accent fill (`colors.accent.copy(alpha = 0.32f)`) and bold text/icon tinting.
+- **Clean Presentation:** Disabled focus ring (`hideFocusRing = true`) on context action rows for a sleek, cohesive look.
+
+#### 7. Fork Attribution Link in Settings Licenses (`LicensesAttributionsPage.kt`)
+- Updated desktop license and repository attribution link to point to `https://github.com/kllakm/NuvioDeck`.
+
+#### 8. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.07` and `VERSION_CODE=7`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.07`. Dual-version display string updated to `"NuvioDeck v0.1.07 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized all updated files in `UPSTREAM_PATCHES.md`.
+
+
 
 
 

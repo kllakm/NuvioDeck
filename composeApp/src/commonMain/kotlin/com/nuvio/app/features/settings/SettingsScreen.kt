@@ -29,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import com.nuvio.app.controller.LocalControllerGroupKey
 import androidx.compose.foundation.gestures.stopScroll
 import com.nuvio.app.controller.RegisterControllerVerticalScroll
 import com.nuvio.app.core.ui.LocalScreenActive
@@ -1018,6 +1020,7 @@ private fun TabletSettingsScreen(
     val saveableStateHolder = rememberSaveableStateHolder()
 
     Row(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalControllerGroupKey provides "settings_sidebar") {
         Surface(
             modifier = Modifier
                 .width(240.dp)
@@ -1060,7 +1063,10 @@ private fun TabletSettingsScreen(
             }
         }
 
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+        }
+
+        CompositionLocalProvider(LocalControllerGroupKey provides "settings_content") {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             saveableStateHolder.SaveableStateProvider(page.name) {
                 var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
                 var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
@@ -1378,6 +1384,7 @@ private fun TabletSettingsScreen(
                     modifier = Modifier.padding(bottom = 40.dp + LocalNuvioBottomNavigationOverlayPadding.current),
                 )
             }
+        }
         }
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,7 @@ import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -523,16 +525,36 @@ private fun PosterZoomMenuRow(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
-    val contentColor = if (action.isDestructive) tokens.colors.danger else tokens.colors.textPrimary
+    val rowFocusId = remember(action.label) { "poster_zoom_action_${action.label.hashCode()}" }
+    val focusedNodeId by com.nuvio.app.controller.ControllerFocusEngine.focusedNodeId.collectAsState()
+    val isControllerActive by com.nuvio.app.controller.ControllerManager.isControllerActive.collectAsState()
+    val isFocused = isControllerActive && focusedNodeId == rowFocusId
+
+    val backgroundColor = when {
+        isFocused && action.isDestructive -> tokens.colors.danger.copy(alpha = 0.28f)
+        isFocused -> tokens.colors.accent.copy(alpha = 0.32f)
+        else -> Color.Transparent
+    }
+    val contentColor = when {
+        action.isDestructive -> tokens.colors.danger
+        isFocused -> tokens.colors.accent
+        else -> tokens.colors.textPrimary
+    }
+    val rowShape = RoundedCornerShape(NuvioTokens.Space.s14)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(rowShape)
+            .background(backgroundColor)
             .controllerFocusable(
+                id = rowFocusId,
                 zone = com.nuvio.app.controller.ControllerFocusZone.Overlay,
                 groupKey = "poster_zoom_actions",
                 enabled = enabled,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(NuvioTokens.Space.s14),
-                scaleOnFocus = 1f,
+                shape = rowShape,
+                scaleOnFocus = 1.02f,
+                hideFocusRing = true,
                 onSelect = onSelected,
                 selectLabel = action.label,
             )
@@ -545,7 +567,7 @@ private fun PosterZoomMenuRow(
             text = action.label,
             style = MaterialTheme.typography.bodyLarge,
             color = contentColor,
-            fontWeight = FontWeight.Medium,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

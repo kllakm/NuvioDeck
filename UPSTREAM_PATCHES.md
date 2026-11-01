@@ -77,7 +77,9 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/profiles/ProfileModels.kt` | Storage URL resolver hook | Resolves `storage_path` into full Supabase storage CDN URLs. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/search/SearchScreen.kt` | Search bar input hook | Hooks virtual keyboard invocation on text field activation. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/SettingsComponents.kt` | Settings row focus hooks | Adds `.controllerFocusable` to preference toggle rows and sliders. |
-| `composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/SettingsScreen.kt` | Settings navigation hook | Integrates controller D-Pad navigation across settings categories. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/SettingsScreen.kt` | Settings column isolation hook | Groups sidebar and content columns via `LocalControllerGroupKey` to enforce strict vertical column isolation. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/LicensesAttributionsPage.kt` | Fork repo attribution URL | Directs desktop attribution and license repository link to `kllakm/NuvioDeck`. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/PosterZoomActionOverlay.kt` | Context menu highlight state | Replaces outer border outline with solid accent background fill on focused action rows. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/StreamsScreen.kt` | Stream modal handler hook | Manages controller selection and modal exit handlers on streams list. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/ProviderFilterRow.kt` | Addon filter chip focus hook | Adds `.controllerFocusable` to stream provider filter chips. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/StreamCard.kt` | Stream card focus hook | Adds `.controllerFocusable` to individual stream result cards. |
