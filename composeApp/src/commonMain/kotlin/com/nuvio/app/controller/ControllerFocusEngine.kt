@@ -180,6 +180,7 @@ object ControllerFocusEngine {
     private var activeVerticalScrollJob: Job? = null
     private val SnappyEaseOut = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
     private var manualSidebarOpen = false
+    private var lastNavigationDirection: ControllerDirection? = null
 
     private val handlerStack = mutableListOf<Pair<String, ControllerGlobalHandlers>>()
     private var customPlayerEventHandler: ((ControllerEvent) -> Boolean)? = null
@@ -429,6 +430,8 @@ object ControllerFocusEngine {
         node: ControllerFocusNode,
         triggerScroll: Boolean,
         suppressVerticalScroll: Boolean = false,
+        suppressHorizontalScroll: Boolean = false,
+        direction: ControllerDirection? = null,
     ) {
         val previousId = _focusedNodeId.value
         _focusedNodeId.value = node.id
@@ -453,8 +456,9 @@ object ControllerFocusEngine {
             if (!suppressVerticalScroll) {
                 scrollVerticalContainerToNode(node)
             }
-            if (node.rowLazyListState != null) {
-                scrollHorizontalContainerToNode(node)
+            if (node.rowLazyListState != null && !suppressHorizontalScroll) {
+                val effectiveDirection = direction ?: lastNavigationDirection
+                scrollHorizontalContainerToNode(node, effectiveDirection)
             }
         }
     }
@@ -621,7 +625,10 @@ object ControllerFocusEngine {
         }
     }
 
-    private fun scrollHorizontalContainerToNode(node: ControllerFocusNode) {
+    private fun scrollHorizontalContainerToNode(
+        node: ControllerFocusNode,
+        direction: ControllerDirection? = null,
+    ) {
         if (isNavigatingLazyRow) return
         val rowState = node.rowLazyListState ?: return
         val scope = node.coroutineScope ?: activeCoroutineScope ?: return
@@ -629,22 +636,86 @@ object ControllerFocusEngine {
         val layoutInfo = rowState.layoutInfo
         val viewportStart = layoutInfo.viewportStartOffset.toFloat()
         val viewportEnd = layoutInfo.viewportEndOffset.toFloat().takeIf { it > 100f } ?: 1920f
-        val edgeMargin = 100f
-        val safeRight = (viewportEnd - edgeMargin).coerceAtLeast(viewportStart + 100f)
-        val safeLeft = viewportStart + edgeMargin
 
-        val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
-        val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull()
+        val cardLeft = node.boundsInRoot.left
+        val cardRight = node.boundsInRoot.right
+        if (cardRight <= 0f && cardLeft <= 0f) return
 
-        if (lastVisible != null && (lastVisible.offset + lastVisible.size) > safeRight) {
-            val delta = ((lastVisible.offset + lastVisible.size) - safeRight + 30f).coerceAtLeast(0f)
-            scope.launch {
-                runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
+        // 1. Vertical navigation (Up / Down) row entry:
+        // Keep the row's horizontal offset 100% stationary whenever the target card is already visible within viewport
+        if (direction == ControllerDirection.Up || direction == ControllerDirection.Down) {
+            val isCardVisibleWithinViewport = cardLeft >= viewportStart && cardRight <= viewportEnd
+            if (isCardVisibleWithinViewport) {
+                return
             }
-        } else if (firstVisible != null && firstVisible.offset < safeLeft) {
-            val delta = (firstVisible.offset - safeLeft - 30f).coerceAtMost(0f)
-            scope.launch {
-                runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
+            // Target card is clipped outside viewport; scroll just enough to reveal it
+            if (cardRight > viewportEnd && rowState.canScrollForward) {
+                val delta = (cardRight - viewportEnd + 40f).coerceAtLeast(0f)
+                if (delta > 2f) {
+                    scope.launch {
+                        runCatching { rowState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut)) }
+                    }
+                }
+            } else if (cardLeft < viewportStart && rowState.canScrollBackward) {
+                if (rowState.firstVisibleItemIndex == 0) {
+                    scope.launch {
+                        runCatching { rowState.animateScrollToItem(0, 0) }
+                    }
+                } else {
+                    val delta = (cardLeft - viewportStart - 40f).coerceAtMost(0f)
+                    if (delta < -2f) {
+                        scope.launch {
+                            runCatching { rowState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut)) }
+                        }
+                    }
+                }
+            }
+            return
+        }
+
+        // 2. Horizontal Left navigation:
+        if (direction == ControllerDirection.Left) {
+            val isFirstCard = node.rowItemIndex == 0 || (
+                rowState.firstVisibleItemIndex == 0 &&
+                rowState.layoutInfo.visibleItemsInfo.firstOrNull()?.let { first ->
+                    node.rowItemIndex == first.index || kotlin.math.abs(cardLeft - first.offset) < 60f
+                } == true
+            )
+
+            if (isFirstCard) {
+                if (rowState.firstVisibleItemIndex > 0 || rowState.firstVisibleItemScrollOffset > 0) {
+                    scope.launch {
+                        runCatching { rowState.animateScrollToItem(0, 0) }
+                    }
+                }
+                return
+            }
+
+            // For other cards (targetIndex > 0), only scroll left if the card is ACTUALLY clipped on the left edge (cardLeft < viewportStart)
+            // Never apply a large edgeMargin to the left side when landing on the leftmost visible card of a row
+            if (cardLeft < viewportStart && rowState.canScrollBackward) {
+                val delta = (cardLeft - viewportStart - 30f).coerceAtMost(0f)
+                if (delta < -2f) {
+                    scope.launch {
+                        runCatching { rowState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut)) }
+                    }
+                }
+            }
+            return
+        }
+
+        // 3. Horizontal Right navigation:
+        // Retain full-card scroll calculation when pressing Right and card exceeds right threshold
+        // so off-screen portrait and landscape cards snap 100% into view on the first press.
+        val rightEdgeMargin = 100f
+        val safeRight = (viewportEnd - rightEdgeMargin).coerceAtLeast(viewportStart + 100f)
+
+        if (cardRight > safeRight && rowState.canScrollForward) {
+            val delta = (cardRight - safeRight + 30f).coerceAtLeast(0f)
+            if (delta > 2f) {
+                scope.launch {
+                    runCatching { rowState.animateScrollBy(delta, tween(180, easing = SnappyEaseOut)) }
+                }
             }
         }
     }
@@ -1054,7 +1125,7 @@ object ControllerFocusEngine {
                 val target = sameRowCards.maxByOrNull { it.boundsInRoot.center.x }
                     ?: composedRows.firstOrNull { it.centerY > current.boundsInRoot.center.y }?.nodes?.lastOrNull()
                 if (target != null) {
-                    focusNodeInternal(target, triggerScroll = true)
+                    focusNodeInternal(target, triggerScroll = true, direction = direction)
                     return true
                 }
             } else if (direction == ControllerDirection.Up) {
@@ -1063,7 +1134,7 @@ object ControllerFocusEngine {
                 if (rowAbove != null) {
                     val target = selectBestTargetNodeInRow(current, rowAbove)
                     if (target != null) {
-                        focusNodeInternal(target, triggerScroll = true)
+                        focusNodeInternal(target, triggerScroll = true, direction = direction)
                         return true
                     }
                 }
@@ -1093,7 +1164,7 @@ object ControllerFocusEngine {
                         abs(it.boundsInRoot.center.x - current.boundsInRoot.center.x) < 260f
                 }
                 if (chevronAbove != null) {
-                    focusNodeInternal(chevronAbove, triggerScroll = true)
+                    focusNodeInternal(chevronAbove, triggerScroll = true, direction = direction)
                     return true
                 }
             }
@@ -1110,7 +1181,7 @@ object ControllerFocusEngine {
                 val nextRow = composedRows[currentRowIndex + 1]
                 val targetNode = selectBestTargetNodeInRow(current, nextRow)
                 if (targetNode != null) {
-                    focusNodeInternal(targetNode, triggerScroll = true)
+                    focusNodeInternal(targetNode, triggerScroll = true, direction = direction)
                     return true
                 }
             }
@@ -1140,7 +1211,7 @@ object ControllerFocusEngine {
                     if (newRow != null) {
                         val target = selectBestTargetNodeInRow(current, newRow)
                         if (target != null) {
-                            focusNodeInternal(target, triggerScroll = true)
+                            focusNodeInternal(target, triggerScroll = true, direction = direction)
                         }
                     }
                 }
@@ -1152,7 +1223,7 @@ object ControllerFocusEngine {
                 val prevRow = composedRows[currentRowIndex - 1]
                 val targetNode = selectBestTargetNodeInRow(current, prevRow)
                 if (targetNode != null) {
-                    focusNodeInternal(targetNode, triggerScroll = true)
+                    focusNodeInternal(targetNode, triggerScroll = true, direction = direction)
                     return true
                 }
             }
@@ -1187,7 +1258,7 @@ object ControllerFocusEngine {
                     if (newRow != null) {
                         val target = selectBestTargetNodeInRow(current, newRow)
                         if (target != null) {
-                            focusNodeInternal(target, triggerScroll = true)
+                            focusNodeInternal(target, triggerScroll = true, direction = direction)
                         }
                     }
                 }
@@ -1200,7 +1271,7 @@ object ControllerFocusEngine {
                     ?: lastFocusedByZone[ControllerFocusZone.Navigation]?.let { id -> navNodes.firstOrNull { it.id == id } }
                     ?: navNodes.minByOrNull { abs(it.boundsInRoot.center.x - current.boundsInRoot.center.x) }
                 if (target != null) {
-                    focusNodeInternal(target, triggerScroll = false)
+                    focusNodeInternal(target, triggerScroll = false, direction = direction)
                     return true
                 }
             }
@@ -1211,6 +1282,7 @@ object ControllerFocusEngine {
     }
 
     private fun handleNavigate(direction: ControllerDirection): Boolean {
+        lastNavigationDirection = direction
         if (PlatformVirtualKeyboard.isKeyboardActive) {
             PlatformVirtualKeyboard.hide()
         }
@@ -1243,7 +1315,7 @@ object ControllerFocusEngine {
             val sameRowCard = contentNodes.filter { it.boundsInRoot.top >= current.boundsInRoot.bottom - 10f && it.boundsInRoot.top <= current.boundsInRoot.bottom + 140f }
                 .maxByOrNull { it.boundsInRoot.center.x }
             if (sameRowCard != null) {
-                focusNodeInternal(sameRowCard, triggerScroll = true)
+                focusNodeInternal(sameRowCard, triggerScroll = true, direction = direction)
                 return true
             }
         }
@@ -1268,7 +1340,7 @@ object ControllerFocusEngine {
                 (current.groupKey != null && current.groupKey == nextInZone.groupKey) ||
                 abs(current.boundsInRoot.center.y - nextInZone.boundsInRoot.center.y) < 45f
             )
-            focusNodeInternal(nextInZone, triggerScroll = true, suppressVerticalScroll = isSameRow)
+            focusNodeInternal(nextInZone, triggerScroll = true, suppressVerticalScroll = isSameRow, direction = direction)
             return true
         }
 
@@ -1325,7 +1397,7 @@ object ControllerFocusEngine {
                             }
                             val newlyVisible = findBestSpatialCandidate(current, refreshed, direction)
                             if (newlyVisible != null) {
-                                focusNodeInternal(newlyVisible, triggerScroll = false, suppressVerticalScroll = true)
+                                focusNodeInternal(newlyVisible, triggerScroll = false, suppressVerticalScroll = true, direction = direction)
                                 break
                             }
                         }

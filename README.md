@@ -570,6 +570,23 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.05` and `VERSION_CODE=5`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.05`. Dual-version display string updated to `"NuvioDeck v0.1.05 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Documented auto-updater redirection and version configuration in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-01] Isolate Horizontal Scrolling from Vertical Row Navigation & Left-Boundary Fix (v0.1.06)
+
+#### 1. Zero Horizontal Jitter on Vertical (`Up`/`Down`) Navigation (`ControllerFocusEngine.kt`)
+- **Stationary Target Rows:** Fixed regression where navigating vertically (`Up` or `Down`) between content shelves caused newly focused rows to shift horizontally to the left.
+- **Direction-Aware Scroll Guard:** Tracked active navigation direction (`lastNavigationDirection`) and passed it into focus transfer. When focus transitions vertically into a row, if the landing card is already visible within the viewport (`cardLeft >= viewportStart && cardRight <= viewportEnd`), horizontal scrolling is completely bypassed, keeping the row 100% stationary.
+- **Clipped Card Rescue:** If a card landing via vertical traversal happens to be clipped outside viewport bounds, scrolls gently just enough to reveal the card without disruptive jumps.
+
+#### 2. Refined Left-Boundary & Index 0 Snapping (`ControllerFocusEngine.kt`)
+- **Left Navigation Isolation:** Only triggers leftward horizontal scrolling when the user explicitly navigates `Left` and the target card is actually clipped on the left edge (`cardLeft < viewportStart`).
+- **Clean Index 0 Snapping:** When moving `Left` to index 0, smoothly snaps to `(0, 0)` via `animateScrollToItem(0, 0)` only if the list has non-zero scroll offset, completely eliminating arbitrary left-edge shifting on start-padded shelves.
+- **Preserved Right-Edge Full-Card Reveal:** Preserved dynamic full-card scroll calculation when pressing `Right` so wide landscape (16:9) episode cards and portrait posters snap 100% into view on the first press.
+
+#### 3. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.06` and `VERSION_CODE=6`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.06`. Dual-version display string updated to `"NuvioDeck v0.1.06 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized version references in `UPSTREAM_PATCHES.md`.
+
+
 
 
 
