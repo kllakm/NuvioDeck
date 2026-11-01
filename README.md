@@ -632,6 +632,26 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.08` and `VERSION_CODE=8`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.08`. Dual-version display string updated to `"NuvioDeck v0.1.08 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-01] Density-Aware Header Clearance & Unified Single-Motion Shelf Scrolling (v0.1.09)
+
+#### 1. Density-Aware Header Clearance & Viewport Safe-Zone Math (`ControllerFocusEngine.kt`)
+- **Eliminated 20% Header Clipping Edge-Case:** Resolved remaining clipping where category section titles (e.g., "Trending Movies", "Latest movies for you") were partially obscured behind the top window bar on `Up` traversal.
+- **Dynamic Header Clearance Calculation:** Replaced static 80px/180px thresholds with display density-aware calculations (`scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)`):
+  - `headerClearance = 145f * scaleFactor` (~130px on 720p, 175px on 1080p, 232px on 1440p) to fully clear section header typography, title-to-row spacing, and row padding.
+  - `topChromeSafeMargin = 85f * scaleFactor` (~75px to 136px, representing a comfortable 48dp-64dp top buffer).
+  - Target minimum card top safe-zone is enforced at `headerClearance + topChromeSafeMargin`, guaranteeing that both the complete section header text and the card row reveal cleanly in the viewport with generous breathing room.
+- **Strict Relative Gliding (Zero Page-Top Jumps):** Upward relative scrolling is strictly clamped against index 0 scroll offset (`delta.coerceAtLeast(-listState.firstVisibleItemScrollOffset.toFloat())`), smoothly stopping at top boundary without snapping or jumping to index 0.
+
+#### 2. Unified Single-Motion Scroll Traversal (Eliminated Two-Stage Judder) (`ControllerFocusEngine.kt`)
+- **Single Smooth Motion:** Eliminated two-stage scroll movements across vertical shelf transitions.
+- **Suppressed Secondary Scroll:** In both `canScrollDown` and `canScrollUp` handlers, allowed the initial unified `animateScrollBy` (200ms `SnappyEaseOut`) to complete, and transferred focus with `suppressVerticalScroll = true` so `scrollVerticalContainerToNode` does not launch a redundant secondary scroll.
+- **Same-Row Horizontal Scroll Isolation:** Added `current.rowLazyListState === nextInZone.rowLazyListState` check to `isSameRow`, ensuring that navigating horizontally between cards in a shelf never accidentally triggers vertical container adjustments.
+
+#### 3. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.09` and `VERSION_CODE=9`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.09`. Dual-version display string updated to `"NuvioDeck v0.1.09 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 
