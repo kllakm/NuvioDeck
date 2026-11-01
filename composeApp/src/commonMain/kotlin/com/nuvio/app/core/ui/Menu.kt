@@ -18,6 +18,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,12 +67,36 @@ fun MenuItem(
     enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
+    val itemId = remember(text) { "menu_item_${text.hashCode()}" }
+    val isFocused = isControllerNodeFocused(itemId)
+    val itemBg = when {
+        isFocused -> Color(0xFFF3F4F6)
+        selected -> tokens.colors.accent.copy(alpha = tokens.opacity.hover)
+        else -> Color.Transparent
+    }
+    val itemTextColor = when {
+        isFocused -> Color(0xFF111827)
+        enabled -> tokens.colors.textPrimary
+        else -> tokens.colors.textDisabled
+    }
+    val checkmarkTint = if (isFocused) Color(0xFF111827) else tokens.colors.accent
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = NuvioTokens.Space.s8)
             .clip(tokens.shapes.compactCard)
-            .background(if (selected) tokens.colors.accent.copy(alpha = tokens.opacity.hover) else Color.Transparent)
+            .controllerFocusable(
+                id = itemId,
+                zone = ControllerFocusZone.Overlay,
+                enabled = enabled,
+                shape = tokens.shapes.compactCard,
+                focusScale = 1.0f,
+                hideFocusRing = true,
+                onSelect = onClick,
+                selectLabel = text,
+            )
+            .background(itemBg)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(NuvioTokens.Space.s12),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
@@ -78,8 +106,8 @@ fun MenuItem(
             text = text,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected) FontWeight.SemiBold else null,
-            color = if (enabled) tokens.colors.textPrimary else tokens.colors.textDisabled,
+            fontWeight = if (selected || isFocused) FontWeight.SemiBold else null,
+            color = itemTextColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -87,7 +115,7 @@ fun MenuItem(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                tint = tokens.colors.accent,
+                tint = checkmarkTint,
                 modifier = Modifier.size(tokens.icons.md),
             )
         }

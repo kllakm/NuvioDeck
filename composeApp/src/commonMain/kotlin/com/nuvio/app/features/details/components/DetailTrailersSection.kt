@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.Menu
 import com.nuvio.app.core.ui.MenuItem
@@ -111,6 +112,11 @@ fun DetailTrailersSection(
                         tonalElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(sizing.selectorRadius))
+                            .controllerFocusable(
+                                shape = RoundedCornerShape(sizing.selectorRadius),
+                                onSelect = { menuExpanded = true },
+                                selectLabel = "Select Category",
+                            )
                             .clickable { menuExpanded = true },
                     ) {
                         Row(
@@ -209,6 +215,12 @@ private fun TrailerCard(
                 .nuvioCardDepth(
                     shape = RoundedCornerShape(cornerRadius),
                     surface = NuvioCardDepthSurface.Trailers,
+                )
+                .controllerFocusable(
+                    shape = RoundedCornerShape(cornerRadius),
+                    focusScale = 1.05f,
+                    onSelect = onClick,
+                    selectLabel = "Play Trailer",
                 )
                 .clickable(onClick = onClick),
         ) {

@@ -14,9 +14,9 @@
 
 ---
 
-## 🎮 About This Fork (Windows 11 Controller Edition)
+## 🎮 About This Fork: NuvioDeck (Windows 11 Controller & Handheld Edition)
 
-This fork of **Nuvio Desktop** is purpose-built to bring a first-class, **native Windows 11 controller & 10-foot / handheld experience** to Nuvio Desktop (ideal for HTPCs, living-room setups, Xbox/PlayStation/Switch controllers on PC, and Windows handhelds like ROG Ally, Legion Go, and Claw).
+This fork, **NuvioDeck**, is purpose-built to bring a first-class, **native Windows 11 controller & 10-foot / handheld experience** to Nuvio Desktop (ideal for Steam Deck Windows installations, HTPCs, living-room setups, Xbox/PlayStation/Switch controllers on PC, and Windows handhelds like ROG Ally, Legion Go, and Claw).
 
 Key goals of this fork:
 - **Universal Windows 11 Controller Support:** Seamless hot-plugging and input polling across XInput, DirectInput, and HID controllers (Xbox, PlayStation DualSense/DualShock 4, Nintendo Switch Pro/Joy-Con, and generic gamepads), normalized internally to standard Windows Xbox controller conventions.
@@ -386,4 +386,113 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 
 
 
+
+
+### [2026-11-01] Upstream Patch Registry, Game Pass Audio Engine, Fluid Scroll Curve, Inverted Focus Styling & UI Polish
+
+#### 1. Authoritative Upstream Patch Registry (`UPSTREAM_PATCHES.md`)
+- **Merge Preservation Guide:** Established `UPSTREAM_PATCHES.md` in repository root, documenting every hook and wrapper file touched outside the `controller/` module relative to upstream `NuvioMedia/NuvioDesktop`.
+- **Minimal Touch Guarantee:** Formally indexed build configurations, root shell mounts, shared component hooks, feature screens, and native player bridge files to guarantee conflict-free future upstream pulls.
+
+#### 2. High-Quality Zero-Latency Controller Audio Feedback (`ControllerSoundPlayer.kt`, `ControllerSoundPlayer.desktop.kt`)
+- **Game Pass / Plex-Style Acoustic Design:**
+  - **Navigate (`playNavigate`):** Subtle, damped mechanical tick and low-frequency tactile thud (~32ms) debounced at 60ms to prevent audio spam on fast D-Pad / stick sweeps.
+  - **Select (`playSelect`):** Crisp, warm modern chime/pop with upward pitch sweep (440Hz -> 880Hz) and harmonic overtone (~90ms).
+  - **Back (`playBack`):** Soft downward-resolving dismiss tone (580Hz -> 290Hz, ~80ms).
+- **Embedded & Synthesized Dual Fallback:** Preloads 16-bit 44.1kHz mono PCM WAV assets (`navigate.wav`, `select.wav`, `back.wav`) directly into JVM `javax.sound.sampled.Clip` memory instances for sub-millisecond latency, with built-in procedural synthesis fallback if external files are unavailable.
+- **Controller-Active Gating:** Plays strictly when `ControllerManager.isControllerActive` is true at unobtrusive listening levels (-15dB to -18dB relative volume).
+
+#### 3. Snappy Fluid Downward Scroll & Expanded Bottom Safe Clearance (`ControllerFocusEngine.kt`)
+- **Expanded Safe-Zone Headroom:** Increased downward scroll bottom clearance by +80px to +100px (`maxBottomSafeZone = vh - 180f`, `rowBottom = node.bounds.bottom + 120f`), ensuring poster cards and row titles never crowd against the bottom screen edge or controller toolbar.
+- **Snappy Cubic-Bezier Easing:** Replaced linear/generic scroll animations with a snappy cubic-bezier curve (`CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)`, 200ms) with instant cancellation of prior in-flight scroll jobs on consecutive inputs.
+
+#### 4. Detail Screen Focus Order & Hint Toolbar Cleansing (`DetailTrailersSection.kt`, `ControllerHintToolbar.kt`, `ControllerNavigationHost.kt`)
+- **Full Trailer Section Focus Traversal:** Added `.controllerFocusable` to trailer category dropdown selectors and trailer video cards.
+- **Hint Toolbar Cleansing:** Stripped hardcoded `"Streams"` and `"[Y] Library"` labels on movie/show detail screens, keeping hint toolbar focused on contextual `[A] Play`, `[B] Back`, and active options only.
+
+#### 5. Context-Aware Collection Folder Tab Hints (`FolderDetailScreen.kt`, `ControllerNavigationHost.kt`)
+- **Dynamic Bumper Hint Gating:** Dynamically updates `hasSeasonsOrTabs` in `ControllerManager.screenContext` so `[LB / RB] Switch Folder` hints appear only when collection folder tabs are actually mounted at the top (`TABBED_GRID` mode with `tabs.size > 1`).
+
+#### 6. First Login Default Focus to Media Poster Card (`ControllerFocusEngine.kt`)
+- **Sidebar Auto-Open Prevention:** Prohibited `ensureValidFocus()` from defaulting to navigation sidebar nodes during initial content load.
+- **First Media Poster Focus:** Automatically focuses the top-left media card `(rowIndex = 0, itemIndex = 0)` as soon as content mounts, keeping the navigation sidebar cleanly collapsed.
+
+#### 7. Inverted Highlight Focus Styling for Menus & PIN Keypad (`PinEntryDialog.kt`, `Menu.kt`, `ControllerFocusEngine.kt`)
+- **Sleek Inverted Styling:** Added `hideFocusRing: Boolean` parameter and `isControllerNodeFocused()` helper.
+- **PIN Keypad:** PIN numeric keys and backspace button render with a solid `#F3F4F6` background fill and dark `#111827` text/icon on focus, replacing clunky outer strokes.
+- **Dropdown & Popup Menus:** `MenuItem` components highlight with solid `#F3F4F6` background and dark `#111827` typography on focus.
+
+#### 8. Stream Selection Modal Modernization (`StreamCard.kt`)
+- **Zero Card Distortion:** Disabled stream card scale-up on focus (`focusScale = 1.0f`).
+- **Subtle Dark Inverted Highlight:** Applied refined slate/navy background highlight (`#232738`) on focused stream cards.
+- **Monochrome Typography:** Cleaned stream subtitles, replacing colorful third-party emojis (`👤`, `🌱`, `💾`, `📦`, `⚙️`, `⚡`) with clean monochrome text labels and badges.
+
+#### 9. TV Seasons Row Border Clipping Fix (`DetailSeriesContent.kt`)
+- **Scroll Track Padding:** Injected vertical and horizontal safe padding (`PaddingValues(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 8.dp)`) into `SeasonPosterScrollRow` and `SeasonTextChipScrollRow`, preventing first-item and bottom focus ring strokes from getting clipped by container bounds.
+
+### [2026-11-01] Fork Rebranding to "NuvioDeck", Storage Isolation & Theme-Adaptive Brand Lockup
+
+#### 1. Application Packaging Target & Window Title Rebranding (`build.gradle.kts`, `Main.kt`)
+- **Executable & Package Target:** Renamed native distribution packaging from `Nuvio` to `NuvioDeck` (`packageName = "NuvioDeck"`, `windows { menuGroup = "NuvioDeck" }`, `linux { menuGroup = "NuvioDeck" }`). Output standalone binary is compiled cleanly as `NuvioDeck.exe`.
+- **Desktop Window Title:** Desktop window title set to `"NuvioDeck"` (with `"NuvioDeck Player Smoke"` for smoke player test mode).
+- **Client Metadata:** Client identity strings updated to `"NuvioDeck"` in `DeviceSessionRegistration.desktop.kt` and `AppVersionPolicy.desktop.kt`.
+
+#### 2. Isolated Persistent AppData & Cache Directory with Legacy Migration (`DesktopStorage.kt`)
+- **Storage Isolation:** Desktop preferences and databases now resolve to isolated application directories:
+  - Windows: `%APPDATA%\NuvioDeck` and `%LOCALAPPDATA%\NuvioDeck\Cache`
+  - macOS: `Library/Application Support/NuvioDeck` and `Library/Caches/NuvioDeck`
+  - Linux: `$XDG_CONFIG_HOME/nuviodeck` and `$XDG_CACHE_HOME/nuviodeck`
+- **Seamless One-Time Migration:** On first launch, if `%APPDATA%\NuvioDeck` does not exist or is empty, `DesktopStorage` automatically and non-destructively migrates all `.properties` files (auth session, profiles, addons, catalog caches, watch progress) from legacy `%APPDATA%\Nuvio`, preserving user data without requiring re-authentication.
+
+#### 3. Theme-Adaptive "NuvioDeck" Brand Lockup & Moniker Badge (`AppBrandWordmark.kt`, `strings.xml`)
+- **Proportional Moniker Badge:** Enhanced `AppBrandWordmark` to render a sleek, theme-adaptive `DECK` moniker badge alongside the base brand wordmark image.
+- **Dynamic Accent Integration:** The badge adopts `MaterialTheme.colorScheme.primary` with subtle opacity and crisp border, automatically matching whichever app theme or accent color is active (Original, Arctic Blue, Jade, Gold, Rose Gold, Graphite).
+- **Cross-Screen Consistency:** Scales proportionally across all screen layouts, including Boot/Splash (`AppLoadingContent`), Login (`AuthScreen`), and Profile Selection (`ProfileSelectionScreen`).
+- **Brand Strings:** Updated `app_brand_name` and PiP window title strings to `"NuvioDeck"`.
+
+### [2026-11-01] Strict Storage Isolation Verification, Seasons Strip Scroll/Padding Polish & Fork Attribution (v0.1.01)
+
+#### 1. Strict `%APPDATA%\NuvioDeck` Isolation Verification & Player Bridge Directory Redirection (`DesktopStorage.kt`, `player_bridge.cpp`)
+- **Verified Active Storage Directory:** Verified on disk that `%APPDATA%\NuvioDeck` is actively created and populated, with user profile and PIN cache operations writing strictly to `%APPDATA%\NuvioDeck`.
+- **Seamless Non-Destructive Migration:** Clarified and verified that existing user login and preferences are preserved on first run through non-destructive migration from `%APPDATA%\Nuvio`, leaving the original folder untouched while all subsequent reads and writes occur inside `%APPDATA%\NuvioDeck`.
+- **Native Player Bridge Isolation:** Updated `player_bridge.cpp` to redirect WebView2 user data and MPV shader cache directories to `%LOCALAPPDATA%\NuvioDeck\`.
+
+#### 2. Left-Edge Clipping Fix on First Season Card (`DetailSeriesContent.kt`)
+- **Safe-Margin Content Padding:** Expanded horizontal start and end padding to `PaddingValues(start = (horizontalScrollPadding + 14.dp).coerceAtLeast(14.dp), ...)` across both `SeasonPosterScrollRow` and `SeasonTextChipScrollRow`.
+- **Zero Border Clipping:** Offsets the leftmost item (index 0) sufficiently from the scroll container bleed edge, ensuring that card scaling (`1.05f`), white focus border (2.5dp), and outer halo glow remain completely visible without edge truncation.
+
+#### 3. Deterministic D-Pad Horizontal Scrolling for Seasons Strip (`DetailSeriesContent.kt`, `ControllerFocusEngine.kt`)
+- **Row LazyListState Registration:** Wrapped `SeasonPosterScrollRow`, `SeasonTextChipScrollRow`, and `EpisodeHorizontalRow` in `ProvideControllerRowLazyListState`.
+- **Programmatic `animateScrollToItem` Navigation:** Added explicit `onMoveRight` and `onMoveLeft` navigation handlers on season poster cards and text chips. When navigating past visible items, the target season card is programmatically animated into view (`animateScrollToItem(index ± 1)`) and focus is seamlessly transferred.
+- **Universal Horizontal Boundary Safe-Zone:** Added `scrollHorizontalContainerToNode` in `ControllerFocusEngine` to ensure any focused item in a horizontal row maintains a minimum 120px-140px safe margin from viewport edges.
+
+#### 4. Settings Fork Attribution & Central Dual-Version Tracking (`NuvioDeckVersionConfig.kt`, `SettingsAttribution.kt`, `AppVersionPolicy.desktop.kt`)
+- **Central Version Configuration:** Created `NuvioDeckVersionConfig.kt` to centralize `FORK_VERSION_NAME = "0.1.01"`, `UPSTREAM_BASE_VERSION_NAME = "0.1.33"`, and fork attribution text.
+- **Fork Attribution Text:** Updated Settings/About view to clearly designate this build as a fork:
+  `"NuvioDeck — A controller-first fork of Nuvio, developed by kllakm. Original Nuvio created with love by Tapframe and friends."`
+- **Dual-Version Display:** Implemented clean dual-version display string: `"NuvioDeck v0.1.01 (based on Nuvio v0.1.33)"`.
+
+### [2026-11-01] Application Logo & Launcher Icon Audit, Raster Asset Integrity & Version Bump (v0.1.02)
+
+#### 1. Repository-Wide Logo & Launcher Icon Asset Audit
+- **Format Determination Across Codebase:**
+  - Conducted a comprehensive file audit across `src/`, `assets/`, `composeResources/`, and packaging resource directories for all instances of the official Nuvio play emblem and desktop launcher icons.
+  - Determined that **no vector sources** (SVG, XML VectorDrawable, or Compose vector path code) exist for the Nuvio play emblem or desktop application icon.
+  - All existing logo assets are static raster images:
+    - Desktop packaging icon: `composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent.ico` (multi-resolution embedded raster bitmap).
+    - Platform icons: `composeApp/src/desktopMain/resources/icons/nuvio-app-icon-transparent.png` and `.icns`.
+    - Theme variants: 12 raster PNG files in `composeApp/src/commonMain/composeResources/drawable/app_icon_*.png`.
+    - Wordmark banners: 8 raster PNG files in `composeApp/src/commonMain/composeResources/drawable/app_logo_wordmark*.png`.
+  - Audited UI consumption:
+    - Desktop Window: `painterResource(appIconState.selected.transparentPreviewResource)` in `Main.kt` loads the static PNG raster.
+    - Packaging Target: `build.gradle.kts` packages `nuvio-app-icon-transparent.ico` into the native Windows executable.
+    - Brand Displays: `AppBrandWordmark.kt` renders the raster wordmark along with the newly added resolution-independent Compose "DECK" moniker badge.
+
+#### 2. Strict Raster Asset Integrity Preservation
+- **Conditional Color Treatment Adherence:** In accordance with repository quality rules, recoloring was strictly conditioned on the presence of clean vector/SVG geometry. Because modifying static raster bitmaps (PNG/ICO) directly introduces unsightly color fringing, haloing, and lossy compression artifacts against dark backgrounds, all raster logo and icon assets were deliberately preserved untouched in their native resolutions and palettes.
+- **Zero Artifacting:** Retains pristine anti-aliased transparency and clean edge rendering across all Windows desktop resolutions, scaling modes, and taskbar layouts.
+
+#### 3. Documentation & Version Bump (`UPSTREAM_PATCHES.md`, `NuvioDeckVersionConfig.kt`)
+- **Upstream Patch Registry:** Documented asset categories, format audit findings, and raster preservation justification in `UPSTREAM_PATCHES.md`.
+- **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.02`. Dual-version display string updated to `"NuvioDeck v0.1.02 (based on Nuvio v0.1.33)"`.
 

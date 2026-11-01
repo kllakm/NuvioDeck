@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.secondaryClickAt
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.SkeletonBlock
@@ -81,6 +82,10 @@ internal fun StreamCard(
 ) {
     val partyLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
     val cardShape = RoundedCornerShape(12.dp)
+    val cardNodeId = remember(stream.infoHash, stream.url, stream.name) {
+        "stream_card_${(stream.infoHash ?: stream.url ?: stream.name ?: "").hashCode()}"
+    }
+    val isFocused = isControllerNodeFocused(cardNodeId)
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
     val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && stream.behaviorHints.videoSize != null)
     var cardPositionInRoot by remember { mutableStateOf(Offset.Zero) }
@@ -96,10 +101,10 @@ internal fun StreamCard(
             )
             .clip(cardShape)
             .background(
-                if (isCurrent) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                } else {
-                    Color.White.copy(alpha = 0.05f)
+                when {
+                    isFocused -> Color(0xFF232738)
+                    isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    else -> Color.White.copy(alpha = 0.05f)
                 },
             )
             .then(
@@ -123,8 +128,11 @@ internal fun StreamCard(
                 },
             )
             .controllerFocusable(
+                id = cardNodeId,
                 enabled = enabled,
                 shape = cardShape,
+                focusScale = 1.0f,
+                scaleOnFocus = 1.0f,
                 onSelect = onClick,
                 selectLabel = "Play Stream",
                 onSecondaryAction = if (isDesktop && enabled && onSecondaryClick != null) {
@@ -184,7 +192,7 @@ internal fun StreamCard(
             if (!subtitle.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = subtitle,
+                    text = formatStreamSubtitleMonochrome(subtitle),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
@@ -355,4 +363,18 @@ private fun StreamItem.instantServiceLabel(): String? {
         .ifBlank { status.providerName.trim() }
         .ifBlank { DebridProviders.displayName(status.providerId) }
     return "- $providerLabel Instant"
+}
+
+private fun formatStreamSubtitleMonochrome(raw: String): String {
+    return raw
+        .replace("👤", "Seeds: ")
+        .replace("🌱", "Seeds: ")
+        .replace("💾", "Size: ")
+        .replace("📦", "Size: ")
+        .replace("⚙️", "• ")
+        .replace("⚡", "Instant ")
+        .replace("⏳", "Time: ")
+        .replace("🧲", "")
+        .replace(Regex(" {2,}"), " ")
+        .trim()
 }

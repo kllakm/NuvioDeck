@@ -479,11 +479,11 @@ std::wstring localAppDataDirectory(const wchar_t *name) {
     }
     std::wstring directory(localAppData);
     CoTaskMemFree(localAppData);
-    directory += L"\\Nuvio\\";
+    directory += L"\\NuvioDeck\\";
     directory += name;
     int createResult = SHCreateDirectoryExW(nullptr, directory.c_str(), nullptr);
     if (createResult != ERROR_SUCCESS && createResult != ERROR_ALREADY_EXISTS && createResult != ERROR_FILE_EXISTS) {
-        throw std::runtime_error("Failed to create Nuvio local data directory");
+        throw std::runtime_error("Failed to create NuvioDeck local data directory");
     }
     return directory;
 }

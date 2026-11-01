@@ -2,6 +2,11 @@ package com.nuvio.app.features.details.components
 
 import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.ProvideControllerRowLazyListState
+import com.nuvio.app.controller.ControllerFocusEngine
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -34,6 +39,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -47,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -522,6 +529,7 @@ private fun SeasonTextChipScrollRow(
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -536,59 +544,97 @@ private fun SeasonTextChipScrollRow(
         }
     }
 
-    LazyRow(
-        state = seasonListState,
-        modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-        contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
-        horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
-    ) {
-        items(seasons, key = { season -> season }) { season ->
-            val isSelected = season == currentSeason
-            val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(sizing.seasonChipRadius))
-                    .controllerFocusable(
-                        shape = RoundedCornerShape(sizing.seasonChipRadius),
-                        onSelect = { onSelect(season) },
-                        selectLabel = "Select Season",
-                        onSecondaryAction = onSecondaryClick,
-                        secondaryActionLabel = "Season Options",
-                    )
-                    .background(
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    ProvideControllerRowLazyListState(seasonListState) {
+        LazyRow(
+            state = seasonListState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(seasonListState)
+                .padding(vertical = 4.dp),
+            contentPadding = PaddingValues(
+                start = (horizontalScrollPadding + 14.dp).coerceAtLeast(14.dp),
+                end = (horizontalScrollPadding + 14.dp).coerceAtLeast(14.dp),
+                top = 6.dp,
+                bottom = 8.dp,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+        ) {
+            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
+                val isSelected = season == currentSeason
+                val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
+                val seasonFocusId = remember(season) { "season_text_chip_$season" }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(sizing.seasonChipRadius))
+                        .controllerFocusable(
+                            id = seasonFocusId,
+                            groupKey = "detail_seasons_text_row",
+                            shape = RoundedCornerShape(sizing.seasonChipRadius),
+                            onSelect = { onSelect(season) },
+                            selectLabel = "Select Season",
+                            onSecondaryAction = onSecondaryClick,
+                            secondaryActionLabel = "Season Options",
+                            onMoveRight = if (index < seasons.size - 1) {
+                                {
+                                    val nextSeason = seasons[index + 1]
+                                    val nextFocusId = "season_text_chip_$nextSeason"
+                                    coroutineScope.launch {
+                                        seasonListState.animateScrollToItem(index + 1)
+                                        for (attempt in 0..4) {
+                                            if (ControllerFocusEngine.requestFocus(nextFocusId)) break
+                                            delay(40)
+                                        }
+                                    }
+                                    true
+                                }
+                            } else null,
+                            onMoveLeft = if (index > 0) {
+                                {
+                                    val prevSeason = seasons[index - 1]
+                                    val prevFocusId = "season_text_chip_$prevSeason"
+                                    coroutineScope.launch {
+                                        seasonListState.animateScrollToItem(index - 1)
+                                        for (attempt in 0..4) {
+                                            if (ControllerFocusEngine.requestFocus(prevFocusId)) break
+                                            delay(40)
+                                        }
+                                    }
+                                    true
+                                }
+                            } else null,
+                        )
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            } else {
+                                Color.Transparent
+                            },
+                        )
+                        .combinedClickable(
+                            onClick = { onSelect(season) },
+                            onLongClick = onSecondaryClick,
+                        )
+                        .secondaryClick(onSecondaryClick)
+                        .padding(
+                            horizontal = sizing.seasonChipHorizontalPadding,
+                            vertical = sizing.seasonChipVerticalPadding,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = season.label(),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = sizing.seasonChipTextSize,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        ),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onBackground
                         } else {
-                            Color.Transparent
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
-                    .combinedClickable(
-                        onClick = { onSelect(season) },
-                        onLongClick = onSecondaryClick,
-                    )
-                    .secondaryClick(onSecondaryClick)
-                    .padding(
-                        horizontal = sizing.seasonChipHorizontalPadding,
-                        vertical = sizing.seasonChipVerticalPadding,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = season.label(),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = sizing.seasonChipTextSize,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    ),
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onBackground
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+                }
             }
         }
     }
@@ -606,6 +652,7 @@ private fun SeasonPosterScrollRow(
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -620,31 +667,44 @@ private fun SeasonPosterScrollRow(
         }
     }
 
-    LazyRow(
-        state = seasonListState,
-        modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-        contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
-        horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
-    ) {
-        items(seasons, key = { season -> season }) { season ->
-            SeasonPosterButton(
-                label = season.label(),
-                imageUrl = resolveSeasonPoster(
+    ProvideControllerRowLazyListState(seasonListState) {
+        LazyRow(
+            state = seasonListState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(seasonListState)
+                .padding(vertical = 4.dp),
+            contentPadding = PaddingValues(
+                start = (horizontalScrollPadding + 14.dp).coerceAtLeast(14.dp),
+                end = (horizontalScrollPadding + 14.dp).coerceAtLeast(14.dp),
+                top = 6.dp,
+                bottom = 8.dp,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+        ) {
+            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
+                SeasonPosterButton(
                     season = season,
-                    groupedEpisodes = groupedEpisodes,
-                    meta = meta,
+                    index = index,
+                    totalSeasons = seasons.size,
+                    seasons = seasons,
+                    seasonListState = seasonListState,
+                    coroutineScope = coroutineScope,
+                    label = season.label(),
+                    imageUrl = resolveSeasonPoster(
+                        season = season,
+                        groupedEpisodes = groupedEpisodes,
+                        meta = meta,
+                    )
+                        ?: meta.poster
+                        ?: meta.background,
+                    isSelected = season == currentSeason,
+                    sizing = sizing,
+                    onClick = { onSelect(season) },
+                    onLongClick = onLongPress?.let { handler -> { handler(season) } },
                 )
-                    ?: meta.poster
-                    ?: meta.background,
-                isSelected = season == currentSeason,
-                sizing = sizing,
-                onClick = { onSelect(season) },
-                onLongClick = onLongPress?.let { handler -> { handler(season) } },
-            )
+            }
         }
     }
 }
@@ -661,6 +721,12 @@ private fun resolveSeasonPoster(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SeasonPosterButton(
+    season: Int,
+    index: Int,
+    totalSeasons: Int,
+    seasons: List<Int>,
+    seasonListState: LazyListState,
+    coroutineScope: CoroutineScope,
     label: String,
     imageUrl: String?,
     isSelected: Boolean,
@@ -668,10 +734,52 @@ private fun SeasonPosterButton(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
 ) {
+    val seasonFocusId = remember(season) { "season_poster_$season" }
     Column(
         modifier = Modifier
             .width(sizing.seasonPosterWidth)
-            .posterCardClickable(onClick = onClick, onLongClick = onLongClick),
+            .controllerFocusable(
+                id = seasonFocusId,
+                groupKey = "detail_seasons_row",
+                shape = RoundedCornerShape(sizing.seasonPosterRadius),
+                focusScale = 1.05f,
+                selectLabel = "Select Season",
+                secondaryActionLabel = if (onLongClick != null) "Season Options" else null,
+                onSecondaryAction = onLongClick,
+                onSelect = onClick,
+                onMoveRight = if (index < totalSeasons - 1) {
+                    {
+                        val nextSeason = seasons[index + 1]
+                        val nextFocusId = "season_poster_$nextSeason"
+                        coroutineScope.launch {
+                            seasonListState.animateScrollToItem(index + 1)
+                            for (attempt in 0..4) {
+                                if (ControllerFocusEngine.requestFocus(nextFocusId)) break
+                                delay(40)
+                            }
+                        }
+                        true
+                    }
+                } else null,
+                onMoveLeft = if (index > 0) {
+                    {
+                        val prevSeason = seasons[index - 1]
+                        val prevFocusId = "season_poster_$prevSeason"
+                        coroutineScope.launch {
+                            seasonListState.animateScrollToItem(index - 1)
+                            for (attempt in 0..4) {
+                                if (ControllerFocusEngine.requestFocus(prevFocusId)) break
+                                delay(40)
+                            }
+                        }
+                        true
+                    }
+                } else null,
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
@@ -773,46 +881,48 @@ private fun EpisodeHorizontalRow(
         }
     }
 
-    LazyRow(
-        state = listState,
-        modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .nuvioDesktopDragScroll(listState),
-        contentPadding = PaddingValues(
-            horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
-            vertical = rowMetrics.rowVerticalPadding,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
-    ) {
-        itemsIndexed(
-            items = episodes,
-            key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
-        ) { _, episode ->
-            val episodeVideoId = buildPlaybackVideoId(
-                parentMetaId = parentMetaId,
-                seasonNumber = episode.season,
-                episodeNumber = episode.episode,
-                fallbackVideoId = episode.id,
-            )
-            EpisodeHorizontalCard(
-                video = episode,
-                fallbackImage = fallbackImage,
-                progressEntry = progressByVideoId[episodeVideoId],
-                imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
-                isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
-                    WatchingState.isEpisodeWatched(
-                        watchedKeys = watchedKeys,
-                        metaType = metaType,
-                        metaId = parentMetaId,
-                        episode = episode,
-                    ),
-                episodeRatingsVisibility = episodeRatingsVisibility,
-                blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                metrics = rowMetrics,
-                onClick = { onEpisodeClick?.invoke(episode) },
-                onLongPress = { onEpisodeLongPress?.invoke(episode) },
-            )
+    ProvideControllerRowLazyListState(listState) {
+        LazyRow(
+            state = listState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(listState),
+            contentPadding = PaddingValues(
+                horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
+                vertical = rowMetrics.rowVerticalPadding,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
+        ) {
+            itemsIndexed(
+                items = episodes,
+                key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
+            ) { _, episode ->
+                val episodeVideoId = buildPlaybackVideoId(
+                    parentMetaId = parentMetaId,
+                    seasonNumber = episode.season,
+                    episodeNumber = episode.episode,
+                    fallbackVideoId = episode.id,
+                )
+                EpisodeHorizontalCard(
+                    video = episode,
+                    fallbackImage = fallbackImage,
+                    progressEntry = progressByVideoId[episodeVideoId],
+                    imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
+                    isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+                        WatchingState.isEpisodeWatched(
+                            watchedKeys = watchedKeys,
+                            metaType = metaType,
+                            metaId = parentMetaId,
+                            episode = episode,
+                        ),
+                    episodeRatingsVisibility = episodeRatingsVisibility,
+                    blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+                    metrics = rowMetrics,
+                    onClick = { onEpisodeClick?.invoke(episode) },
+                    onLongPress = { onEpisodeLongPress?.invoke(episode) },
+                )
+            }
         }
     }
 }

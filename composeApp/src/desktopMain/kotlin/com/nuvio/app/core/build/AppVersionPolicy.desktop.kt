@@ -1,8 +1,8 @@
 package com.nuvio.app.core.build
 
 actual object AppVersionPolicy {
-    actual val displayVersionName: String = AppVersionConfig.DESKTOP_VERSION_NAME
+    actual val displayVersionName: String = NuvioDeckVersionConfig.FORK_VERSION_NAME
     actual val displayVersionCode: Int = AppVersionConfig.DESKTOP_VERSION_CODE
-    actual val basedOnVersionName: String? = AppVersionConfig.VERSION_NAME.takeIf { it != displayVersionName }
-    actual val userAgentAppName: String = "NuvioDesktop"
+    actual val basedOnVersionName: String? = "Nuvio v${NuvioDeckVersionConfig.UPSTREAM_BASE_VERSION_NAME}"
+    actual val userAgentAppName: String = "NuvioDeck"
 }

@@ -1,5 +1,6 @@
 package com.nuvio.app.controller
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -40,9 +41,11 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.nuvio.app.controller.audio.ControllerSoundPlayer
 import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.nuvio
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -174,6 +177,9 @@ object ControllerFocusEngine {
 
     private val registeredScrollables = mutableListOf<ControllerScrollableEntry>()
     private var activeCoroutineScope: CoroutineScope? = null
+    private var activeVerticalScrollJob: Job? = null
+    private val SnappyEaseOut = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
+    private var manualSidebarOpen = false
 
     private val handlerStack = mutableListOf<Pair<String, ControllerGlobalHandlers>>()
     private var customPlayerEventHandler: ((ControllerEvent) -> Boolean)? = null
@@ -255,6 +261,8 @@ object ControllerFocusEngine {
             _focusedNodeSnapshot.value = null
             lastFocusedByZone.clear()
             lastFocusedByGroup.clear()
+            manualSidebarOpen = false
+            _isNavigationZoneExpanded.value = false
         } else {
             val current = _focusedNodeId.value?.let { nodes[it] }
             if (current == null || !current.isVisibleAndValid) {
@@ -291,10 +299,20 @@ object ControllerFocusEngine {
         }
 
         val currentNode = currentId?.let { nodes[it] }
-        if (currentNode == null || !currentNode.isVisibleAndValid) {
-            if (node.zone == ControllerFocusZone.Content && node.isVisibleAndValid) {
-                if (node.isDefaultFocus || _focusedNodeId.value == null) {
-                    ensureValidFocus()
+        if (node.zone == ControllerFocusZone.Content && node.isVisibleAndValid) {
+            if (currentNode == null || !currentNode.isVisibleAndValid || (currentNode.zone == ControllerFocusZone.Navigation && !manualSidebarOpen)) {
+                if (node.isDefaultFocus || currentId == null || currentNode?.zone == ControllerFocusZone.Navigation) {
+                    val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
+                    val target = contentNodes.firstOrNull { it.isDefaultFocus }
+                        ?: contentNodes.minWithOrNull(
+                            compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
+                                .thenBy { it.boundsInRoot.left },
+                        )
+                    if (target != null) {
+                        _isNavigationZoneExpanded.value = false
+                        focusNodeInternal(target, triggerScroll = false)
+                        return
+                    }
                 }
             }
         }
@@ -389,11 +407,20 @@ object ControllerFocusEngine {
             }
         }
 
-        val navNodes = nodes.values.filter { it.zone == ControllerFocusZone.Navigation && it.isVisibleAndValid }
-        if (navNodes.isNotEmpty()) {
-            val chosen = navNodes.firstOrNull { it.isDefaultFocus } ?: navNodes.first()
-            focusNodeInternal(chosen, triggerScroll = false)
-            return true
+        val isContentRoute = activeRouteKey?.let {
+            it.contains("Home", ignoreCase = true) ||
+            it.contains("Library", ignoreCase = true) ||
+            it.contains("Catalog", ignoreCase = true) ||
+            it.contains("TabsRoute", ignoreCase = true)
+        } == true
+
+        if (!isContentRoute || manualSidebarOpen) {
+            val navNodes = nodes.values.filter { it.zone == ControllerFocusZone.Navigation && it.isVisibleAndValid }
+            if (navNodes.isNotEmpty()) {
+                val chosen = navNodes.firstOrNull { it.isDefaultFocus } ?: navNodes.first()
+                focusNodeInternal(chosen, triggerScroll = false)
+                return true
+            }
         }
         return false
     }
@@ -403,6 +430,7 @@ object ControllerFocusEngine {
         triggerScroll: Boolean,
         suppressVerticalScroll: Boolean = false,
     ) {
+        val previousId = _focusedNodeId.value
         _focusedNodeId.value = node.id
         _focusedNodeSnapshot.value = node.toSnapshot()
         lastFocusedByZone[node.zone] = node.id
@@ -414,12 +442,42 @@ object ControllerFocusEngine {
             invokeGlobalHandler { it.onEnterNavigationZone?.invoke(); false }
         } else if (node.zone == ControllerFocusZone.Content && _isNavigationZoneExpanded.value) {
             _isNavigationZoneExpanded.value = false
+            manualSidebarOpen = false
             invokeGlobalHandler { it.onExitNavigationZone?.invoke(); false }
+        }
+        if (previousId != null && previousId != node.id) {
+            ControllerSoundPlayer.playNavigate()
         }
         if (triggerScroll) {
             node.onFocusedWithOption?.invoke(!suppressVerticalScroll) ?: node.onFocused?.invoke()
             if (!suppressVerticalScroll) {
                 scrollVerticalContainerToNode(node)
+            }
+            if (node.rowLazyListState != null) {
+                scrollHorizontalContainerToNode(node)
+            }
+        }
+    }
+
+    private fun scrollHorizontalContainerToNode(node: ControllerFocusNode) {
+        val rowState = node.rowLazyListState ?: return
+        val scope = node.coroutineScope ?: activeCoroutineScope ?: return
+        val bounds = node.boundsInRoot
+        if (bounds.width <= 0f || bounds.height <= 0f) return
+
+        val viewportWidth = rowState.layoutInfo.viewportSize.width.toFloat().takeIf { it > 100f } ?: 1920f
+        val leftSafeZone = 120f
+        val rightSafeZone = viewportWidth - 140f
+
+        if (bounds.right > rightSafeZone) {
+            val delta = bounds.right - rightSafeZone + 40f
+            scope.launch {
+                runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
+            }
+        } else if (bounds.left < leftSafeZone) {
+            val delta = bounds.left - leftSafeZone - 40f
+            scope.launch {
+                runCatching { rowState.animateScrollBy(delta, tween(160, easing = SnappyEaseOut)) }
             }
         }
     }
@@ -515,7 +573,8 @@ object ControllerFocusEngine {
 
         val isHeroNode = node.groupKey == "home_hero" || node.id.startsWith("home_hero_")
         if (isHeroNode) {
-            scope.launch {
+            activeVerticalScrollJob?.cancel()
+            activeVerticalScrollJob = scope.launch {
                 if (listState != null && (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0)) {
                     runCatching { listState.animateScrollToItem(0, 0) }
                 } else if (gridState != null && (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0)) {
@@ -529,58 +588,59 @@ object ControllerFocusEngine {
 
         val minTopSafeZone = 110f
 
-        scope.launch {
+        activeVerticalScrollJob?.cancel()
+        activeVerticalScrollJob = scope.launch {
             val vh = listState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: 900f
-            val maxBottomSafeZone = vh - 100f
+            val maxBottomSafeZone = vh - 180f
 
-            // Full row container: heading text ~80px above card, card bottom + 45px below card
+            // Full row container: heading text ~80px above card, card bottom + 120px safe-zone clearance below card
             val rowTop = node.boundsInRoot.top - 80f
-            val rowBottom = node.boundsInRoot.bottom + 45f
+            val rowBottom = node.boundsInRoot.bottom + 120f
 
             var scrolled = false
             if (rowBottom > maxBottomSafeZone) {
                 val delta = rowBottom - maxBottomSafeZone
-                if (listState != null) runCatching { listState.animateScrollBy(delta, tween(160)) }
-                else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(160)) }
-                else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(160)) }
+                if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
                 scrolled = true
             } else if (rowTop < minTopSafeZone) {
                 val delta = rowTop - minTopSafeZone
-                if (listState != null) runCatching { listState.animateScrollBy(delta, tween(160)) }
-                else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(160)) }
-                else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(160)) }
+                if (listState != null) runCatching { listState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                else if (gridState != null) runCatching { gridState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
+                else if (scrollState != null) runCatching { scrollState.animateScrollBy(delta, tween(200, easing = SnappyEaseOut)) }
                 scrolled = true
             }
 
             // Post-layout / post-frame verification check:
             // Await animation settling and layout composition
-            delay(if (scrolled) 200 else 80)
+            delay(if (scrolled) 220 else 80)
             val updatedNode = nodes[node.id] ?: node
             val updatedBounds = updatedNode.boundsInRoot
             if (updatedBounds.height <= 0f) return@launch
 
             val updatedRowTop = updatedBounds.top - 80f
-            val updatedRowBottom = updatedBounds.bottom + 45f
+            val updatedRowBottom = updatedBounds.bottom + 120f
             val updatedVh = listState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: vh
-            val updatedMaxBottomSafeZone = updatedVh - 100f
+            val updatedMaxBottomSafeZone = updatedVh - 180f
 
             if (updatedRowBottom > updatedMaxBottomSafeZone) {
                 val correctiveDelta = updatedRowBottom - updatedMaxBottomSafeZone
                 if (correctiveDelta > 6f) {
-                    if (listState != null) runCatching { listState.animateScrollBy(correctiveDelta, tween(120)) }
-                    else if (gridState != null) runCatching { gridState.animateScrollBy(correctiveDelta, tween(120)) }
-                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(correctiveDelta, tween(120)) }
+                    if (listState != null) runCatching { listState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
+                    else if (gridState != null) runCatching { gridState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
+                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
                 }
             } else if (updatedRowTop < minTopSafeZone) {
                 val correctiveDelta = updatedRowTop - minTopSafeZone
                 if (correctiveDelta < -6f) {
-                    if (listState != null) runCatching { listState.animateScrollBy(correctiveDelta, tween(120)) }
-                    else if (gridState != null) runCatching { gridState.animateScrollBy(correctiveDelta, tween(120)) }
-                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(correctiveDelta, tween(120)) }
+                    if (listState != null) runCatching { listState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
+                    else if (gridState != null) runCatching { gridState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
+                    else if (scrollState != null) runCatching { scrollState.animateScrollBy(correctiveDelta, tween(160, easing = SnappyEaseOut)) }
                 }
             }
         }
@@ -643,6 +703,7 @@ object ControllerFocusEngine {
             XboxButton.DPadLeft -> handleNavigate(ControllerDirection.Left)
             XboxButton.DPadRight -> handleNavigate(ControllerDirection.Right)
             XboxButton.A -> {
+                ControllerSoundPlayer.playSelect()
                 if (current == null) {
                     ensureValidFocus()
                     true
@@ -655,6 +716,7 @@ object ControllerFocusEngine {
                 }
             }
             XboxButton.B -> {
+                ControllerSoundPlayer.playBack()
                 if (PlatformVirtualKeyboard.isKeyboardActive) {
                     PlatformVirtualKeyboard.hide()
                     return true
@@ -662,6 +724,7 @@ object ControllerFocusEngine {
                 PlatformVirtualKeyboard.hide()
                 // If currently in Sidebar/Navigation zone, B returns focus to Content
                 if (current?.zone == ControllerFocusZone.Navigation) {
+                    manualSidebarOpen = false
                     val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
                     if (contentNodes.isNotEmpty()) {
                         val remembered = lastFocusedByZone[ControllerFocusZone.Content]?.let { id ->
@@ -728,6 +791,7 @@ object ControllerFocusEngine {
     private fun toggleNavigationZoneFocus(): Boolean {
         val current = _focusedNodeId.value?.let { nodes[it] }
         if (current?.zone == ControllerFocusZone.Navigation) {
+            manualSidebarOpen = false
             val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
             val target = lastFocusedByZone[ControllerFocusZone.Content]?.let { id ->
                 contentNodes.firstOrNull { it.id == id }
@@ -737,6 +801,7 @@ object ControllerFocusEngine {
                 return true
             }
         } else {
+            manualSidebarOpen = true
             val navNodes = nodes.values.filter { it.zone == ControllerFocusZone.Navigation && it.isVisibleAndValid }
             val target = lastFocusedByZone[ControllerFocusZone.Navigation]?.let { id ->
                 navNodes.firstOrNull { it.id == id }
@@ -891,15 +956,16 @@ object ControllerFocusEngine {
                 val rowHeight = currentRow?.let { it.bottom - it.top + 70f } ?: (current.boundsInRoot.height + 125f)
                 val scrollDistance = max(rowHeight, 420f)
 
-                scope.launch {
+                activeVerticalScrollJob?.cancel()
+                activeVerticalScrollJob = scope.launch {
                     if (listState != null) {
-                        runCatching { listState.animateScrollBy(scrollDistance, tween(180)) }
+                        runCatching { listState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
                     } else if (gridState != null) {
-                        runCatching { gridState.animateScrollBy(scrollDistance, tween(180)) }
+                        runCatching { gridState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
                     } else if (scrollState != null) {
-                        runCatching { scrollState.animateScrollBy(scrollDistance, tween(180)) }
+                        runCatching { scrollState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
                     }
-                    delay(150)
+                    delay(160)
                     val refreshedRows = getComposedContentRows()
                     val oldCenterY = currentRow?.centerY ?: current.boundsInRoot.center.y
                     val newRow = refreshedRows.firstOrNull { it.centerY > oldCenterY + 40f }
@@ -935,17 +1001,18 @@ object ControllerFocusEngine {
                 val isNearTop = (listState != null && listState.firstVisibleItemIndex <= 1 && listState.firstVisibleItemScrollOffset < 150) ||
                     (gridState != null && gridState.firstVisibleItemIndex == 0)
 
-                scope.launch {
+                activeVerticalScrollJob?.cancel()
+                activeVerticalScrollJob = scope.launch {
                     if (isNearTop) {
                         if (listState != null) runCatching { listState.animateScrollToItem(0, 0) }
                         else if (gridState != null) runCatching { gridState.animateScrollToItem(0, 0) }
                         else if (scrollState != null) runCatching { scrollState.animateScrollTo(0) }
                     } else {
-                        if (listState != null) runCatching { listState.animateScrollBy(-scrollDistance, tween(180)) }
-                        else if (gridState != null) runCatching { gridState.animateScrollBy(-scrollDistance, tween(180)) }
-                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(-scrollDistance, tween(180)) }
+                        if (listState != null) runCatching { listState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        else if (gridState != null) runCatching { gridState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
                     }
-                    delay(150)
+                    delay(160)
                     val refreshedRows = getComposedContentRows()
                     val oldCenterY = currentRow?.centerY ?: current.boundsInRoot.center.y
                     val newRow = refreshedRows.lastOrNull { it.centerY < oldCenterY - 40f }
@@ -1054,13 +1121,13 @@ object ControllerFocusEngine {
                     val groupKey = current.groupKey
                     val currentBounds = current.boundsInRoot
                     val scrollDelta = if (direction == ControllerDirection.Right) {
-                        max(currentBounds.width * 1.35f, 240f)
+                        max(currentBounds.width * 1.5f, 260f)
                     } else {
-                        -max(currentBounds.width * 1.35f, 240f)
+                        -max(currentBounds.width * 1.5f, 260f)
                     }
                     scope.launch {
-                        runCatching { rowState.animateScrollBy(scrollDelta, tween(150)) }
-                        delay(60)
+                        runCatching { rowState.animateScrollBy(scrollDelta, tween(160, easing = SnappyEaseOut)) }
+                        delay(100)
                         val refreshed = nodes.values.filter {
                             it.zone == activeZone &&
                                 it.isVisibleAndValid &&
@@ -1403,6 +1470,7 @@ fun Modifier.controllerFocusable(
     focusScale: Float = 1.04f,
     scaleOnFocus: Float? = null,
     useHaloFocusRing: Boolean = false,
+    hideFocusRing: Boolean = false,
     selectLabel: String = "Select",
     actionLabel: String? = null,
     secondaryActionLabel: String? = null,
@@ -1544,7 +1612,7 @@ fun Modifier.controllerFocusable(
         }
         .drawWithContent {
             drawContent()
-            if (isFocused) {
+            if (isFocused && !hideFocusRing) {
                 if (useHaloFocusRing) {
                     // Play Button Halo / High-Contrast Focus Ring:
                     // Rendered strictly OUTSIDE the button perimeter so it never encroaches into the white button fill or icon:
@@ -1685,4 +1753,15 @@ fun Modifier.controllerFocusable(
             }
         }
 }
+
+/**
+ * Convenience check for whether a specific controller node currently holds active spatial focus.
+ */
+@Composable
+fun isControllerNodeFocused(id: String): Boolean {
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
+    return isControllerActive && focusedNodeId == id
+}
+
 

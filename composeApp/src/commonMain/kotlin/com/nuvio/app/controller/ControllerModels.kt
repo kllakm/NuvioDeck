@@ -157,6 +157,10 @@ object ControllerManager {
         _screenContext.value = context
     }
 
+    fun updateScreenContext(updater: (ControllerScreenContext) -> ControllerScreenContext) {
+        _screenContext.value = updater(_screenContext.value)
+    }
+
     fun dispatchEvent(event: ControllerEvent) {
         notifyControllerInput()
         val handledByEngine = ControllerFocusEngine.handleEvent(event)

@@ -12,12 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.nuvio.app.core.build.AppVersionPolicy
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_about_based_on_version_format
-import nuvio.composeapp.generated.resources.compose_about_made_with
-import nuvio.composeapp.generated.resources.compose_about_version_format
-import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.build.NuvioDeckVersionConfig
 
 @Composable
 internal fun SettingsAttribution(
@@ -38,34 +33,21 @@ internal fun SettingsAttribution(
         )
 
         Text(
-            text = stringResource(Res.string.compose_about_made_with),
+            text = NuvioDeckVersionConfig.FORK_ATTRIBUTION_TEXT,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+        )
+        Spacer(
+            modifier = Modifier.height(4.dp),
         )
         Text(
-            text = stringResource(
-                Res.string.compose_about_version_format,
-                AppVersionPolicy.displayVersionName,
-                AppVersionPolicy.displayVersionCode,
-            ),
+            text = NuvioDeckVersionConfig.dualVersionDisplayString,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        AppVersionPolicy.basedOnVersionName?.let { basedOnVersionName ->
-            Text(
-                text = stringResource(
-                    Res.string.compose_about_based_on_version_format,
-                    basedOnVersionName,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
     }
 }

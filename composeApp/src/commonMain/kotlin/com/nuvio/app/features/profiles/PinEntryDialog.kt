@@ -45,12 +45,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
+import com.nuvio.app.controller.isControllerNodeFocused
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -313,6 +315,9 @@ private fun PinKeypad(
                     when (key) {
                         "" -> Spacer(modifier = Modifier.size(64.dp))
                         "⌫" -> {
+                            val isBackspaceFocused = isControllerNodeFocused("pin_key_backspace")
+                            val backspaceBg = if (isBackspaceFocused) Color(0xFFF3F4F6) else MaterialTheme.colorScheme.surfaceVariant
+                            val backspaceTint = if (isBackspaceFocused) Color(0xFF111827) else MaterialTheme.colorScheme.onSurface
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
@@ -322,50 +327,56 @@ private fun PinKeypad(
                                         groupKey = "pin_keypad",
                                         isDefaultFocus = false,
                                         shape = CircleShape,
-                                        scaleOnFocus = 1.10f,
+                                        scaleOnFocus = 1.06f,
+                                        hideFocusRing = true,
                                         onSelect = onBackspace,
                                         selectLabel = "Delete",
                                         onSecondaryAction = onBackspace,
                                         secondaryActionLabel = "Delete",
                                     )
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .background(backspaceBg)
                                     .clickable(onClick = onBackspace),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.Backspace,
                                     contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    tint = backspaceTint,
                                     modifier = Modifier.size(24.dp),
                                 )
                             }
                         }
                         else -> {
+                            val keyId = "pin_key_$key"
+                            val isKeyFocused = isControllerNodeFocused(keyId)
+                            val keyBg = if (isKeyFocused) Color(0xFFF3F4F6) else MaterialTheme.colorScheme.surfaceVariant
+                            val keyColor = if (isKeyFocused) Color(0xFF111827) else MaterialTheme.colorScheme.onSurface
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
                                     .controllerFocusable(
-                                        id = "pin_key_$key",
+                                        id = keyId,
                                         zone = ControllerFocusZone.Overlay,
                                         groupKey = "pin_keypad",
                                         isDefaultFocus = key == "1",
                                         shape = CircleShape,
-                                        scaleOnFocus = 1.10f,
+                                        scaleOnFocus = 1.06f,
+                                        hideFocusRing = true,
                                         onSelect = { onDigit(key) },
                                         selectLabel = "Enter Digit",
                                         onSecondaryAction = onBackspace,
                                         secondaryActionLabel = "Delete",
                                     )
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .background(keyBg)
                                     .clickable { onDigit(key) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = key,
                                     style = MaterialTheme.typography.headlineLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = keyColor,
                                     fontWeight = FontWeight.Medium,
                                 )
                             }

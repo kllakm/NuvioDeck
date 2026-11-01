@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.Comparator
 import java.util.Locale
 import java.util.Properties
@@ -15,7 +16,10 @@ internal object DesktopStorage {
     private val stores = mutableMapOf<String, Store>()
 
     val rootDir: Path by lazy {
-        resolveAppDataDir().also { Files.createDirectories(it) }
+        resolveAppDataDir().also { dir ->
+            migrateFromLegacyNuvioIfNeeded(dir)
+            Files.createDirectories(dir)
+        }
     }
 
     val cacheDir: Path by lazy {
@@ -44,6 +48,22 @@ internal object DesktopStorage {
         val osName = System.getProperty("os.name").orEmpty().lowercase(Locale.ROOT)
         val userHome = Paths.get(System.getProperty("user.home").orEmpty())
         return when {
+            osName.contains("mac") -> userHome.resolve("Library/Application Support/NuvioDeck")
+            osName.contains("win") -> {
+                val appData = System.getenv("APPDATA")?.takeIf { it.isNotBlank() }
+                (appData?.let(Paths::get) ?: userHome.resolve("AppData/Roaming")).resolve("NuvioDeck")
+            }
+            else -> {
+                val xdgConfig = System.getenv("XDG_CONFIG_HOME")?.takeIf { it.isNotBlank() }
+                (xdgConfig?.let(Paths::get) ?: userHome.resolve(".config")).resolve("nuviodeck")
+            }
+        }
+    }
+
+    private fun resolveLegacyAppDataDir(): Path {
+        val osName = System.getProperty("os.name").orEmpty().lowercase(Locale.ROOT)
+        val userHome = Paths.get(System.getProperty("user.home").orEmpty())
+        return when {
             osName.contains("mac") -> userHome.resolve("Library/Application Support/Nuvio")
             osName.contains("win") -> {
                 val appData = System.getenv("APPDATA")?.takeIf { it.isNotBlank() }
@@ -56,18 +76,43 @@ internal object DesktopStorage {
         }
     }
 
+    private fun migrateFromLegacyNuvioIfNeeded(targetDir: Path) {
+        try {
+            if (Files.exists(targetDir) && Files.list(targetDir).use { it.findAny().isPresent }) {
+                return
+            }
+            val legacyDir = resolveLegacyAppDataDir()
+            if (!Files.exists(legacyDir) || !Files.isDirectory(legacyDir)) {
+                return
+            }
+            Files.createDirectories(targetDir)
+            Files.list(legacyDir).use { stream ->
+                stream.forEach { sourcePath ->
+                    if (Files.isRegularFile(sourcePath) && sourcePath.fileName.toString().endsWith(".properties")) {
+                        val destination = targetDir.resolve(sourcePath.fileName)
+                        if (!Files.exists(destination)) {
+                            Files.copy(sourcePath, destination, StandardCopyOption.REPLACE_EXISTING)
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            // Non-critical best-effort migration: proceed silently if permissions or legacy files fail
+        }
+    }
+
     private fun resolveCacheDir(): Path {
         val osName = System.getProperty("os.name").orEmpty().lowercase(Locale.ROOT)
         val userHome = Paths.get(System.getProperty("user.home").orEmpty())
         return when {
-            osName.contains("mac") -> userHome.resolve("Library/Caches/Nuvio")
+            osName.contains("mac") -> userHome.resolve("Library/Caches/NuvioDeck")
             osName.contains("win") -> {
                 val localAppData = System.getenv("LOCALAPPDATA")?.takeIf { it.isNotBlank() }
-                (localAppData?.let(Paths::get) ?: userHome.resolve("AppData/Local")).resolve("Nuvio/Cache")
+                (localAppData?.let(Paths::get) ?: userHome.resolve("AppData/Local")).resolve("NuvioDeck/Cache")
             }
             else -> {
                 val xdgCache = System.getenv("XDG_CACHE_HOME")?.takeIf { it.isNotBlank() }
-                (xdgCache?.let(Paths::get) ?: userHome.resolve(".cache")).resolve("nuvio")
+                (xdgCache?.let(Paths::get) ?: userHome.resolve(".cache")).resolve("nuviodeck")
             }
         }
     }
@@ -163,7 +208,7 @@ internal object DesktopStorage {
         private fun persist() {
             Files.createDirectories(file.parent)
             Files.newOutputStream(file).use { output ->
-                properties.store(output, "Nuvio desktop preferences")
+                properties.store(output, "NuvioDeck desktop preferences")
             }
         }
     }

@@ -124,6 +124,18 @@ fun FolderDetailScreen(
         },
     )
 
+    LaunchedEffect(uiState.tabs.size, uiState.viewMode) {
+        val hasMountedTabs = uiState.viewMode == FolderViewMode.TABBED_GRID && uiState.tabs.size > 1
+        com.nuvio.app.controller.ControllerManager.updateScreenContext {
+            it.copy(
+                hasSeasonsOrTabs = hasMountedTabs,
+                seasonsOrTabsLabel = if (hasMountedTabs) "Switch Folder" else null,
+                lbLabel = if (hasMountedTabs) "Prev Folder" else null,
+                rbLabel = if (hasMountedTabs) "Next Folder" else null,
+            )
+        }
+    }
+
     if (!isDesktop) {
         MobileFolderDetailContent(
             uiState = uiState,
@@ -257,6 +269,18 @@ private fun MobileFolderDetailContent(
             } else false
         },
     )
+
+    LaunchedEffect(uiState.tabs.size, uiState.viewMode) {
+        val hasMountedTabs = uiState.viewMode == FolderViewMode.TABBED_GRID && uiState.tabs.size > 1
+        com.nuvio.app.controller.ControllerManager.updateScreenContext {
+            it.copy(
+                hasSeasonsOrTabs = hasMountedTabs,
+                seasonsOrTabsLabel = if (hasMountedTabs) "Switch Folder" else null,
+                lbLabel = if (hasMountedTabs) "Prev Folder" else null,
+                rbLabel = if (hasMountedTabs) "Next Folder" else null,
+            )
+        }
+    }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val maxHeroHeightPx = with(density) { FolderCoverHeight.toPx() }
     var heroHeightPx by remember(coverImageUrl, maxHeroHeightPx) {

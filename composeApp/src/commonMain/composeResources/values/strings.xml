@@ -339,7 +339,7 @@
     <string name="collections_tab_all">All</string>
     <string name="collections_your_collections">Your Collections</string>
     <string name="compose_about_based_on_version_format">Based on Nuvio %1$s</string>
-    <string name="compose_about_made_with">Made with ❤️ by Tapframe and friends</string>
+    <string name="compose_about_made_with">NuvioDeck — A controller-first fork of Nuvio, developed by kllakm. Original Nuvio created with love by Tapframe and friends.</string>
     <string name="compose_about_version_format">Version %1$s (%2$s)</string>
     <string name="compose_action_off">Off</string>
     <string name="compose_action_on">On</string>
@@ -351,7 +351,7 @@
     <string name="compose_player_picture_in_picture">Picture in picture</string>
     <string name="compose_player_pip_placeholder_title">Video playing in Picture-in-Picture</string>
     <string name="compose_player_pip_restore">Restore to Main Player</string>
-    <string name="compose_player_pip_window_title">Nuvio • Picture-in-Picture</string>
+    <string name="compose_player_pip_window_title">NuvioDeck • Picture-in-Picture</string>
     <string name="compose_auth_already_have_account">Already have an account? </string>
     <string name="compose_auth_continue_without_account">Continue Without Account</string>
     <string name="compose_auth_create_account">Create Account</string>
@@ -1831,7 +1831,7 @@
     <string name="addon_already_installed">That addon is already installed.</string>
     <string name="addon_invalid_url">Enter a valid addon URL</string>
     <string name="addon_load_manifest_failed">Unable to load manifest</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">NuvioDeck</string>
     <string name="auth_account_deletion_failed">Account deletion failed</string>
     <string name="auth_sign_in_failed">Sign-in failed</string>
     <string name="auth_sign_out_failed">Sign-out failed</string>

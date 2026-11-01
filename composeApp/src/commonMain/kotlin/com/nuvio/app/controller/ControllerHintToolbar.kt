@@ -230,10 +230,10 @@ internal fun buildContextHints(
             add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) {
                 add(ControllerHintItem(XboxGlyph.X, xLabel))
-            } else {
-                add(ControllerHintItem(XboxGlyph.X, "Streams"))
             }
-            add(ControllerHintItem(XboxGlyph.Y, yLabel ?: "Library"))
+            if (yLabel != null) {
+                add(ControllerHintItem(XboxGlyph.Y, yLabel))
+            }
             if (context.hasSeasonsOrTabs) {
                 add(ControllerHintItem(XboxGlyph.LB_RB, context.seasonsOrTabsLabel ?: "Season"))
             }
