@@ -1,14 +1,14 @@
 <div align="center">
 
-  <img src="https://nuvio.tv/assets/nuvio-app-logo-wordmark.webp" alt="Nuvio" width="320" />
+  <img src="https://github.com/kllakm/NuvioDeck/blob/Dev/composeApp/src/commonMain/composeResources/drawable/app_logo_wordmark.png?raw=true" alt="Nuvio" width="320" />
 
   <p>
     A free, open-source media app for Windows, macOS, and Linux.
     <br />
-    Bring your own sources. Nuvio turns them into a library with artwork, ratings, subtitles, and your place saved on every screen.
+    Bring your own sources. NuvioDeck turns them into a library with artwork, ratings, subtitles, and your place saved on every screen  but with full controller support for Windows and Handhelds.
   </p>
 
-  [Website](https://nuvio.tv) · [GitHub releases](https://github.com/NuvioMedia/NuvioDesktop/releases/latest) · [Support Nuvio](https://nuvio.tv/support)
+  [GitHub releases](https://github.com/kllakm/NuvioDeck/releases/) · [Support NuvioDeck](https://buymeacoffee.com/enufstyle)
 
 </div>
 
@@ -29,13 +29,13 @@ Key goals of this fork:
 
 ## ⚠️ Alpha Software - Slow Development - Testers Only
 
-Nuvio Desktop is currently in alpha and is intended only for testers. It is under development and is not suitable for daily use.
+NuvioDeck is currently in alpha and is intended only for testers. It is under development and is not suitable for daily use.
 
 Expect breaking changes with every update. Features, settings, stored data, and compatibility may change or stop working without notice. Do not rely on this build as your primary media app, and report any issues you encounter during testing.
 
-## Get Nuvio Desktop
+## Get NuvioDeck
 
-Download the latest upstream build from [GitHub Releases](https://github.com/NuvioMedia/NuvioDesktop/releases/latest).
+Download the latest upstream build from [GitHub Releases](https://github.com/kllakm/NuvioDeck/releases/).
 
 - Windows: MSI installer / Standalone `.exe`
 - macOS: DMG installer
@@ -44,7 +44,7 @@ Download the latest upstream build from [GitHub Releases](https://github.com/Nuv
 ## Build from source
 
 ```bash
-git clone https://github.com/NuvioMedia/NuvioDesktop.git
+git clone https://github.com/kllakm/NuvioDeck.git
 cd NuvioDesktop
 ```
 
@@ -69,7 +69,7 @@ To compile a standalone Windows application bundle (`Nuvio.exe`) without buildin
 ```
 
 The standalone executable is output to:
-`composeApp\build\compose\binaries\main\app\Nuvio\Nuvio.exe`
+`composeApp\build\compose\binaries\main\app\NuvioDeck\Nuvio.exe`
 
 For platform-specific installer packaging:
 
@@ -546,6 +546,30 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 #### 3. Documentation & Version Increment (`UPSTREAM_PATCHES.md`, `NuvioDeckVersionConfig.kt`)
 - **Upstream Patch Registry:** Documented `navigateLazyRowIndex` hook in `UPSTREAM_PATCHES.md`.
 - **Version Increment:** Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.04`. Dual-version display string updated to `"NuvioDeck v0.1.04 (based on Nuvio v0.1.33)"`.
+
+### [2026-11-01] Auto-Update Fork Redirection & Full-Card Horizontal Scroll Snapping (v0.1.05)
+
+#### 1. Redirect Auto-Update Checker to Fork Repo (`kllakm/NuvioDeck`)
+- **Fork Update Endpoint Isolation:**
+  - Centralized fork GitHub repository coordinates (`GITHUB_OWNER = "kllakm"`, `GITHUB_REPO = "NuvioDeck"`, `GITHUB_RELEASE_SOURCE_NAME = "NuvioDeck"`) in `NuvioDeckVersionConfig.kt`.
+  - Redirected `AppUpdaterPlatform.desktop.kt`, `AppUpdaterPlatform.android.kt`, and `AppUpdaterPlatform.ios.kt` to target `kllakm/NuvioDeck` and compare remote release tags against `NuvioDeckVersionConfig.FORK_VERSION_NAME` rather than the upstream base version.
+- **Graceful Updater Fallback (Zero Upstream Overwrite Prompts):**
+  - Enhanced `AppUpdaterRepository.kt` to handle non-200 responses or empty release feeds silently by throwing `NoChannelReleaseException()`, preventing upstream Nuvio overwrites and eliminating error prompts when no fork releases are published yet.
+  - Updated Settings UI strings in `strings.xml` to `"Check for NuvioDeck updates"` and `"Download latest NuvioDeck release"`.
+
+#### 2. Full-Card Horizontal Scroll Snapping (Single-Press Visibility for Portrait & Landscape Cards)
+- **Viewport-Aware Node Bounds Check (`ControllerFocusEngine.kt`):**
+  - Refactored `scrollHorizontalContainerToNode` to evaluate the focused card's own coordinates (`node.boundsInRoot`) against the row's safe viewport zone (`[safeLeft, safeRight]`).
+  - Rows remain completely stationary when navigating across already-visible cards within the viewport.
+  - When focusing a card that is partially off-screen or clipped at the right or left edge, dynamically calculates the exact scroll delta (`cardRight - safeRight + 30f` / `cardLeft - safeLeft - 30f`), scrolling the full card and its focus halo/ring completely into view on the very first D-Pad press.
+  - When navigating back to index 0, smoothly animates to `(0, 0)` via `animateScrollToItem(0, 0)` to eliminate left-border clipping.
+- **Adaptive Step Distances for Off-Screen Cards (`ControllerFocusEngine.kt`):**
+  - Updated off-screen lazy row navigation in `handleNavigate` to calculate adaptive step deltas (`overflow + cardWidth + gap + 30f`) based on actual item dimensions, cleanly supporting wide 16:9 landscape cards (episodes, trailers) and portrait posters alike without requiring multiple presses.
+
+#### 3. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.05` and `VERSION_CODE=5`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.05`. Dual-version display string updated to `"NuvioDeck v0.1.05 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Documented auto-updater redirection and version configuration in `UPSTREAM_PATCHES.md`.
+
 
 
 
