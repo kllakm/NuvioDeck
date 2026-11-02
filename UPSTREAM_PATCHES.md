@@ -96,7 +96,7 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/desktop/DesktopWindowModeStorage.kt` | Window mode persistence hook | Persists fullscreen and windowed state preferences. |
 | `composeApp/src/desktopMain/resources/player-ui/controls.css` | Player OSD styling hook | Adds high-contrast controller focus rings (`2.5px solid #ffffff`, purple outer glow, `1.06x` scale) across header, seekbar, action buttons, and modal tracks. |
 | `composeApp/src/desktopMain/resources/player-ui/controls.html` | Player OSD markup hook | Adds gamepad hint badges to player controls markup. |
-| `composeApp/src/desktopMain/resources/player-ui/controls.js` | Player OSD JS handler hook | Implements 3-tier spatial D-Pad navigation (Tier 0 header, Tier 1 seekbar, Tier 2 action row), modal focus trapping & restoration, OSD wake-on-D-Pad, and instant pointer mode recovery on mouse clicks/moves. |
+| `composeApp/src/desktopMain/resources/player-ui/controls.js` | Player OSD JS handler hook | Implements 3-tier spatial D-Pad navigation (Tier 0 header, Tier 1 seekbar, Tier 2 action row), modal focus trapping & restoration, OSD wake-on-D-Pad, instant pointer mode recovery on mouse clicks/moves, 3.5s controller hint toolbar idle autohide, and sequential B button navigation (dismiss OSD -> return to details page without exiting fullscreen). |
 
 ---
 

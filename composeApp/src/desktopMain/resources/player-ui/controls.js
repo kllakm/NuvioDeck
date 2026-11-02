@@ -2613,6 +2613,8 @@ const noteCursorActivity = () => {
 const hideChromeFromAutoTimer = () => {
   if (!canAutoHideChrome(isOpeningOverlayActive())) return;
   state = { ...state, controlsVisible: false };
+  clearControllerToolbarTimer();
+  controllerToolbarTemporarilyVisible = false;
   renderChrome();
   send("hideChrome", 0);
 };
@@ -4344,7 +4346,31 @@ let lastControllerToolbarSignature = "";
 let lastFocusedTier0Element = null;
 let lastFocusedTier2Element = null;
 
+let controllerToolbarAutoHideTimer = 0;
+let controllerToolbarTemporarilyVisible = false;
+const controllerToolbarAutoHideDelayMs = 3500;
+
+function clearControllerToolbarTimer() {
+  if (controllerToolbarAutoHideTimer) {
+    window.clearTimeout(controllerToolbarAutoHideTimer);
+    controllerToolbarAutoHideTimer = 0;
+  }
+}
+
+function noteControllerActivity() {
+  controllerToolbarTemporarilyVisible = true;
+  clearControllerToolbarTimer();
+  controllerToolbarAutoHideTimer = window.setTimeout(() => {
+    controllerToolbarAutoHideTimer = 0;
+    controllerToolbarTemporarilyVisible = false;
+    syncControllerStateAndToolbar();
+  }, controllerToolbarAutoHideDelayMs);
+  syncControllerStateAndToolbar();
+}
+
 function deactivateControllerModeOnPhysicalInput() {
+  clearControllerToolbarTimer();
+  controllerToolbarTemporarilyVisible = false;
   if (state.isControllerActive) {
     state.isControllerActive = false;
     root.classList.remove("controller-active");
@@ -4527,6 +4553,8 @@ function syncControllerStateAndToolbar() {
   const toolbar = getControllerHintToolbar();
   if (!toolbar) return;
   if (!active) {
+    clearControllerToolbarTimer();
+    controllerToolbarTemporarilyVisible = false;
     toolbar.classList.remove("visible", "lifted");
     toolbar.setAttribute("aria-hidden", "true");
     return;
@@ -4544,8 +4572,16 @@ function syncControllerStateAndToolbar() {
       })
       .join("");
   }
-  toolbar.setAttribute("aria-hidden", "false");
-  toolbar.classList.add("visible");
+
+  const shouldBeVisible = Boolean(
+    activeModal ||
+    playbackErrorText() ||
+    state.controlsVisible ||
+    controllerToolbarTemporarilyVisible
+  );
+
+  toolbar.setAttribute("aria-hidden", shouldBeVisible ? "false" : "true");
+  toolbar.classList.toggle("visible", shouldBeVisible);
 }
 
 function focusFirstModalElement() {
@@ -4624,6 +4660,7 @@ function moveModalControllerFocus(delta, axis = "vertical") {
 function handleControllerCommand(command) {
   if (!command) return;
   state.isControllerActive = true;
+  noteControllerActivity();
 
   if (playbackErrorText()) {
     if (command === "controllerSelect" || command === "controllerBack") {
@@ -4708,8 +4745,6 @@ function handleControllerCommand(command) {
       case "controllerBack":
         if (state.isInPip) {
           send("pictureInPicture", 0);
-        } else if (state.isFullscreen) {
-          togglePlayerFullscreen(true);
         } else {
           send("back", 0);
         }

@@ -720,6 +720,22 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.12` and `VERSION_CODE=12`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.12`. Dual-version display string updated to `"NuvioDeck v0.1.12 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-02] Media Player Back Navigation Fix & Controller Hint Toolbar Auto-Hide (v0.1.13)
+
+#### 1. Fix Gamepad B Button Navigation After Dismissing Player OSD (`controls.js`)
+- **Direct Navigation to Details Page:** Fixed an issue where pressing `B` after dismissing the player OSD was erroneously triggering `togglePlayerFullscreen(true)` (exiting fullscreen to windowed mode).
+- **Console-Standard Back Flow:** Once the OSD overlay is dismissed, pressing `B` now cleanly dispatches `send("back", 0)`, releasing playback, flushing watch progress, and returning directly to the movie/show details page without touching or disrupting window display mode.
+
+#### 2. Media Player Controller Hint Toolbar Idle Auto-Hide (`controls.js`)
+- **Idle Timeout & Smooth Fade-Out:** Added a 3.5-second (`3500ms`) inactivity auto-hide timer for the on-screen controller hint toolbar in the media player.
+- **Immediate Fade-In on Input:** Any controller input (D-Pad navigation, button press, bumpers, triggers, or analog sticks) resets the timer and immediately restores toolbar visibility.
+- **Synchronized OSD Dismissal:** When the OSD is dismissed or auto-hides during playback, the controller toolbar displays the contextual navigation hints before smoothly fading out after 3.5 seconds of inactivity.
+
+#### 3. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.13` and `VERSION_CODE=13`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.13`. Dual-version display string updated to `"NuvioDeck v0.1.13 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 
