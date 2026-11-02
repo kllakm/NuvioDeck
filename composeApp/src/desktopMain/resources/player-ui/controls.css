@@ -3726,21 +3726,46 @@ svg {
   cursor: none !important;
 }
 
-.player.controller-active .action:hover:not(.focused),
+.player.controller-active .action:hover:not(.focused):not(:focus),
+.player.controller-active .header-button:hover:not(.focused):not(:focus),
 .player.controller-active .track-row:hover:not(:focus),
 .player.controller-active .subtitle-language-row:hover:not(:focus),
 .player.controller-active .filter-chip:hover:not(:focus) {
   background: inherit;
 }
 
+.player.controller-active .header-button:focus,
+.player.controller-active .header-button.focused,
+.player.controller-active .action:focus,
+.player.controller-active .action.focused,
+.player.controller-active .volume-button:focus,
+.player.controller-active .volume-button.focused,
+.player.controller-active .volume-slider:focus,
+.player.controller-active .volume-slider.focused,
 .player.controller-active .track-row:focus,
 .player.controller-active .subtitle-language-row:focus,
 .player.controller-active .filter-chip:focus,
 .player.controller-active .panel-button:focus,
-.player.controller-active .action.focused {
+.player.controller-active button:focus {
   outline: 2.5px solid #ffffff !important;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.45);
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  transform: scale(1.06);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  z-index: 10;
+}
+
+.player.controller-active .scrub:focus,
+.player.controller-active .scrub.focused,
+.player.controller-active #seek:focus,
+.player.controller-active #seek.focused,
+.player.controller-active input[type="range"]:focus {
+  outline: 2.5px solid #ffffff !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  transform: scaleY(1.35);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  z-index: 10;
 }
 
 .controller-hint-toolbar {

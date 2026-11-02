@@ -2,6 +2,7 @@ package com.nuvio.app.controller
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.player.desktop.DesktopHostOs
+import com.nuvio.app.features.player.desktop.DesktopPlayerPictureInPicture
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Structure
@@ -43,11 +44,24 @@ object WindowsControllerService {
         fun FindWindowA(lpClassName: String?, lpWindowName: String?): Long
         fun PostMessageA(hWnd: Long, msg: Int, wParam: Long, lParam: Long): Boolean
         fun ShowWindow(hWnd: Long, nCmdShow: Int): Boolean
+        fun GetAncestor(hwnd: Long, gaFlags: Int): Long
+        fun GetWindowThreadProcessId(hwnd: Long, lpdwProcessId: IntArray?): Int
+        fun IsChild(hWndParent: Long, hWnd: Long): Boolean
+    }
+
+    internal interface Kernel32Library : Library {
+        fun GetCurrentProcessId(): Int
     }
 
     internal val user32: User32Library? by lazy {
         if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
             runCatching { Native.load("user32", User32Library::class.java) }.getOrNull()
+        } else null
+    }
+
+    internal val kernel32: Kernel32Library? by lazy {
+        if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+            runCatching { Native.load("kernel32", Kernel32Library::class.java) }.getOrNull()
         } else null
     }
 
@@ -78,10 +92,27 @@ object WindowsControllerService {
         val win = appWindow
         if (win != null && (win.isActive || win.isFocused)) return true
         val hwnd = appWindowHwnd
-        if (hwnd != 0L) {
-            val fg = runCatching { user32?.GetForegroundWindow() ?: 0L }.getOrDefault(0L)
-            if (fg != 0L && fg == hwnd) return true
+        val user = user32
+        if (user != null) {
+            val fg = runCatching { user.GetForegroundWindow() }.getOrDefault(0L)
+            if (fg != 0L) {
+                if (hwnd != 0L && fg == hwnd) return true
+                if (hwnd != 0L && runCatching { user.IsChild(hwnd, fg) }.getOrDefault(false)) return true
+                if (hwnd != 0L) {
+                    val root = runCatching { user.GetAncestor(fg, 2 /* GA_ROOT */) }.getOrDefault(0L)
+                    val rootOwner = runCatching { user.GetAncestor(fg, 3 /* GA_ROOTOWNER */) }.getOrDefault(0L)
+                    if (root == hwnd || rootOwner == hwnd) return true
+                }
+                val fgProcessId = IntArray(1)
+                runCatching { user.GetWindowThreadProcessId(fg, fgProcessId) }
+                val currentProcessId = runCatching { kernel32?.GetCurrentProcessId() ?: 0 }.getOrDefault(0)
+                if (currentProcessId != 0 && fgProcessId[0] == currentProcessId) {
+                    return true
+                }
+            }
         }
+        val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
+        if (pipActive) return true
         return isAppWindowFocused
     }
 

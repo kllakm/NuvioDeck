@@ -121,7 +121,7 @@ fun DesktopControllerWindowHost(
 
             override fun windowLostFocus(e: WindowEvent?) {
                 val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
-                WindowsControllerService.isAppWindowFocused = window.isActive || window.isFocused || pipActive
+                WindowsControllerService.isAppWindowFocused = window.isActive || window.isFocused || pipActive || WindowsControllerService.isWindowCurrentlyFocused()
             }
         }
         window.addWindowFocusListener(focusListener)

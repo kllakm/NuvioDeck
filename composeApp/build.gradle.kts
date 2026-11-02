@@ -478,7 +478,7 @@ val desktopReleaseVersionCode = (
     ?.toIntOrNull()
     ?: 1
 val desktopReleasePackageVersion = jpackageCompatibleVersion(desktopReleaseVersionName)
-val windowsMsiUpgradeUuid = "395990ee-9b8a-3548-922c-e7a23a495b8d"
+val windowsMsiUpgradeUuid = "a8f4d2e1-7c3b-4e9a-9b1d-5f6e8a2c4d90"
 val iosDistribution = (
     providers.gradleProperty("nuvio.ios.distribution").orNull
         ?: System.getenv("NUVIO_IOS_DISTRIBUTION")
@@ -1282,7 +1282,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
             packageName = "NuvioDeck"
             packageVersion = desktopReleasePackageVersion
-            vendor = "Nuvio Media"
+            vendor = "Kuma Labs"
             if (isMacHost) {
                 appResourcesRootDir.set(macosPlayerAppResourcesRoot)
             }
@@ -1337,6 +1337,7 @@ compose.desktop {
                 shortcut = true
                 menu = true
                 menuGroup = "NuvioDeck"
+                dirChooser = true
             }
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png"))

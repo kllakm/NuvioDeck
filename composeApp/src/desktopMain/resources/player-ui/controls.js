@@ -1036,6 +1036,8 @@ const setModalVisibility = (modal, visible, animated = true) => {
   modalCloseTimers.set(modal, timer);
 };
 
+let lastTriggeringElement = null;
+
 const closePlayerModal = (notifyDismiss = false, animated = true) => {
   const closingModal = activeModal;
   activeModal = "";
@@ -1048,9 +1050,24 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
   if (closingModal === "episodes") onEpisodesModalClosed();
   if (closingModal === "party") onPartyModalClosed();
   renderChrome();
+  if (state.isControllerActive && lastTriggeringElement && lastTriggeringElement.isConnected) {
+    const elToRestore = lastTriggeringElement;
+    window.setTimeout(() => {
+      if (elToRestore && elToRestore.isConnected) {
+        if (typeof focusTier0Element === "function" && elToRestore.classList && elToRestore.classList.contains("header-button")) {
+          focusTier0Element(elToRestore);
+        } else if (typeof focusTier2Element === "function" && elToRestore.classList && (elToRestore.classList.contains("action") || elToRestore.id === "volumeButton")) {
+          focusTier2Element(elToRestore);
+        } else {
+          elToRestore.focus({ preventScroll: true });
+        }
+      }
+    }, 50);
+  }
 };
 
 const openPlayerModal = modal => {
+  lastTriggeringElement = document.activeElement;
   const targetModal = modalByName[modal];
   if (!targetModal) {
     closePlayerModal(false);
@@ -3006,6 +3023,9 @@ const clearPressedButton = () => {
 };
 
 document.addEventListener("pointerdown", event => {
+  if (typeof deactivateControllerModeOnPhysicalInput === "function") {
+    deactivateControllerModeOnPhysicalInput();
+  }
   if (event.button === 3) {
     showCommandToast("seekBack");
     send("seekBack", 0);
@@ -4307,17 +4327,31 @@ document.addEventListener("keydown", event => {
   send(command, 0);
 });
 
-setProgress(0, 0, 0);
-focusShortcutRoot();
-render();
-send("controlsReady", 0);
 
 
-const controllerHintToolbar = document.getElementById("controllerHintToolbar");
+
+let controllerHintToolbar = null;
+function getControllerHintToolbar() {
+  if (!controllerHintToolbar) {
+    controllerHintToolbar = document.getElementById("controllerHintToolbar");
+  }
+  return controllerHintToolbar;
+}
 let lastPointerMoveX = -1;
 let lastPointerMoveY = -1;
 let lastProcessedControllerCommandToken = 0;
 let lastControllerToolbarSignature = "";
+let lastFocusedTier0Element = null;
+let lastFocusedTier2Element = null;
+
+function deactivateControllerModeOnPhysicalInput() {
+  if (state.isControllerActive) {
+    state.isControllerActive = false;
+    root.classList.remove("controller-active");
+    syncControllerStateAndToolbar();
+    send("cursorActivity", 0);
+  }
+}
 
 function shouldNotePhysicalPointerMove(event) {
   if (!event) return true;
@@ -4329,16 +4363,12 @@ function shouldNotePhysicalPointerMove(event) {
   const dx = event.clientX - lastPointerMoveX;
   const dy = event.clientY - lastPointerMoveY;
   const dist = Math.hypot(dx, dy);
-  if (dist < 5) {
-    return !state.isControllerActive;
+  if (dist < 2) {
+    return false;
   }
   lastPointerMoveX = event.clientX;
   lastPointerMoveY = event.clientY;
-  if (state.isControllerActive) {
-    state.isControllerActive = false;
-    syncControllerStateAndToolbar();
-    send("cursorActivity", 0);
-  }
+  deactivateControllerModeOnPhysicalInput();
   return true;
 }
 
@@ -4372,26 +4402,111 @@ function renderXboxGlyphHtml(glyph) {
   }
 }
 
+function clearAllOsdFocusClasses() {
+  document.querySelectorAll(".header-button.focused, #seek.focused, .action.focused, .volume-button.focused, .volume-slider.focused").forEach(el => {
+    el.classList.remove("focused");
+  });
+}
+
+function getVisibleTier0Elements() {
+  const container = document.querySelector(".header-actions");
+  if (!container) return [];
+  const buttons = Array.from(container.querySelectorAll(".header-button"))
+    .filter(btn => !btn.hidden && !btn.disabled && window.getComputedStyle(btn).display !== "none" && (btn.offsetWidth > 0 || btn.offsetHeight > 0));
+  buttons.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+  return buttons;
+}
+
+function getTier1Element() {
+  const seek = document.getElementById("seek");
+  if (seek && !seek.hidden && !seek.disabled && (seek.offsetWidth > 0 || seek.offsetHeight > 0)) {
+    return seek;
+  }
+  return null;
+}
+
+function getVisibleTier2Elements() {
+  const actions = Array.from(document.querySelectorAll(".action-pill .action"))
+    .filter(btn => !btn.hidden && !btn.disabled && window.getComputedStyle(btn).display !== "none" && (btn.offsetWidth > 0 || btn.offsetHeight > 0));
+  const volBtn = document.getElementById("volumeButton");
+  const volSlider = document.getElementById("volumeSlider");
+  const additional = [];
+  if (volBtn && !volBtn.hidden && !volBtn.disabled && window.getComputedStyle(volBtn).display !== "none" && (volBtn.offsetWidth > 0 || volBtn.offsetHeight > 0)) {
+    additional.push(volBtn);
+  }
+  if (volSlider && !volSlider.hidden && !volSlider.disabled && window.getComputedStyle(volSlider).display !== "none" && (volSlider.offsetWidth > 0 || volSlider.offsetHeight > 0)) {
+    additional.push(volSlider);
+  }
+  const all = actions.concat(additional);
+  all.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+  return all;
+}
+
+function getCurrentOsdTier() {
+  const activeEl = document.activeElement;
+  if (!activeEl) return 2;
+  const tier0 = getVisibleTier0Elements();
+  if (tier0.includes(activeEl) || (activeEl.closest && activeEl.closest(".header"))) return 0;
+  const tier1 = getTier1Element();
+  if (activeEl === tier1 || activeEl.id === "seek") return 1;
+  return 2;
+}
+
+function focusTier0Element(el) {
+  if (!el) return;
+  clearAllOsdFocusClasses();
+  lastFocusedTier0Element = el;
+  el.classList.add("focused");
+  el.focus({ preventScroll: true });
+}
+
+function focusTier1Element() {
+  const seek = getTier1Element();
+  if (!seek) return;
+  clearAllOsdFocusClasses();
+  seek.classList.add("focused");
+  seek.focus({ preventScroll: true });
+}
+
+function focusTier2Element(el) {
+  if (!el) return;
+  clearAllOsdFocusClasses();
+  lastFocusedTier2Element = el;
+  if (el.classList.contains("action")) {
+    setFocusedActionButton(el, { focus: true });
+  } else {
+    el.classList.add("focused");
+    el.focus({ preventScroll: true });
+  }
+}
+
 function getPlayerControllerHints() {
   if (activeModal) {
     const hints = [
       { glyph: "D-Pad", label: "Navigate" },
       { glyph: "A", label: "Select" },
     ];
-    if (activeModal === "episodes" || activeModal === "sources") {
-      hints.push({ glyph: "LB/RB", label: "Filter" });
+    if (activeModal === "episodes" || activeModal === "sources" || activeModal === "subtitles") {
+      hints.push({ glyph: "LB/RB", label: "Tabs / Filter" });
     }
     hints.push({ glyph: "B", label: "Close" });
     return hints;
   }
-  const primaryLabel = state.skipPromptVisible
-    ? (state.skipPromptLabel || "Skip")
-    : (state.nextEpisodeVisible && state.nextEpisodePlayable)
-      ? (state.nextEpisodeActionLabel || "Next Ep")
-      : (state.isPlaying ? (state.pauseLabel || "Pause") : (state.playLabel || "Play"));
+  if (!state.controlsVisible) {
+    return [
+      { glyph: "D-Pad", label: "Show Controls" },
+      { glyph: "A", label: state.isPlaying ? (state.pauseLabel || "Pause") : (state.playLabel || "Play") },
+      { glyph: "LB/RB", label: "-10s / +10s" },
+      { glyph: "X", label: state.audioLabel || "Audio" },
+      { glyph: "Y", label: state.subtitlesLabel || "Subs" },
+      { glyph: "B", label: state.backLabel || "Back" },
+    ];
+  }
+  const currentTier = getCurrentOsdTier();
+  const dpadLabel = currentTier === 1 ? "Seek (L/R) / Tiers" : "Navigate";
   const hints = [
-    { glyph: "A", label: primaryLabel },
-    { glyph: "D-Pad", label: state.controlsVisible ? "Navigate / Vol" : "Seek / Vol" },
+    { glyph: "D-Pad", label: dpadLabel },
+    { glyph: "A", label: "Select" },
     { glyph: "LB/RB", label: "-10s / +10s" },
     { glyph: "X", label: state.audioLabel || "Audio" },
     { glyph: "Y", label: state.subtitlesLabel || "Subs" },
@@ -4399,38 +4514,38 @@ function getPlayerControllerHints() {
   if (state.showSources) {
     hints.push({ glyph: "View", label: state.sourcesLabel || "Sources" });
   }
-  hints.push({
-    glyph: "Menu",
-    label: state.showEpisodes ? (state.episodesLabel || "Episodes") : "Fullscreen",
-  });
-  hints.push({ glyph: "B", label: state.controlsVisible && !state.skipPromptVisible ? "Hide UI / Back" : (state.backLabel || "Back") });
+  if (state.showEpisodes) {
+    hints.push({ glyph: "Menu", label: state.episodesLabel || "Episodes" });
+  }
+  hints.push({ glyph: "B", label: "Hide UI" });
   return hints;
 }
 
 function syncControllerStateAndToolbar() {
-  const active = Boolean(state.isControllerActive);
-  root.classList.toggle("controller-active", active);
-  if (!controllerHintToolbar) return;
+  const active = Boolean(typeof state !== "undefined" && state && state.isControllerActive);
+  if (typeof root !== "undefined" && root) root.classList.toggle("controller-active", active);
+  const toolbar = getControllerHintToolbar();
+  if (!toolbar) return;
   if (!active) {
-    controllerHintToolbar.classList.remove("visible", "lifted");
-    controllerHintToolbar.setAttribute("aria-hidden", "true");
+    toolbar.classList.remove("visible", "lifted");
+    toolbar.setAttribute("aria-hidden", "true");
     return;
   }
-  const shouldLift = Boolean(state.controlsVisible && !activeModal && !playbackErrorText());
-  controllerHintToolbar.classList.toggle("lifted", shouldLift);
+  const shouldLift = Boolean(state && state.controlsVisible && !activeModal && !playbackErrorText());
+  toolbar.classList.toggle("lifted", shouldLift);
   const hints = getPlayerControllerHints();
   const signature = JSON.stringify(hints);
   if (signature !== lastControllerToolbarSignature) {
     lastControllerToolbarSignature = signature;
-    controllerHintToolbar.innerHTML = hints
+    toolbar.innerHTML = hints
       .map((item, idx) => {
         const divider = idx > 0 ? '<span class="controller-hint-divider"></span>' : "";
         return `${divider}<span class="controller-hint-item">${renderXboxGlyphHtml(item.glyph)}<span class="controller-hint-label">${item.label}</span></span>`;
       })
       .join("");
   }
-  controllerHintToolbar.setAttribute("aria-hidden", "false");
-  controllerHintToolbar.classList.add("visible");
+  toolbar.setAttribute("aria-hidden", "false");
+  toolbar.classList.add("visible");
 }
 
 function focusFirstModalElement() {
@@ -4509,15 +4624,20 @@ function moveModalControllerFocus(delta, axis = "vertical") {
 function handleControllerCommand(command) {
   if (!command) return;
   state.isControllerActive = true;
-  syncControllerStateAndToolbar();
 
   if (playbackErrorText()) {
     if (command === "controllerSelect" || command === "controllerBack") {
       send("back", 0);
     }
+    syncControllerStateAndToolbar();
     return;
   }
 
+  // Auto-hide reset on any controller interaction
+  noteChromeActivity(true);
+  keepChromeVisibleFromKeyboard();
+
+  // If modal is active, trap navigation inside modal
   if (activeModal) {
     switch (command) {
       case "controllerBack":
@@ -4570,35 +4690,244 @@ function handleControllerCommand(command) {
     }
   }
 
+  // When OSD is HIDDEN:
+  if (!state.controlsVisible) {
+    switch (command) {
+      case "controllerNavUp":
+      case "controllerNavDown":
+      case "controllerNavLeft":
+      case "controllerNavRight":
+      case "controllerSelect":
+        setChromeVisibleFromKeyboard(true, { focusAction: true });
+        const toggleBtn = document.getElementById("toggle");
+        if (toggleBtn) {
+          focusTier2Element(toggleBtn);
+        }
+        syncControllerStateAndToolbar();
+        return;
+      case "controllerBack":
+        if (state.isInPip) {
+          send("pictureInPicture", 0);
+        } else if (state.isFullscreen) {
+          togglePlayerFullscreen(true);
+        } else {
+          send("back", 0);
+        }
+        return;
+      case "controllerLB":
+        showCommandToast("keyboardSeekBack");
+        send("keyboardSeekBack", 0);
+        return;
+      case "controllerRB":
+        showCommandToast("keyboardSeekForward");
+        send("keyboardSeekForward", 0);
+        return;
+      case "controllerLT":
+        showPlayerToast("-30s");
+        send("scrubFinish", Math.max(0, (Number(state.positionMs) || 0) - 30000));
+        return;
+      case "controllerRT":
+        showPlayerToast("+30s");
+        send("scrubFinish", Math.min(Number(state.durationMs) || 0, (Number(state.positionMs) || 0) + 30000));
+        return;
+      case "controllerAudio":
+        openPlayerModal("audio");
+        window.setTimeout(focusFirstModalElement, 50);
+        syncControllerStateAndToolbar();
+        return;
+      case "controllerSubtitles":
+        openPlayerModal("subtitles");
+        window.setTimeout(focusFirstModalElement, 50);
+        syncControllerStateAndToolbar();
+        return;
+      case "controllerSources":
+        if (state.showSources) {
+          sourceFilterId = "";
+          openPlayerModal("sources");
+          send("sources", 0);
+          window.setTimeout(focusFirstModalElement, 80);
+          syncControllerStateAndToolbar();
+        }
+        return;
+      case "controllerMenu":
+        if (state.showEpisodes) {
+          episodeStreamFilterId = "";
+          openPlayerModal("episodes");
+          send("episodes", 0);
+          window.setTimeout(focusFirstModalElement, 80);
+        } else {
+          togglePlayerFullscreen();
+        }
+        syncControllerStateAndToolbar();
+        return;
+      case "controllerResize":
+        showCommandToast("resize");
+        send("resize", 0);
+        return;
+      case "controllerSpeed":
+        openPlayerModal("speed");
+        window.setTimeout(focusFirstModalElement, 50);
+        syncControllerStateAndToolbar();
+        return;
+      case "controllerScrollUp":
+        sendKeyboardVolume(1);
+        return;
+      case "controllerScrollDown":
+        sendKeyboardVolume(-1);
+        return;
+      default:
+        break;
+    }
+  }
+
+  // When OSD is OPEN:
+  const currentTier = getCurrentOsdTier();
+
   switch (command) {
+    case "controllerBack":
+      setChromeVisibleFromKeyboard(false);
+      syncControllerStateAndToolbar();
+      return;
+
     case "controllerSelect":
       if (state.skipPromptVisible) {
         send("skipInterval", 0);
         return;
       }
-      if (state.nextEpisodeVisible && state.nextEpisodePlayable && !state.controlsVisible) {
+      if (state.nextEpisodeVisible && state.nextEpisodePlayable) {
         send("playNextEpisode", 0);
         return;
       }
-      if (state.controlsVisible && document.activeElement && document.activeElement.classList.contains("action")) {
-        document.activeElement.click();
+      if (currentTier === 1) {
+        requestPlaybackState("setPlaybackState", true);
         return;
       }
-      noteChromeActivity(true);
-      requestPlaybackState("setPlaybackState", true);
-      break;
-    case "controllerBack":
-      if (state.controlsVisible) {
-        setChromeVisibleFromKeyboard(false);
-        syncControllerStateAndToolbar();
-      } else if (state.isInPip) {
-        send("pictureInPicture", 0);
-      } else if (state.isFullscreen) {
-        togglePlayerFullscreen(true);
+      if (document.activeElement && typeof document.activeElement.click === "function" && document.activeElement !== document.body && document.activeElement !== root) {
+        document.activeElement.click();
       } else {
-        send("back", 0);
+        const toggleBtn = document.getElementById("toggle");
+        if (toggleBtn) {
+          focusTier2Element(toggleBtn);
+          toggleBtn.click();
+        } else {
+          requestPlaybackState("setPlaybackState", true);
+        }
       }
-      break;
+      syncControllerStateAndToolbar();
+      return;
+
+    case "controllerNavLeft":
+      if (currentTier === 0) {
+        const tier0 = getVisibleTier0Elements();
+        if (tier0.length > 0) {
+          let idx = tier0.indexOf(document.activeElement);
+          if (idx === -1) idx = tier0.length - 1;
+          const nextIdx = Math.max(0, idx - 1);
+          focusTier0Element(tier0[nextIdx]);
+        }
+      } else if (currentTier === 1) {
+        showCommandToast("seekBack");
+        send("seekBack", 0);
+      } else {
+        const tier2 = getVisibleTier2Elements();
+        if (tier2.length > 0) {
+          let idx = tier2.indexOf(document.activeElement);
+          if (idx === -1) {
+            const focusedAction = tier2.find(btn => btn.classList.contains("focused"));
+            idx = focusedAction ? tier2.indexOf(focusedAction) : 0;
+          }
+          const nextIdx = Math.max(0, idx - 1);
+          focusTier2Element(tier2[nextIdx]);
+        }
+      }
+      syncControllerStateAndToolbar();
+      return;
+
+    case "controllerNavRight":
+      if (currentTier === 0) {
+        const tier0 = getVisibleTier0Elements();
+        if (tier0.length > 0) {
+          let idx = tier0.indexOf(document.activeElement);
+          if (idx === -1) idx = 0;
+          const nextIdx = Math.min(tier0.length - 1, idx + 1);
+          focusTier0Element(tier0[nextIdx]);
+        }
+      } else if (currentTier === 1) {
+        showCommandToast("seekForward");
+        send("seekForward", 0);
+      } else {
+        const tier2 = getVisibleTier2Elements();
+        if (tier2.length > 0) {
+          let idx = tier2.indexOf(document.activeElement);
+          if (idx === -1) {
+            const focusedAction = tier2.find(btn => btn.classList.contains("focused"));
+            idx = focusedAction ? tier2.indexOf(focusedAction) : 0;
+          }
+          const nextIdx = Math.min(tier2.length - 1, idx + 1);
+          focusTier2Element(tier2[nextIdx]);
+        }
+      }
+      syncControllerStateAndToolbar();
+      return;
+
+    case "controllerNavUp":
+      if (currentTier === 2) {
+        if (document.activeElement && document.activeElement.id === "volumeSlider") {
+          sendKeyboardVolume(1);
+        } else {
+          focusTier1Element();
+        }
+      } else if (currentTier === 1) {
+        const tier0 = getVisibleTier0Elements();
+        if (tier0.length > 0) {
+          const target = (lastFocusedTier0Element && tier0.includes(lastFocusedTier0Element))
+            ? lastFocusedTier0Element
+            : tier0[tier0.length - 1];
+          focusTier0Element(target);
+        }
+      }
+      syncControllerStateAndToolbar();
+      return;
+
+    case "controllerNavDown":
+      if (currentTier === 0) {
+        focusTier1Element();
+      } else if (currentTier === 1) {
+        const tier2 = getVisibleTier2Elements();
+        if (tier2.length > 0) {
+          const target = (lastFocusedTier2Element && tier2.includes(lastFocusedTier2Element))
+            ? lastFocusedTier2Element
+            : (document.getElementById("toggle") || tier2[0]);
+          focusTier2Element(target);
+        }
+      } else if (currentTier === 2) {
+        if (document.activeElement && document.activeElement.id === "volumeSlider") {
+          sendKeyboardVolume(-1);
+        }
+      }
+      syncControllerStateAndToolbar();
+      return;
+
+    case "controllerLB":
+      showCommandToast("keyboardSeekBack");
+      send("keyboardSeekBack", 0);
+      return;
+
+    case "controllerRB":
+      showCommandToast("keyboardSeekForward");
+      send("keyboardSeekForward", 0);
+      return;
+
+    case "controllerLT":
+      showPlayerToast("-30s");
+      send("scrubFinish", Math.max(0, (Number(state.positionMs) || 0) - 30000));
+      return;
+
+    case "controllerRT":
+      showPlayerToast("+30s");
+      send("scrubFinish", Math.min(Number(state.durationMs) || 0, (Number(state.positionMs) || 0) + 30000));
+      return;
+
     case "controllerAudio":
       if (activeModal === "audio") closePlayerModal(true);
       else {
@@ -4606,7 +4935,8 @@ function handleControllerCommand(command) {
         window.setTimeout(focusFirstModalElement, 50);
       }
       syncControllerStateAndToolbar();
-      break;
+      return;
+
     case "controllerSubtitles":
       if (activeModal === "subtitles") closePlayerModal(true);
       else {
@@ -4614,9 +4944,10 @@ function handleControllerCommand(command) {
         window.setTimeout(focusFirstModalElement, 50);
       }
       syncControllerStateAndToolbar();
-      break;
+      return;
+
     case "controllerSources":
-      if (!state.showSources) break;
+      if (!state.showSources) return;
       if (activeModal === "sources") closePlayerModal(true);
       else {
         sourceFilterId = "";
@@ -4625,7 +4956,8 @@ function handleControllerCommand(command) {
         window.setTimeout(focusFirstModalElement, 80);
       }
       syncControllerStateAndToolbar();
-      break;
+      return;
+
     case "controllerMenu":
       if (state.showEpisodes) {
         if (activeModal === "episodes") closePlayerModal(true);
@@ -4639,11 +4971,13 @@ function handleControllerCommand(command) {
         togglePlayerFullscreen();
       }
       syncControllerStateAndToolbar();
-      break;
+      return;
+
     case "controllerResize":
       showCommandToast("resize");
       send("resize", 0);
-      break;
+      return;
+
     case "controllerSpeed":
       if (activeModal === "speed") closePlayerModal(true);
       else {
@@ -4651,56 +4985,16 @@ function handleControllerCommand(command) {
         window.setTimeout(focusFirstModalElement, 50);
       }
       syncControllerStateAndToolbar();
-      break;
-    case "controllerLB":
-      showCommandToast("keyboardSeekBack");
-      send("keyboardSeekBack", 0);
-      break;
-    case "controllerRB":
-      showCommandToast("keyboardSeekForward");
-      send("keyboardSeekForward", 0);
-      break;
-    case "controllerLT":
-      showPlayerToast("-30s");
-      send("scrubFinish", Math.max(0, (Number(state.positionMs) || 0) - 30000));
-      break;
-    case "controllerRT":
-      showPlayerToast("+30s");
-      send("scrubFinish", Math.min(Number(state.durationMs) || 0, (Number(state.positionMs) || 0) + 30000));
-      break;
-    case "controllerNavLeft":
-      if (state.controlsVisible) {
-        noteChromeActivity(true);
-        moveActionFocus(-1);
-      } else {
-        showCommandToast("keyboardSeekBack");
-        send("keyboardSeekBack", 0);
-      }
-      break;
-    case "controllerNavRight":
-      if (state.controlsVisible) {
-        noteChromeActivity(true);
-        moveActionFocus(1);
-      } else {
-        showCommandToast("keyboardSeekForward");
-        send("keyboardSeekForward", 0);
-      }
-      break;
-    case "controllerNavUp":
-      if (!state.controlsVisible) {
-        setChromeVisibleFromKeyboard(true, { focusAction: true });
-        syncControllerStateAndToolbar();
-      } else {
-        sendKeyboardVolume(1);
-      }
-      break;
-    case "controllerNavDown":
-      if (state.controlsVisible) {
-        sendKeyboardVolume(-1);
-      } else {
-        sendKeyboardVolume(-1);
-      }
-      break;
+      return;
+
+    case "controllerScrollUp":
+      sendKeyboardVolume(1);
+      return;
+
+    case "controllerScrollDown":
+      sendKeyboardVolume(-1);
+      return;
+
     default:
       break;
   }
@@ -4714,3 +5008,8 @@ function processIncomingControllerCommand() {
     handleControllerCommand(state.controllerCommand);
   }
 }
+
+setProgress(0, 0, 0);
+focusShortcutRoot();
+render();
+send("controlsReady", 0);

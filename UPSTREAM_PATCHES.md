@@ -87,14 +87,16 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 ### 5. Desktop Native Video Player Integration
 | File Path | Nature of Patch | Purpose / Justification |
 | :--- | :--- | :--- |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/controller/WindowsControllerService.kt` | Win32 focus validation hook | Adds child window (`IsChild`, `GetAncestor`) and process ID (`GetWindowThreadProcessId`, `GetCurrentProcessId`) checks so controller polling loop remains active when focus shifts to player WebView2 child windows. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/controller/DesktopControllerWindowIntegration.kt` | AWT window focus loss guard | Verifies Win32 process/child focus before relinquishing controller focus on `windowLostFocus`. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/PlayerEngine.desktop.kt` | Player event bridge hook | Forwards controller button presses (`A` play/pause, `B` exit, `LB`/`RB` seek) into the native player engine. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/desktop/NativePlayerController.kt` | Gamepad player bridge | Handles gamepad input events when native video playback is active. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/desktop/NativePlayerHost.kt` | Native canvas focus hook | Prevents webview/native canvas from swallowing gamepad events. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/desktop/DesktopAppFullscreen.kt` | Fullscreen mode hook | Ensures window focus is properly asserted when entering fullscreen on startup. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/player/desktop/DesktopWindowModeStorage.kt` | Window mode persistence hook | Persists fullscreen and windowed state preferences. |
-| `composeApp/src/desktopMain/resources/player-ui/controls.css` | Player OSD styling hook | Adds controller-specific focus styles and glyph badges to HTML/CSS player OSD controls. |
+| `composeApp/src/desktopMain/resources/player-ui/controls.css` | Player OSD styling hook | Adds high-contrast controller focus rings (`2.5px solid #ffffff`, purple outer glow, `1.06x` scale) across header, seekbar, action buttons, and modal tracks. |
 | `composeApp/src/desktopMain/resources/player-ui/controls.html` | Player OSD markup hook | Adds gamepad hint badges to player controls markup. |
-| `composeApp/src/desktopMain/resources/player-ui/controls.js` | Player OSD JS handler hook | Listens for gamepad events dispatched from Java/Kotlin into the CEF player UI. |
+| `composeApp/src/desktopMain/resources/player-ui/controls.js` | Player OSD JS handler hook | Implements 3-tier spatial D-Pad navigation (Tier 0 header, Tier 1 seekbar, Tier 2 action row), modal focus trapping & restoration, OSD wake-on-D-Pad, and instant pointer mode recovery on mouse clicks/moves. |
 
 ---
 
@@ -106,5 +108,12 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | Compose Runtime Icons (`composeApp/src/commonMain/composeResources/drawable/`) | 256x256 `.png` | **Updated Runtime Drawables:** Deployed `app_icon_original_transparent.png` (transparent window icon) and `app_icon_original.png` (pure black field theme preview). |
 | Brand Wordmarks (`composeApp/src/commonMain/composeResources/drawable/`) | 1024x324 `.png` | **Updated High-Res Wordmark:** Deployed `app_logo_wordmark.png` and `app_logo_wordmark_original.png` with the new cyan-to-emerald emblem and crisp typography on boot, login, and profile screens. |
 
+---
 
-
+### 7. Packaging & Identity Decoupling (Side-by-Side Coexistence)
+| File Path | Nature of Patch | Purpose / Justification |
+| :--- | :--- | :--- |
+| `composeApp/build.gradle.kts` | MSI Upgrade UUID & Vendor Decoupling | Sets unique Windows MSI `upgradeUuid = "a8f4d2e1-7c3b-4e9a-9b1d-5f6e8a2c4d90"`, `vendor = "Kuma Labs"`, `packageName = "NuvioDeck"`, and enables `dirChooser = true` so NuvioDeck and upstream NuvioDesktop can install and run side-by-side without installer conflict or accidental overwrites. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/storage/DesktopStorage.kt` | Storage & Cache Directory Isolation | Routes all settings, databases, updates, and caches into dedicated `NuvioDeck` AppData and LocalAppData folders to avoid shared state corruption. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/settings/WindowsAppShortcutIconUpdater.kt` | Windows Shortcut Decoupling | Directs shortcut icon caching to `NuvioDeck/icons` and updates `NuvioDeck.lnk` shortcuts across Desktop, Start Menu, and Taskbar. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/settings/AppIconPlatform.desktop.kt` | Launcher Process Resolution | Resolves `NuvioDeck.exe` on icon change restarts. |

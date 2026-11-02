@@ -684,6 +684,43 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.11` and `VERSION_CODE=11`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.11`. Dual-version display string updated to `"NuvioDeck v0.1.11 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-02] Media Player Input Recovery, 3-Tier D-Pad OSD Navigation & MSI Identity Decoupling (v0.1.12)
+
+#### 1. Decouple MSI Installer & Runtime Identity from Upstream NuvioDesktop (`build.gradle.kts`, `DesktopStorage.kt`, `WindowsAppShortcutIconUpdater.kt`)
+- **Dedicated Windows MSI Upgrade UUID:** Replaced upstream Nuvio's shared `upgradeUuid` (`395990ee-9b8a-3548-922c-e7a23a495b8d`) with a brand-new unique UUID v4 dedicated strictly to NuvioDeck (`a8f4d2e1-7c3b-4e9a-9b1d-5f6e8a2c4d90`). Installing or updating NuvioDeck will never uninstall, downgrade, or overwrite official NuvioDesktop.
+- **Independent Package Metadata & Installation Directory:** Configured `vendor = "Kuma Labs"`, `menuGroup = "NuvioDeck"`, `packageName = "NuvioDeck"`, and enabled directory customization (`dirChooser = true`), installing by default to `C:\Program Files\NuvioDeck`.
+- **Runtime AppData, Preferences, Cache & Shortcut Isolation:**
+  - Decoupled Windows shortcut icon updater (`WindowsAppShortcutIconUpdater.kt`) to target `NuvioDeck/icons` and resolve `NuvioDeck.lnk` across user desktop, Start menu, common desktop, and taskbar.
+  - Decoupled application launcher resolution (`AppIconPlatform.desktop.kt`) to prioritize `NuvioDeck.exe`.
+  - Storage paths remain strictly isolated inside `AppData/Roaming/NuvioDeck`, `AppData/Local/NuvioDeck/Cache`, and `AppData/Local/NuvioDeck/WebView2` so both apps can run side-by-side simultaneously without state or lock corruption.
+
+#### 2. Fix Player Controls Unresponsiveness to Mouse & Gamepad Inputs
+- **Win32 Window Focus Assertion (`WindowsControllerService.kt` & `DesktopControllerWindowIntegration.kt`):**
+  - Resolved Win32 controller polling dropout when player canvas or WebView2 (`Chrome_WidgetWin_0`) acquired foreground focus.
+  - Implemented Win32 thread and process ID verification (`GetWindowThreadProcessId`, `GetCurrentProcessId()`) and child window ancestor validation (`IsChild`, `GetAncestor(hwnd, GA_ROOT)`) so controller polling loop remains active when focus shifts to internal webview child components.
+- **Physical Mouse Pointer Recovery & Click Unresponsiveness (`controls.js`):**
+  - Added immediate deactivation of controller mode (`deactivateControllerModeOnPhysicalInput`) upon `pointerdown`, `click`, and `pointermove` (> 2px), restoring standard pointer interactions, unhiding the cursor, and clearing `.controller-active`.
+
+#### 3. Full 3-Tier D-Pad Traversal of Player OSD Overlay (`controls.js` & `controls.css`)
+- **OSD Wake/Sleep State Transitions:**
+  - When OSD is hidden: Any D-Pad press (`Up`, `Down`, `Left`, `Right`) or `A` immediately reveals the OSD overlay and focuses primary Play/Pause button (`#toggle`) without seeking or adjusting volume. `B` while hidden exits the player.
+  - When OSD is open: `B` hides the overlay; a subsequent `B` exits the player.
+- **3-Tier Spatial Navigation:**
+  - **Tier 0 (Top Bar):** Smooth horizontal navigation between `#submitIntroButton`, `#videoSettingsButton`, `#pipButton`, `#fullscreenButton`, and `#backButton`. `Down` transitions to Tier 1 (`#seek`).
+  - **Tier 1 (Seekbar Scrubber `#seek`):** `Up` transitions to Tier 0; `Down` transitions to Tier 2. When focused on `#seek`, `Left`/`Right` scrubs backward/forward by 10s intervals (`keyboardSeekBack`/`keyboardSeekForward`). Left/Right never hijacks playback when other tiers are focused.
+  - **Tier 2 (Bottom Action Row & Volume):** Full traversal across `#toggle`, `#nextEpisodeButton`, `resize`, `speed`, `subtitles`, `audio`, `sources`, `episodes`, `chapters`, `streamInfo`, `#volumeButton`, and `#volumeSlider`. `Up` transitions to Tier 1. When `#volumeSlider` is focused, `Up`/`Down` adjusts volume.
+- **Modal Trapping & Focus Restoration:**
+  - Focus is trapped inside active modals (Audio, Subtitles, Speed, Sources, Episodes).
+  - `Up`/`Down` cycles through options with cyclic wrap; `Left`/`Right` and `LB`/`RB` switch rails/tabs (e.g., Subtitle Languages vs Addon Subtitles vs Style, or Season filter chips).
+  - Closing a modal automatically restores focus to the triggering button.
+- **High-Contrast Focus Styling:**
+  - Applied `outline: 2.5px solid #ffffff !important`, `box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important`, and `transform: scale(1.06)` across all OSD and modal controls.
+
+#### 4. Documentation, Version Bump & MSI Packaging
+- **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.12` and `VERSION_CODE=12`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.12`. Dual-version display string updated to `"NuvioDeck v0.1.12 (based on Nuvio v0.1.33)"`.
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 
