@@ -18,12 +18,23 @@
 
 This fork, **NuvioDeck**, is purpose-built to bring a first-class, **native Windows 11 controller & 10-foot / handheld experience** to Nuvio Desktop (ideal for Steam Deck Windows installations, HTPCs, living-room setups, Xbox/PlayStation/Switch controllers on PC, and Windows handhelds like ROG Ally, Legion Go, and Claw).
 
-Key goals of this fork:
-- **Universal Windows 11 Controller Support:** Seamless hot-plugging and input polling across XInput, DirectInput, and HID controllers (Xbox, PlayStation DualSense/DualShock 4, Nintendo Switch Pro/Joy-Con, and generic gamepads), normalized internally to standard Windows Xbox controller conventions.
+### Key Features of NuvioDeck:
+- **Universal Windows 11 Controller Support:** Seamless hot-plugging and low-latency input polling across XInput, DirectInput, and HID controllers (Xbox, PlayStation DualSense/DualShock 4, Nintendo Switch Pro/Joy-Con, and generic gamepads), normalized internally to standard Windows Xbox controller conventions.
 - **Zero-Friction Input Switching & Auto-Hide Mouse Cursor:** Automatically hides the system mouse cursor and suppresses passive hover states the moment you touch any controller stick, trigger, or button—and immediately restores the cursor as soon as you move or click the mouse or press a key.
-- **Full 2D Spatial Navigation:** Complete D-Pad and analog stick navigation across the sidebar, hero banners, horizontal carousels, grids, detail screens, stream pickers, settings, dialogs, and the native desktop video player + WebView2 OSD.
-- **Dynamic Bottom-Right Xbox-Glyph Controller Hint Toolbar:** Context-aware on-screen button prompts using standard Xbox glyphs (`A`, `B`, `X`, `Y`, `LB`, `RB`, `LT`, `RT`, `LS`, `RS`, `D-Pad`, `View`, `Menu`) in a borderless dark glass pill (`rgba(12, 12, 16, 0.68)`) that appear automatically during controller use and hide when using mouse/keyboard.
-- **Ultra-Smooth Cinematic Cosmic Background:** Replaces static backdrops across boot/loading, user login, and profile selection pages with a dynamic, deep velvet indigo-to-amethyst-to-crimson gradient, complete with hardware-accelerated micro-dither to eliminate color banding on 1080p and 4K screens, breathing volumetric light leaks, and subtle floating stardust motes.
+- **Full 2D Spatial Navigation & Fluid Scrolling:** Complete D-Pad and analog stick navigation across the sidebar, hero banners, horizontal carousels, grids, detail screens, stream pickers, settings, dialogs, and the native desktop video player + WebView2 OSD with edge-triggered viewport-aware smooth scrolling.
+- **Dynamic Xbox-Glyph Controller Hint Toolbar:** Context-aware on-screen button prompts using standard Xbox glyphs (`A`, `B`, `X`, `Y`, `LB`, `RB`, `LT`, `RT`, `LS`, `RS`, `D-Pad`, `View`, `Menu`) in a borderless dark glass pill (`rgba(12, 12, 16, 0.68)`) that appear automatically during controller use, with a 3.5s inactivity auto-hide timer during video playback.
+- **3-Tier Media Player OSD Navigation & Multi-Rail Subtitles:**
+  - Full spatial D-Pad navigation across the Player OSD: Tier 0 (header buttons), Tier 1 (seekbar scrubber with 10s step scrubbing), and Tier 2 (bottom playback controls).
+  - Multi-rail D-Pad navigation for Subtitles (Languages <-> Subtitles <-> Style) with DOM-tearing protection.
+  - Sequential B button navigation: first press dismisses the OSD overlay; second press cleanly returns to the media details page without disrupting fullscreen display mode.
+- **Inverted High-Contrast Media "Play" Action Button:** High-contrast inverted focus styling on movie and TV show details screens—flipping to a sleek black background (`#0D0E15`) with bright white text/icon and a crisp 2.dp white border when controller-focused.
+- **Netflix-Style Profile Selection & Smooth Animated Exit:**
+  - Modern translucent filled card highlights (`Color.White.copy(alpha = 0.15f)`) and top-left brand wordmark alignment matching modern streaming interfaces.
+  - Immediate animated fade-out (`alpha: 1f -> 0f`) and gentle scale expansion (`scale: 1.0f -> 1.04f`) on avatar selection, with a polished `AppGate` overlay exit animation (`fadeOut(500) + scaleOut(1.03f)`) for a seamless, cinematic transition into the app.
+- **Anti-Banding Display:** 128x128 triangular-distribution micro-dither texture and unified deep cinematic wine/crimson gradient eliminating 8-bit/10-bit banding across 1080p, 1440p, and 4K displays.
+- **Default Auto-Stream Selection:** Automatically pre-selects and plays the first available high-quality stream source (`StreamAutoPlayMode.FIRST_STREAM`) upon stream load for streamlined, couch-ready playback.
+- **Decoupled Identity & Side-by-Side Coexistence:** Unique Windows Installer `upgradeUuid`, isolated package metadata (`NuvioDeck`), and independent configuration directories (`%APPDATA%\NuvioDeck`, `%LOCALAPPDATA%\NuvioDeck\Cache`) so official NuvioDesktop and NuvioDeck can be installed and run side-by-side on the same PC without conflicts.
+- **Synchronized with Upstream Nuvio Desktop Core:** Merges 130 upstream commits, including OpenSubtitles video hash computation, custom font importer & subtitle shadow/opacity controls, smart skip intervals, chapter markers, and international localization parity.
 
 ---
 
