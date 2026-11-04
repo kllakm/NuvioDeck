@@ -735,6 +735,23 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Properties & Version Increment:** Updated `composeApp/Configuration/DesktopVersion.properties` to `VERSION_NAME=0.1.13` and `VERSION_CODE=13`. Incremented `NuvioDeckVersionConfig.FORK_VERSION_NAME` to `0.1.13`. Dual-version display string updated to `"NuvioDeck v0.1.13 (based on Nuvio v0.1.33)"`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
 
+### [2026-11-04] Upstream Synchronization & Conflict Resolution (Test Build on `upstream-sync-test`)
+
+#### 1. Merged 130 Upstream Commits from NuvioMedia/NuvioDesktop (`upstream/Dev`)
+- **OpenSubtitles Video Hash Computation:** Integrated native file hash computation for fast subtitle matching on desktop and mobile platforms.
+- **Enhanced Subtitle Appearance Controls:** Integrated font family selector, custom font file import, drop shadow opacity & size controls, background color opacity adjustments, and subtitle visibility toggling.
+- **Smart Skip Intervals & Chapter Skipping:** Integrated chapter skip markers and merged skip intervals.
+- **Windows Locale-Dependent Crash Fix:** Integrated upstream's `setlocale(LC_NUMERIC, "C")` fix preventing libmpv instantiation crashes on systems with comma-decimal regional formatting.
+
+#### 2. Preserved NuvioDeck Core Customizations & Decoupled Identity
+- **Self-Contained Controller Engine:** All spatial focus traversal, D-Pad navigation, hint toolbars, audio synthesis, and Win32 polling remain intact.
+- **Player OSD Traversal & Font Picker Integration:** Controller focus and D-Pad navigation extended to the new subtitle font picker modal (`#subtitleFontModal`), preserving sequential B back navigation and 3.5s hint toolbar auto-hide.
+- **Decoupled MSI & AppData Identity:** Maintained unique MSI `upgradeUuid` (`"a8f4d2e1-7c3b-4e9a-9b1d-5f6e8a2c4d90"`), package name (`NuvioDeck`), vendor (`Kuma Labs`), AppData directory (`%APPDATA%\NuvioDeck`), and fork updater source (`kllakm/NuvioDeck`).
+
+#### 3. Compilation & Packaging Verification
+- Standalone Windows executable compiled to `composeApp/build/compose/binaries/main/app/NuvioDeck/NuvioDeck.exe`.
+- Standalone MSI installer packaged to `composeApp/build/compose/release-msis/NuvioDeck-Windows-x64-0.1.13.msi`.
+
 
 
 
