@@ -433,7 +433,7 @@ internal fun AppGate(
     }
 
     val profileOverlayVisible =
-        gateScreen == AppGateScreen.ProfileSelection.name || profileSelectionLoading
+        gateScreen == AppGateScreen.ProfileSelection.name
     val profileOverlayState = remember {
         MutableTransitionState(profileOverlayVisible)
     }
@@ -596,7 +596,6 @@ internal fun AppGate(
                     onProfileSelected = { profile ->
                         if (!profileSelectionLoading) {
                             profileSelectionLoading = true
-                            profileSelectionTransitionActive = true
                             skipProfileSelectionEnterAnimation = false
                             gateScope.launch {
                                 selectProfile(

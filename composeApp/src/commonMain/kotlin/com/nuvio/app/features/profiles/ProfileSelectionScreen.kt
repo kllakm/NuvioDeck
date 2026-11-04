@@ -174,7 +174,7 @@ fun ProfileSelectionScreen(
                 onProfileSelected = { selectedProfile ->
                     isDismissing = true
                     scope.launch {
-                        delay(120)
+                        delay(420)
                         onProfileSelected(selectedProfile)
                     }
                 },
@@ -443,7 +443,11 @@ fun ProfileSelectionScreen(
             onVerified = {
                 pinDialogProfile = null
                 if (interactionEnabled && profile.profileIndex != activeProfileIndex) {
-                    onProfileSelected(profile)
+                    isDismissing = true
+                    scope.launch {
+                        delay(420)
+                        onProfileSelected(profile)
+                    }
                 }
             },
             onDismiss = { pinDialogProfile = null },

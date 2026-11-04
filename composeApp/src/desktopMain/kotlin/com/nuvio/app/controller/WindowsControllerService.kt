@@ -47,10 +47,17 @@ object WindowsControllerService {
         fun GetAncestor(hwnd: Long, gaFlags: Int): Long
         fun GetWindowThreadProcessId(hwnd: Long, lpdwProcessId: IntArray?): Int
         fun IsChild(hWndParent: Long, hWnd: Long): Boolean
+        fun GetDesktopWindow(): Long
+        fun IsWindowVisible(hWnd: Long): Boolean
+        fun SetActiveWindow(hWnd: Long): Long
+        fun SetFocus(hWnd: Long): Long
+        fun AttachThreadInput(idAttach: Int, idAttachTo: Int, fAttach: Boolean): Boolean
+        fun AllowSetForegroundWindow(dwProcessId: Int): Boolean
     }
 
     internal interface Kernel32Library : Library {
         fun GetCurrentProcessId(): Int
+        fun GetCurrentThreadId(): Int
     }
 
     internal val user32: User32Library? by lazy {
@@ -88,9 +95,8 @@ object WindowsControllerService {
     }
 
     fun isWindowCurrentlyFocused(): Boolean {
+        if (PlatformVirtualKeyboard.isKeyboardActive) return false
         if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return isAppWindowFocused
-        val win = appWindow
-        if (win != null && (win.isActive || win.isFocused)) return true
         val hwnd = appWindowHwnd
         val user = user32
         if (user != null) {
@@ -109,8 +115,12 @@ object WindowsControllerService {
                 if (currentProcessId != 0 && fgProcessId[0] == currentProcessId) {
                     return true
                 }
+                // Foreground window belongs to another application or OS component (e.g. TextInputHost)
+                return false
             }
         }
+        val win = appWindow
+        if (win != null && (win.isActive || win.isFocused)) return true
         val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
         if (pipActive) return true
         return isAppWindowFocused
@@ -444,8 +454,8 @@ object WindowsControllerService {
                 ltPressed = XboxButton.LT in mergedButtons
                 rtPressed = XboxButton.RT in mergedButtons
 
-                // Only dispatch input events if the app window is focused
-                if (isWindowCurrentlyFocused() && totalConnected > 0) {
+                // Only dispatch input events if the app window is focused and virtual keyboard is not taking input
+                if (isWindowCurrentlyFocused() && totalConnected > 0 && !PlatformVirtualKeyboard.isKeyboardActive) {
                     // Check for any analog stick movement past deadzone to activate controller mode immediately
                     val hasAnalogActivity = hypot(maxLeftStickX, maxLeftStickY) > 0.25f ||
                         hypot(maxRightStickX, maxRightStickY) > 0.25f ||

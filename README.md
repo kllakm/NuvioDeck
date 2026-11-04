@@ -838,6 +838,27 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 #### 4. Version Increment
 - **Version Bump:** `FORK_VERSION_NAME = "0.1.16"` and `VERSION_NAME=0.1.16` (Build 16).
 
+---
+
+### [2026-11-04] - Version 0.1.17: Windows 11 Virtual Keyboard Gamepad Focus & Restored Profile Dismiss Fade-Out
+
+#### 1. Windows 11 On-Screen / Virtual Keyboard Gamepad Focus (`WindowsVirtualKeyboardManager.kt`, `WindowsControllerService.kt`)
+- **Resolved Gamepad Focus Lockout:** Fixed an issue where opening the Windows 11 Virtual/Touch Keyboard during search left focus on NuvioDeck, preventing gamepads and handheld controllers from selecting keys on the keyboard.
+- **Cross-Process Foreground Focus Transfer:** Implemented Win32 `AttachThreadInput` and `AllowSetForegroundWindow(-1)` focus orchestration in `focusKeyboardWindowAsync()`, reliably bringing `Windows.UI.Core.CoreWindow` (`TextInputHost.exe` / "Windows Input Experience") or `IPTip_Main_Window` to the active foreground.
+- **Controller Polling Input Guard:** Updated `WindowsControllerService.kt` so `isWindowCurrentlyFocused()` returns `false` and the input dispatcher yields completely while `PlatformVirtualKeyboard.isKeyboardActive` is true, ensuring 100% of gamepad navigation is routed to the Windows 11 keyboard driver without background interference or focus-stealing from NuvioDeck.
+- **Automated Lifecycle Watcher:** Added `startKeyboardCloseWatcher()` to track virtual keyboard dismissal via `IsWindowVisible()`, automatically resetting keyboard state and smoothly restoring active foreground focus to NuvioDeck.
+
+#### 2. Restored Cinematic Login Screen Dismiss Fade-Out (`ProfileSelectionScreen.kt`, `AppGate.kt`)
+- **420ms Animated Dismissal Duration:** Increased the transition delay in `ProfileSelectionScreen.kt` from 120ms to 420ms, allowing the 450ms `dismissAlpha` (1f -> 0f) and `dismissScale` (1f -> 1.04f) animation to smoothly play to completion upon profile click and PIN verification.
+- **Eliminated Premature Loading Flash:** Removed early `profileSelectionTransitionActive = true` invocation and decoupled `profileSelectionLoading` from `profileOverlayVisible` in `AppGate.kt`. This prevents the abrupt black `AppLoadingContent` box from prematurely concealing the login screen, allowing the profile view to gracefully dissolve into the atmospheric `AppLaunchOverlay` backdrop and home screen.
+
+#### 3. Upstream Patch Registry Polish (`UPSTREAM_PATCHES.md`)
+- **Authoritative UI Preservation:** Fully documented the latest login wordmark positioning, 700ms profile hover fade-outs, gate overlay dismissal timing, and virtual keyboard focus bridges in `UPSTREAM_PATCHES.md` to guarantee every customized visual enhancement is retained intact during future upstream pulls.
+
+#### 4. Version Increment
+- **Version Bump:** `FORK_VERSION_NAME = "0.1.17"` and `VERSION_NAME=0.1.17` (Build 17).
+
+
 
 
 

@@ -16,6 +16,9 @@ import java.util.Base64
  * ITipInvocation::Toggle interface, ensuring full native Gamepad layout support (D-Pad navigation,
  * X for Backspace, Y for Space, LB/RB for cursor positioning).
  *
+ * Automatically directs OS focus to Windows Input Experience so gamepads immediately
+ * control the virtual keyboard.
+ *
  * osk.exe is strictly excluded as it is a legacy non-controller accessibility keyboard.
  */
 object WindowsVirtualKeyboardManager {
@@ -24,6 +27,7 @@ object WindowsVirtualKeyboardManager {
     private const val SC_CLOSE = 0xF060L
     private const val WM_CLOSE = 0x0010
     private const val SW_HIDE = 0
+    private const val SW_SHOW = 5
 
     // CLSID {4ce576fa-83dc-4f88-951c-9d0782b4e376}
     private val CLSID_UIHostNoLaunch = byteArrayOf(
@@ -91,6 +95,93 @@ object WindowsVirtualKeyboardManager {
         if (!invoked) {
             invokeTipPowerShell()
         }
+
+        // 3. Explicitly transfer focus to the Windows 11 Touch / Gamepad Keyboard
+        focusKeyboardWindowAsync()
+    }
+
+    private fun focusKeyboardWindowAsync() {
+        val u32 = WindowsControllerService.user32 ?: return
+        val k32 = WindowsControllerService.kernel32
+        Thread {
+            for (i in 0..30) {
+                try {
+                    Thread.sleep(50)
+                } catch (_: InterruptedException) {
+                    break
+                }
+                var targetHwnd = u32.FindWindowA("Windows.UI.Core.CoreWindow", "Windows Input Experience")
+                if (targetHwnd == 0L) {
+                    targetHwnd = u32.FindWindowA("IPTip_Main_Window", null)
+                }
+                if (targetHwnd == 0L) {
+                    targetHwnd = u32.FindWindowA("Windows.UI.Core.CoreWindow", null)
+                }
+
+                if (targetHwnd != 0L && u32.IsWindowVisible(targetHwnd)) {
+                    runCatching { u32.AllowSetForegroundWindow(-1) }
+                    val currentThreadId = k32?.GetCurrentThreadId() ?: 0
+                    val fgHwnd = u32.GetForegroundWindow()
+                    val fgThreadId = if (fgHwnd != 0L) u32.GetWindowThreadProcessId(fgHwnd, null) else 0
+                    val targetThreadId = u32.GetWindowThreadProcessId(targetHwnd, null)
+
+                    if (currentThreadId != 0 && targetThreadId != 0 && currentThreadId != targetThreadId) {
+                        runCatching { u32.AttachThreadInput(currentThreadId, targetThreadId, true) }
+                    }
+                    if (fgThreadId != 0 && targetThreadId != 0 && fgThreadId != targetThreadId) {
+                        runCatching { u32.AttachThreadInput(fgThreadId, targetThreadId, true) }
+                    }
+
+                    u32.ShowWindow(targetHwnd, SW_SHOW)
+                    u32.SetForegroundWindow(targetHwnd)
+                    u32.BringWindowToTop(targetHwnd)
+                    u32.SetActiveWindow(targetHwnd)
+                    u32.SetFocus(targetHwnd)
+
+                    if (currentThreadId != 0 && targetThreadId != 0 && currentThreadId != targetThreadId) {
+                        runCatching { u32.AttachThreadInput(currentThreadId, targetThreadId, false) }
+                    }
+                    if (fgThreadId != 0 && targetThreadId != 0 && fgThreadId != targetThreadId) {
+                        runCatching { u32.AttachThreadInput(fgThreadId, targetThreadId, false) }
+                    }
+                    break
+                }
+            }
+            startKeyboardCloseWatcher()
+        }.apply {
+            isDaemon = true
+            name = "VirtualKeyboardFocusThread"
+            start()
+        }
+    }
+
+    private fun startKeyboardCloseWatcher() {
+        val u32 = WindowsControllerService.user32 ?: return
+        Thread {
+            Thread.sleep(500)
+            while (PlatformVirtualKeyboard.isKeyboardActive) {
+                try {
+                    Thread.sleep(150)
+                } catch (_: InterruptedException) {
+                    break
+                }
+                var targetHwnd = u32.FindWindowA("Windows.UI.Core.CoreWindow", "Windows Input Experience")
+                if (targetHwnd == 0L) {
+                    targetHwnd = u32.FindWindowA("IPTip_Main_Window", null)
+                }
+                if (targetHwnd == 0L || !u32.IsWindowVisible(targetHwnd)) {
+                    PlatformVirtualKeyboard.isKeyboardActive = false
+                    WindowsControllerService.appWindow?.let { win ->
+                        WindowsControllerService.activateAndFocusWindow(win)
+                    }
+                    break
+                }
+            }
+        }.apply {
+            isDaemon = true
+            name = "VirtualKeyboardCloseWatcher"
+            start()
+        }
     }
 
     private fun invokeTipCom(): Boolean {
@@ -112,7 +203,7 @@ object WindowsVirtualKeyboardManager {
             // ITipInvocation method index 3: Toggle(HWND hwnd)
             val toggleFuncPtr = vtable.getPointer(3L * Native.POINTER_SIZE)
             val u32 = WindowsControllerService.user32
-            val desktopHwnd = u32?.FindWindowA(null, null) ?: 0L
+            val desktopHwnd = u32?.GetDesktopWindow() ?: 0L
             Function.getFunction(toggleFuncPtr).invoke(
                 Int::class.java,
                 arrayOf(pInterface, Pointer.createConstant(desktopHwnd)),
@@ -146,6 +237,7 @@ object WindowsVirtualKeyboardManager {
 
     fun hideKeyboard() {
         if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return
+        PlatformVirtualKeyboard.isKeyboardActive = false
         try {
             val u32 = WindowsControllerService.user32
             if (u32 != null) {
@@ -161,5 +253,10 @@ object WindowsVirtualKeyboardManager {
                 }
             }
         } catch (_: Throwable) {}
+
+        // Restore focus to NuvioDeck window
+        WindowsControllerService.appWindow?.let { win ->
+            WindowsControllerService.activateAndFocusWindow(win)
+        }
     }
 }
