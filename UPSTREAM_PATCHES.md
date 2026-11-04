@@ -21,6 +21,7 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/desktopMain/native/windows/player_bridge.cpp` | Native player bridge directory isolation | Redirects WebView2 user data directory and MPV shader cache directory to `%LOCALAPPDATA%\NuvioDeck\`. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/build/NuvioDeckVersionConfig.kt` | Central version & repo configuration | Standalone constants for fork version name (`0.1.10`), upstream base version (`0.1.33`), fork repo (`kllakm/NuvioDeck`), dual-version display string, and fork attribution. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/build/AppVersionPolicy.desktop.kt` | User agent & dual version policy hook | Connects `displayVersionName` and `basedOnVersionName` to `NuvioDeckVersionConfig` and sets `userAgentAppName` to `"NuvioDeck"`. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/settings/DesktopRendererSettings.desktop.kt` | Skiko render & refresh rate sync | Adds programmatic fallback settings for `skiko.fps = "-1"` and `skiko.vsync = "true"` in `applyBeforeCompose()` to unlock 90Hz/120Hz/144Hz monitors and handheld displays. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/auth/DeviceSessionRegistration.desktop.kt` | Session registration hook | Registers client device name as `"NuvioDeck"`. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/network/ServerConfiguration.kt` | Fallback configuration hook | Injects default Supabase production endpoints (`https://api.nuvio.tv`) and public keys when local properties are unset. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/updater/AppUpdaterPlatform.desktop.kt` | Auto-updater fork repo redirection | Points GitHub release source to `kllakm/NuvioDeck` and compares releases against `NuvioDeckVersionConfig.FORK_VERSION_NAME`. |
@@ -56,6 +57,8 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/DropdownChip.kt` | Dropdown focus hook | Adds `.controllerFocusable` to selectable dropdown triggers. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/FloatingPrompt.kt` | Prompt action hook | Adds `.controllerFocusable` to floating resume prompt buttons. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/PosterZoomActionOverlay.kt` | Overlay button focus hook | Adds `.controllerFocusable` to poster zoom dialog action buttons. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/PlatformImageLoader.desktop.kt` | Persistent 512MB Disk Cache | Configures Coil 3 Okio-backed `DiskCache` in `%LOCALAPPDATA%\NuvioDeck\Cache\image_cache` ensuring media artwork is cached locally on SSD and loads in 1–3ms. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/AsyncImage.desktop.kt` | GPU Trilinear Mipmapping & Sizing | Uses hardware GPU trilinear mipmapping (`FilterQuality.Medium`) and removes forced 1536px decode sizes, eliminating CPU draw-pass downscaling and dropped frames. |
 
 ### 4. Features & Screens
 | File Path | Nature of Patch | Purpose / Justification |
@@ -121,3 +124,4 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/storage/DesktopStorage.kt` | Storage & Cache Directory Isolation | Routes all settings, databases, updates, and caches into dedicated `NuvioDeck` AppData and LocalAppData folders to avoid shared state corruption. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/settings/WindowsAppShortcutIconUpdater.kt` | Windows Shortcut Decoupling | Directs shortcut icon caching to `NuvioDeck/icons` and updates `NuvioDeck.lnk` shortcuts across Desktop, Start Menu, and Taskbar. |
 | `composeApp/src/desktopMain/kotlin/com/nuvio/app/features/settings/AppIconPlatform.desktop.kt` | Launcher Process Resolution | Resolves `NuvioDeck.exe` on icon change restarts. |
+| `.github/workflows/update-store-source.yml` | 0-IPA Guard in Release Action | Automatically detects releases without `.ipa` assets (such as Windows MSI desktop releases) and completes cleanly with exit 0. |
