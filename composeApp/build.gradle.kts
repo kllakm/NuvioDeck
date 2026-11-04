@@ -1275,6 +1275,13 @@ compose.desktop {
             "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.windows=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED",
+            "-XX:+UseG1GC",
+            "-XX:MaxGCPauseMillis=16",
+            "-XX:+UseStringDeduplication",
+            "-Xms256m",
+            "-Xmx2048m",
+            "-Dskiko.fps=-1",
+            "-Dskiko.vsync=true",
             smokePlayerUrl?.takeIf { it.isNotBlank() }?.let { "-Dnuvio.desktop.smokePlayerUrl=$it" },
         )
 

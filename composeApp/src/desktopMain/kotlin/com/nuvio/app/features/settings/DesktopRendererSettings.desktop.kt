@@ -36,6 +36,13 @@ internal actual object DesktopRendererSettings {
     }
 
     fun applyBeforeCompose() {
+        if (System.getProperty("skiko.fps") == null && System.getenv("SKIKO_FPS") == null) {
+            runCatching { System.setProperty("skiko.fps", "-1") }
+        }
+        if (System.getProperty("skiko.vsync") == null && System.getenv("SKIKO_VSYNC") == null) {
+            runCatching { System.setProperty("skiko.vsync", "true") }
+        }
+
         val storedOpenGlEnabled = runCatching(::loadStoredPreference).getOrDefault(false)
         if (!shouldApplyStoredOpenGlRenderer(
                 osName = System.getProperty("os.name").orEmpty(),

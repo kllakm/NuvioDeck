@@ -39,8 +39,7 @@ import org.jetbrains.skia.MipmapMode
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private const val MinCustomDownscaleRatio = 1.08f
-private const val MaxDesktopSourceSizePx = 1536
+private const val MinCustomDownscaleRatio = 2.0f
 private const val MaxScaledBitmapPixels = 1_250_000L
 
 private val IsWindowsDesktop: Boolean =
@@ -90,10 +89,9 @@ internal actual fun NuvioAsyncImage(
     val effectiveDesktopImageScaling = remember(desktopImageScaling) {
         if (IsWindowsDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
     }
-    val requestModel = remember(context, model, effectiveDesktopImageScaling, animated) {
+    val requestModel = remember(context, model, animated) {
         model.withDesktopImageOptions(
             context = context,
-            highQualitySize = effectiveDesktopImageScaling != NuvioDesktopImageScaling.Disabled,
             animated = animated,
         )
     }
@@ -156,7 +154,7 @@ internal actual fun NuvioAsyncImage(
         contentScale = contentScale,
         alpha = alpha,
         colorFilter = colorFilter,
-        filterQuality = filterQuality ?: FilterQuality.High,
+        filterQuality = filterQuality ?: FilterQuality.Medium,
         clipToBounds = clipToBounds,
     )
 }
@@ -167,11 +165,10 @@ internal actual fun NuvioAsyncImage(
  */
 private fun Any?.withDesktopImageOptions(
     context: PlatformContext,
-    highQualitySize: Boolean,
     animated: Boolean,
 ): Any? {
     if (this == null) return null
-    if (!highQualitySize && !animated) return this
+    if (!animated) return this
 
     val builder = if (this is ImageRequest) {
         newBuilder()
@@ -179,11 +176,8 @@ private fun Any?.withDesktopImageOptions(
         ImageRequest.Builder(context).data(this)
     }
     builder.apply {
-        if (highQualitySize) size(MaxDesktopSourceSizePx)
-        if (animated) {
-            extras[NuvioAnimatedImageKey] = true
-            memoryCacheKeyExtra("nuvio.animated", "true")
-        }
+        extras[NuvioAnimatedImageKey] = true
+        memoryCacheKeyExtra("nuvio.animated", "true")
     }
     return builder.build()
 }
@@ -267,7 +261,7 @@ private class ScaledBitmapPainter(
             dstSize = drawSize,
             alpha = alpha,
             colorFilter = colorFilter,
-            filterQuality = FilterQuality.High,
+            filterQuality = FilterQuality.Medium,
         )
     }
 
