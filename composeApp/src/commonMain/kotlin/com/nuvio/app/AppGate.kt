@@ -1,12 +1,14 @@
-﻿package com.nuvio.app
+package com.nuvio.app
 import com.nuvio.app.controller.ControllerGateOverlay
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -475,8 +477,8 @@ internal fun AppGate(
             targetState = gateScreen,
             label = "app_gate",
             transitionSpec = {
-                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
-                    .togetherWith(fadeOut(tween(250)))
+                (fadeIn(tween(450, easing = FastOutSlowInEasing)) + scaleIn(tween(450, easing = FastOutSlowInEasing), initialScale = 0.96f))
+                    .togetherWith(fadeOut(tween(350, easing = FastOutSlowInEasing)))
             },
         ) { currentGate ->
             when (currentGate) {
@@ -569,9 +571,9 @@ internal fun AppGate(
             enter = if (skipProfileSelectionEnterAnimation) {
                 androidx.compose.animation.EnterTransition.None
             } else {
-                fadeIn(tween(400))
+                fadeIn(tween(400, easing = FastOutSlowInEasing))
             },
-            exit = fadeOut(tween(400)),
+            exit = fadeOut(tween(500, easing = FastOutSlowInEasing)) + scaleOut(targetScale = 1.03f, animationSpec = tween(500, easing = FastOutSlowInEasing)),
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(NuvioTokens.Z.dialog),
@@ -592,10 +594,7 @@ internal fun AppGate(
                 }
                 ProfileSelectionScreen(
                     onProfileSelected = { profile ->
-                        if (
-                            !profileSelectionLoading &&
-                            (autoSkipProfileSelection || profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex)
-                        ) {
+                        if (!profileSelectionLoading) {
                             profileSelectionLoading = true
                             profileSelectionTransitionActive = true
                             skipProfileSelectionEnterAnimation = false

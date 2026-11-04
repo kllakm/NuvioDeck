@@ -752,6 +752,34 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - Standalone Windows executable compiled to `composeApp/build/compose/binaries/main/app/NuvioDeck/NuvioDeck.exe`.
 - Standalone MSI installer packaged to `composeApp/build/compose/release-msis/NuvioDeck-Windows-x64-0.1.13.msi`.
 
+### [2026-11-04] Sub-Menu Traversal Fix, Episode/Trailer Focus Visibility, High-Contrast Play Button & Smooth Login Transition (v0.1.14)
+
+#### 1. Video Player OSD Sub-Menu Up/Down Traversal Fix (`controls.js`, `controls.css`)
+- **Prevent Modal DOM Tearing on Controller Inputs:** Fixed a critical bug where `window.playerControls` unconditionally re-rendered active modals on every controller command dispatch, destroying the focused DOM element and resetting `document.activeElement` back to index 0 on every D-Pad press.
+- **Controller Command Guard:** When incoming state updates are pure controller command tokens (`isControllerCommandDispatch`), modal re-rendering is bypassed and focus traversal is handled directly.
+- **Signature Caching in Subtitles Modal:** Cached `lastSubtitleRailsSignature` in `renderSubtitleSelectionRails()` so that subtitle options and language lists are never wiped or recreated when items have not changed.
+- **Stream Sources Virtualization Guarantee:** In `renderSourceVirtualRows()`, guaranteed that `[start, end]` window strictly includes `focusedSourceIndex` so the focused stream row is always present in the DOM when navigating. In `renderSourceModal()`, preserved existing virtual rows when the source key matches.
+- **Focused State Tracking:** Explicitly applied `.focused` class and high-contrast outline (`2.5px solid #ffffff !important`, `box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important`) across focused source rows, subtitle languages, and subtitle tracks.
+
+#### 2. TV Show Episodes & Trailers Focus Border Clipping Fix (`DetailSeriesContent.kt`, `DetailTrailersSection.kt`, `ControllerFocusEngine.kt`)
+- **Attach Focus Modifiers Before Shape Clipping:** Fixed an issue where `.clip(cardShape)` was applied before `.posterCardClickable` / `.controllerFocusable` on `EpisodeHorizontalCard`, `EpisodeListCard`, and `TrailerCard`, causing the outer half of focus outlines and glow to be clipped by the card boundary. Reordered the modifier chain so focus rings and hover scales are applied at the container level before internal clipping.
+- **Trailer LazyRow Vertical Margin:** Injected `vertical = 8.dp` content padding into `DetailTrailersSection`'s `LazyRow`, preventing scaled-up trailer cards and focus halos from getting clipped by the scroll viewport.
+- **Crisp 2.5dp White Primary Border:** Upgraded card outline stroke in `ControllerFocusEngine.kt` to `2.5.dp` with expanded diffused glow (`6.dp`) for crisp visibility over backdrop images and scrim layers.
+
+#### 3. High-Contrast Details "Play" Button Focus State (`DetailActionButtons.kt`)
+- **Inverted Dark Focus Styling:** Resolved the lack of contrast on the movie/show details "Play" button (which is normally solid white).
+- **Dynamic Color Inversion:** When controller focus lands on the Play button (`isControllerNodeFocused("detail_action_play")`), the background flips to sleek black (`Color(0xFF0D0E15)`), the text and play icon invert to bright white (`Color.White`), and a crisp 2.dp solid white border (`BorderStroke(2.dp, Color.White)`) and halo ring are rendered, providing unmistakable visual distinction against adjacent buttons.
+
+#### 4. Cinematic Smooth Fade-Out on Login / Profile Screen Dismissal (`ProfileSelectionScreen.kt`, `AppGate.kt`)
+- **Interactive Exit Animation:** Added an immediate animated dismissal state (`isDismissing`) on `ProfileSelectionScreen` that begins fading (`alpha: 1f -> 0f`) and gently scaling (`scale: 1.0f -> 1.04f`) with `FastOutSlowInEasing` (450ms) the moment an avatar card is clicked.
+- **Polished Gate Transition:** Upgraded `profileOverlayState` exit animation in `AppGate.kt` to `fadeOut(tween(500, easing = FastOutSlowInEasing)) + scaleOut(targetScale = 1.03f, animationSpec = tween(500, easing = FastOutSlowInEasing))`, and enhanced `AnimatedContent` transition to `(fadeIn(450) + scaleIn(0.96f)).togetherWith(fadeOut(350))`.
+- **Seamless App Entry:** Eliminates abrupt dismissal or frozen states when entering the app from the login / profile selection screen, providing a smooth cinematic transition matching Netflix and Apple TV.
+
+#### 5. Documentation & Version Tracking
+- **Version Maintained:** Retained `FORK_VERSION_NAME = "0.1.14"` and `VERSION_NAME=0.1.14` (build increment suppressed per user instruction).
+- **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+
 
 
 

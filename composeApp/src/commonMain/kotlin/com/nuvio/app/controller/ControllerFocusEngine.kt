@@ -1201,11 +1201,15 @@ object ControllerFocusEngine {
         direction: ControllerDirection,
     ): Boolean {
         // Settings Column Isolation: Up and Down stay strictly within current column
-        if (current.groupKey == "settings_sidebar" || current.groupKey == "settings_content") {
+        val isCurrentSettingsSidebar = current.groupKey == "settings_sidebar" || current.id.startsWith("settings_sidebar_")
+        val isCurrentSettingsContent = current.groupKey == "settings_content" || (current.id.startsWith("settings_") && !isCurrentSettingsSidebar)
+
+        if (isCurrentSettingsSidebar || isCurrentSettingsContent) {
             val columnNodes = nodes.values.filter {
                 it.zone == ControllerFocusZone.Content &&
                     it.isVisibleAndValid &&
-                    it.groupKey == current.groupKey &&
+                    (if (isCurrentSettingsSidebar) (it.groupKey == "settings_sidebar" || it.id.startsWith("settings_sidebar_"))
+                     else (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_")))) &&
                     it.id != current.id
             }
             val target = if (direction == ControllerDirection.Down) {
@@ -1448,6 +1452,56 @@ object ControllerFocusEngine {
             return handleContentVerticalNavigation(current, direction)
         }
 
+        // Settings Lateral Navigation: Always allow seamless handoff between Sidebar (left) and Content (right)
+        if (activeZone == ControllerFocusZone.Content) {
+            val isCurrentSettingsSidebar = current.groupKey == "settings_sidebar" || current.id.startsWith("settings_sidebar_")
+            val isCurrentSettingsContent = current.groupKey == "settings_content" || (current.id.startsWith("settings_") && !isCurrentSettingsSidebar)
+
+            if (isCurrentSettingsSidebar && direction == ControllerDirection.Right) {
+                val contentNodes = nodes.values.filter {
+                    it.zone == ControllerFocusZone.Content &&
+                        it.isVisibleAndValid &&
+                        (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_")))
+                }
+                if (contentNodes.isNotEmpty()) {
+                    val target = contentNodes.minByOrNull { abs(it.boundsInRoot.center.y - current.boundsInRoot.center.y) }
+                        ?: contentNodes.minByOrNull { it.boundsInRoot.top }
+                        ?: contentNodes.first()
+                    focusNodeInternal(target, triggerScroll = true, direction = direction)
+                    return true
+                }
+            } else if (isCurrentSettingsContent && direction == ControllerDirection.Left) {
+                // First check if there is an inner sibling item to the left within settings_content (e.g. chips, segmented buttons)
+                val leftInnerNodes = nodes.values.filter {
+                    it.zone == ControllerFocusZone.Content &&
+                        it.isVisibleAndValid &&
+                        (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_"))) &&
+                        it.boundsInRoot.center.x < current.boundsInRoot.center.x - 10f &&
+                        abs(it.boundsInRoot.center.y - current.boundsInRoot.center.y) < 36f
+                }
+                if (leftInnerNodes.isNotEmpty()) {
+                    val nextLeft = leftInnerNodes.maxByOrNull { it.boundsInRoot.center.x }
+                    if (nextLeft != null) {
+                        focusNodeInternal(nextLeft, triggerScroll = true, direction = direction)
+                        return true
+                    }
+                }
+
+                // If at the left edge of content, transition immediately to settings_sidebar
+                val sidebarNodes = nodes.values.filter {
+                    it.zone == ControllerFocusZone.Content &&
+                        it.isVisibleAndValid &&
+                        (it.groupKey == "settings_sidebar" || it.id.startsWith("settings_sidebar_"))
+                }
+                if (sidebarNodes.isNotEmpty()) {
+                    val target = sidebarNodes.minByOrNull { abs(it.boundsInRoot.center.y - current.boundsInRoot.center.y) }
+                        ?: sidebarNodes.first()
+                    focusNodeInternal(target, triggerScroll = false, direction = direction)
+                    return true
+                }
+            }
+        }
+
         // If currently focused on a View All pill and pressing Left, return to that shelf row's rightmost card
         if (activeZone == ControllerFocusZone.Content && current.id.startsWith("view_all_pill_") && direction == ControllerDirection.Left) {
             val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid && !it.id.startsWith("view_all_pill_") }
@@ -1579,20 +1633,7 @@ object ControllerFocusEngine {
         // Zone transitions between Navigation (Sidebar / TopBar) and Content
         if (activeZone == ControllerFocusZone.Content) {
             if (direction == ControllerDirection.Left) {
-                if (current.groupKey == "settings_content") {
-                    val sidebarNodes = nodes.values.filter {
-                        it.zone == ControllerFocusZone.Content &&
-                            it.isVisibleAndValid &&
-                            it.groupKey == "settings_sidebar"
-                    }
-                    val target = sidebarNodes.minByOrNull { abs(it.boundsInRoot.center.y - current.boundsInRoot.center.y) }
-                        ?: sidebarNodes.firstOrNull()
-                    if (target != null) {
-                        focusNodeInternal(target, triggerScroll = false, direction = direction)
-                        return true
-                    }
-                }
-                // Clamped at index 0 of content: do not hop to sidebar menu on Left stick/D-pad.
+                // Clamped at index 0 of content: do not hop to main app sidebar menu on Left stick/D-pad.
                 // Sidebar navigation is strictly toggled via Controller Menu (Start) or View buttons.
                 return true
             } else if (direction == ControllerDirection.Up) {
@@ -1912,7 +1953,7 @@ fun Modifier.controllerFocusable(
     isTextInput: Boolean = false,
     shape: Shape? = null,
     cornerRadius: Dp = 12.dp,
-    focusScale: Float = 1.04f,
+    focusScale: Float = 1.0f,
     scaleOnFocus: Float? = null,
     useHaloFocusRing: Boolean = false,
     hideFocusRing: Boolean = false,
@@ -2146,11 +2187,11 @@ fun Modifier.controllerFocusable(
                 } else {
                     // Subtle Modern Focus Ring across all cards/elements:
                     // 1. Subtle drop shadow
-                    // 2. Soft diffused white glow (rgba(255, 255, 255, 0.45))
-                    // 3. Crisp thin 2px solid white primary border
+                    // 2. Soft diffused white glow (rgba(255, 255, 255, 0.50))
+                    // 3. Crisp solid 2.5px white primary border
                     val shadowStrokePx = 8.dp.toPx()
-                    val glowStrokePx = 5.dp.toPx()
-                    val whiteBorderStrokePx = 2.dp.toPx()
+                    val glowStrokePx = 6.dp.toPx()
+                    val whiteBorderStrokePx = 2.5f.dp.toPx()
 
                     if (shape != null) {
                         val outline = shape.createOutline(size, layoutDirection, this)

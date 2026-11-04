@@ -46,25 +46,23 @@ private data class DustMote(
 )
 
 /**
- * Creates a high-frequency micro-dither noise tile (96x96) to mathematically eliminate
- * color banding across 8-bit, 10-bit, 1080p, and 4K TV/desktop panels.
+ * Creates a high-frequency micro-dither noise tile (128x128) using a triangular distribution
+ * to mathematically eliminate color banding across 8-bit, 10-bit, 1080p, and 4K TV/desktop panels.
  */
 private fun createCinematicDitherBitmap(): ImageBitmap {
-    val size = 96
+    val size = 128
     val bitmap = ImageBitmap(size, size)
     val canvas = Canvas(bitmap)
     val paint = Paint()
     val rnd = kotlin.random.Random(1337)
     for (y in 0 until size) {
         for (x in 0 until size) {
-            val v = rnd.nextFloat()
-            if (v > 0.58f) {
-                val alpha = (v - 0.58f) * 0.055f
-                paint.color = Color.White.copy(alpha = alpha)
+            val noise = rnd.nextFloat() - rnd.nextFloat()
+            if (noise > 0f) {
+                paint.color = Color.White.copy(alpha = noise * 0.042f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
-            } else if (v < 0.22f) {
-                val alpha = (0.22f - v) * 0.065f
-                paint.color = Color.Black.copy(alpha = alpha)
+            } else if (noise < 0f) {
+                paint.color = Color.Black.copy(alpha = (-noise) * 0.042f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
             }
         }
@@ -157,103 +155,50 @@ fun CinematicBackground(
                 val maxDim = max(width, height)
 
                 // 1. Deep space base
-                drawRect(color = Color(0xFF06050A), size = size)
+                drawRect(color = Color(0xFF070407), size = size)
 
-                // 2. Top-left dark velvet indigo-navy bloom
-                val indigoCenter = Offset(
-                    x = width * (-0.05f + 0.02f * sin(driftPhase)),
-                    y = height * (-0.05f + 0.015f * cos(driftPhase)),
+                // 2. Center warm dark wine/crimson glow (Netflix-inspired cinematic ambiance)
+                val glowCenter = Offset(
+                    x = width * (0.50f + 0.015f * sin(pulsePhase)),
+                    y = height * (0.38f + 0.012f * cos(pulsePhase)),
                 )
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0f to Color(0xFF101528).copy(alpha = 0.58f),
-                            0.35f to Color(0xFF090A14).copy(alpha = 0.42f),
-                            0.65f to Color(0xFF06070E).copy(alpha = 0.22f),
-                            1f to Color.Transparent,
-                        ),
-                        center = indigoCenter,
-                        radius = maxDim * 0.88f,
-                    ),
-                    size = size,
-                )
-
-                // 3. Right & bottom-right dark plum, aubergine & crimson shadows
-                val plumCenter = Offset(
-                    x = width * (0.86f + 0.022f * cos(driftPhase)),
-                    y = height * (0.42f + 0.02f * sin(pulsePhase)),
-                )
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0f to Color(0xFF38122A).copy(alpha = 0.55f),
-                            0.32f to Color(0xFF2B0C20).copy(alpha = 0.44f),
-                            0.58f to Color(0xFF190614).copy(alpha = 0.26f),
-                            0.80f to Color(0xFF0F050A).copy(alpha = 0.14f),
-                            1f to Color.Transparent,
-                        ),
-                        center = plumCenter,
-                        radius = maxDim * 0.82f,
-                    ),
-                    size = size,
-                )
-
-                // 4. Center glowing deep violet / amethyst nebula core
-                val violetCenter = Offset(
-                    x = width * (0.40f + 0.02f * sin(pulsePhase)),
-                    y = height * (0.36f + 0.015f * cos(pulsePhase)),
-                )
-                val violetRadius = maxDim * (0.62f + 0.035f * sin(pulsePhase))
-                val coreAlpha = 0.56f + 0.04f * sin(pulsePhase)
+                val glowRadius = maxDim * (1.18f + 0.03f * sin(pulsePhase))
+                val coreAlpha = 0.52f + 0.03f * sin(pulsePhase)
                 val coreColor = if (accentColor != null) {
-                    // Blend profile accent subtly into the violet core if provided
                     Color(
-                        red = (0x3E / 255f * 0.75f + accentColor.red * 0.25f),
-                        green = (0x1F / 255f * 0.75f + accentColor.green * 0.25f),
-                        blue = (0x5C / 255f * 0.75f + accentColor.blue * 0.25f),
+                        red = (0x3A / 255f * 0.65f + accentColor.red * 0.35f),
+                        green = (0x12 / 255f * 0.65f + accentColor.green * 0.35f),
+                        blue = (0x1A / 255f * 0.65f + accentColor.blue * 0.35f),
                     )
                 } else {
-                    Color(0xFF3E1F5C)
+                    Color(0xFF38121A)
                 }
+
                 drawRect(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0f to coreColor.copy(alpha = coreAlpha),
-                            0.28f to Color(0xFF2A1540).copy(alpha = 0.44f),
-                            0.55f to Color(0xFF1C1430).copy(alpha = 0.28f),
-                            0.78f to Color(0xFF120C1F).copy(alpha = 0.12f),
-                            1f to Color.Transparent,
+                            0.00f to coreColor.copy(alpha = coreAlpha),
+                            0.18f to coreColor.copy(alpha = coreAlpha * 0.82f),
+                            0.36f to Color(0xFF260C14).copy(alpha = 0.38f),
+                            0.55f to Color(0xFF18070D).copy(alpha = 0.28f),
+                            0.72f to Color(0xFF0F0408).copy(alpha = 0.18f),
+                            0.88f to Color(0xFF070204).copy(alpha = 0.08f),
+                            1.00f to Color.Transparent,
                         ),
-                        center = violetCenter,
-                        radius = violetRadius,
+                        center = glowCenter,
+                        radius = glowRadius,
                     ),
                     size = size,
                 )
 
-                // 5. Volumetric light leak / nebula color bloom linking core and plum regions
-                val leakCenter = Offset(width * 0.60f, height * 0.32f)
-                val leakAlpha = 0.22f + 0.03f * cos(driftPhase)
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0f to Color(0xFF4A1840).copy(alpha = leakAlpha),
-                            0.45f to Color(0xFF26102B).copy(alpha = 0.12f),
-                            1f to Color.Transparent,
-                        ),
-                        center = leakCenter,
-                        radius = maxDim * 0.50f,
-                    ),
-                    size = size,
-                )
-
-                // 6. Perimeter & bottom vignette for pristine foreground contrast and legibility
+                // 3. Gentle perimeter and vertical vignetting for contrast
                 drawRect(
                     brush = Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0f to Color.Transparent,
-                            0.50f to Color(0xFF050408).copy(alpha = 0.35f),
-                            0.82f to Color(0xFF030206).copy(alpha = 0.75f),
-                            1f to Color(0xFF020204).copy(alpha = 0.94f),
+                            0.00f to Color.Transparent,
+                            0.50f to Color(0xFF050204).copy(alpha = 0.25f),
+                            0.80f to Color(0xFF030102).copy(alpha = 0.65f),
+                            1.00f to Color(0xFF020102).copy(alpha = 0.90f),
                         ),
                         startY = height * 0.45f,
                         endY = height,
@@ -263,13 +208,13 @@ fun CinematicBackground(
                 drawRect(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0f to Color.Transparent,
-                            0.72f to Color.Transparent,
-                            0.92f to Color(0xFF030205).copy(alpha = 0.45f),
-                            1f to Color(0xFF020104).copy(alpha = 0.75f),
+                            0.00f to Color.Transparent,
+                            0.65f to Color.Transparent,
+                            0.85f to Color(0xFF040203).copy(alpha = 0.35f),
+                            1.00f to Color(0xFF020102).copy(alpha = 0.70f),
                         ),
                         center = Offset(width * 0.5f, height * 0.5f),
-                        radius = maxDim * 0.72f,
+                        radius = maxDim * 0.85f,
                     ),
                     size = size,
                 )

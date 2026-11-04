@@ -3,6 +3,7 @@ package com.nuvio.app.features.profiles
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -144,8 +145,20 @@ fun ProfileSelectionScreen(
     val titleAlpha = remember { Animatable(0f) }
     val titleOffset = remember { Animatable(20f) }
     val manageAlpha = remember { Animatable(0f) }
+    var isDismissing by remember { mutableStateOf(false) }
+    val dismissAlpha by animateFloatAsState(
+        targetValue = if (isDismissing) 0f else 1f,
+        animationSpec = tween(450, easing = FastOutSlowInEasing),
+        label = "profile_dismiss_alpha",
+    )
+    val dismissScale by animateFloatAsState(
+        targetValue = if (isDismissing) 1.04f else 1f,
+        animationSpec = tween(450, easing = FastOutSlowInEasing),
+        label = "profile_dismiss_scale",
+    )
+
     val onProfileClick: (NuvioProfile) -> Unit = { profile ->
-        if (interactionEnabled) {
+        if (interactionEnabled && !isDismissing) {
             routeProfileSelection(
                 profile = profile,
                 isEditMode = isEditMode,
@@ -153,7 +166,13 @@ fun ProfileSelectionScreen(
                 onEditProfile = onEditProfile,
                 onActiveProfileSelected = { scope.launch { showAlreadyActiveProfileToast(it) } },
                 onPinRequired = { pinDialogProfile = it },
-                onProfileSelected = onProfileSelected,
+                onProfileSelected = { selectedProfile ->
+                    isDismissing = true
+                    scope.launch {
+                        delay(120)
+                        onProfileSelected(selectedProfile)
+                    }
+                },
             )
         }
     }
@@ -198,13 +217,33 @@ fun ProfileSelectionScreen(
 
     BoxWithConstraints(
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .graphicsLayer {
+                alpha = dismissAlpha
+                scaleX = dismissScale
+                scaleY = dismissScale
+            },
     ) {
         val isTabletLayout = maxWidth >= 768.dp
         ProfileBackgroundBackdrop(
             profile = backgroundProfile,
             colorOverride = hoveredProfileColor,
             modifier = Modifier.fillMaxSize(),
+        )
+
+        MemberBrandWordmark(
+            height = if (isTabletLayout) 36.dp else 28.dp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(LocalVerticalBarPadding.current)
+                .padding(
+                    start = if (onBack != null) (if (isTabletLayout) 72.dp else 56.dp) else (if (isTabletLayout) 48.dp else 24.dp),
+                    top = statusBarTop + (if (isTabletLayout) 28.dp else 16.dp),
+                )
+                .graphicsLayer {
+                    alpha = titleAlpha.value
+                    translationY = titleOffset.value
+                },
         )
 
         AnimatedVisibility(
@@ -229,16 +268,6 @@ fun ProfileSelectionScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(modifier = Modifier.height(if (isTabletLayout) 0.dp else 60.dp))
-
-                MemberBrandWordmark(
-                    height = if (isTabletLayout) 42.dp else 34.dp,
-                    modifier = Modifier.graphicsLayer {
-                        alpha = titleAlpha.value
-                        translationY = titleOffset.value
-                    },
-                )
-
-                Spacer(modifier = Modifier.height(if (isTabletLayout) 22.dp else 18.dp))
 
                 Text(
                     text = stringResource(Res.string.profile_who_is_watching),
@@ -492,12 +521,17 @@ private fun ProfileAvatarCard(
                 enabled = enabled,
                 shape = RoundedCornerShape(20.dp),
                 scaleOnFocus = 1.04f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = if (isEditMode) "Edit Profile" else "Select Profile",
                 onSecondaryAction = onEditProfile,
                 secondaryActionLabel = "Edit Profile",
             )
             .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (isHovered) Color.White.copy(alpha = 0.15f)
+                else Color.Transparent,
+            )
             .then(
                 if (isDesktop) {
                     Modifier.hoverable(interactionSource)
@@ -511,7 +545,7 @@ private fun ProfileAvatarCard(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(8.dp),
+            .padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
         Box(
             modifier = Modifier.size(110.dp),
@@ -643,6 +677,11 @@ private fun AddProfileCard(
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val rawHovered by interactionSource.collectIsHoveredAsState()
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
+    val isControllerFocused = isControllerActive && focusedNodeId == "profile_card_add"
+    val isHovered = (!isControllerActive && rawHovered) || isControllerFocused
     val pressScale = if (isPressed) 0.95f else 1f
     val addLabel = stringResource(Res.string.compose_profile_add_profile)
 
@@ -662,17 +701,29 @@ private fun AddProfileCard(
                 enabled = enabled,
                 shape = RoundedCornerShape(20.dp),
                 scaleOnFocus = 1.04f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = addLabel,
             )
             .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (isHovered) Color.White.copy(alpha = 0.15f)
+                else Color.Transparent,
+            )
+            .then(
+                if (isDesktop) {
+                    Modifier.hoverable(interactionSource)
+                } else {
+                    Modifier
+                },
+            )
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             )
-            .padding(8.dp),
+            .padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
         Box(
             modifier = Modifier.size(110.dp),

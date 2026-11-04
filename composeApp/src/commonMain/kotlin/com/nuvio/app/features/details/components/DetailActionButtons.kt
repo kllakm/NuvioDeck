@@ -3,6 +3,7 @@ package com.nuvio.app.features.details.components
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.secondaryClick
@@ -106,22 +109,37 @@ fun DetailActionButtons(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val isPlayFocused = isControllerNodeFocused("detail_action_play")
+            val playButtonBg = when {
+                isPlayFocused -> Color(0xFF0D0E15)
+                playEnabled -> MaterialTheme.colorScheme.onBackground
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            }
+            val playButtonFg = when {
+                isPlayFocused -> Color.White
+                playEnabled -> MaterialTheme.colorScheme.background
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            }
+            val playBorder = if (isPlayFocused) BorderStroke(2.dp, Color.White) else null
+
             Surface(
                 modifier = Modifier
                     .weight(1f)
                     .height(buttonHeight),
                 shape = playShape,
-                color = if (playEnabled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (playEnabled) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                border = playBorder,
+                color = playButtonBg,
+                contentColor = playButtonFg,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .controllerFocusable(
+                            id = "detail_action_play",
                             enabled = playEnabled,
                             shape = playShape,
                             useHaloFocusRing = true,
-                            focusScale = 1.04f,
+                            focusScale = 1.0f,
                             onSelect = onPlayClick,
                             selectLabel = playLabel,
                             onSecondaryAction = onPlayLongClick,

@@ -174,7 +174,7 @@ fun DetailTrailersSection(
                     .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                     .fillMaxWidth()
                     .nuvioDesktopDragScroll(rowState),
-                contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+                contentPadding = PaddingValues(horizontal = horizontalScrollPadding, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(sizing.cardSpacing),
             ) {
                 itemsIndexed(
@@ -211,16 +211,17 @@ private fun TrailerCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(cornerRadius))
-                .nuvioCardDepth(
-                    shape = RoundedCornerShape(cornerRadius),
-                    surface = NuvioCardDepthSurface.Trailers,
-                )
                 .controllerFocusable(
+                    id = "trailer_${trailer.id ?: trailer.key}",
                     shape = RoundedCornerShape(cornerRadius),
                     focusScale = 1.05f,
                     onSelect = onClick,
                     selectLabel = "Play Trailer",
+                )
+                .clip(RoundedCornerShape(cornerRadius))
+                .nuvioCardDepth(
+                    shape = RoundedCornerShape(cornerRadius),
+                    surface = NuvioCardDepthSurface.Trailers,
                 )
                 .clickable(onClick = onClick),
         ) {

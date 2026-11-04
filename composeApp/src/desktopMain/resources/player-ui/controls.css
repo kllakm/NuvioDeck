@@ -3775,20 +3775,55 @@ svg {
 .player.controller-active .action:focus,
 .player.controller-active .action.focused,
 .player.controller-active .volume-button:focus,
-.player.controller-active .volume-button.focused,
-.player.controller-active .volume-slider:focus,
-.player.controller-active .volume-slider.focused,
-.player.controller-active .track-row:focus,
-.player.controller-active .subtitle-language-row:focus,
-.player.controller-active .filter-chip:focus,
-.player.controller-active .panel-button:focus,
-.player.controller-active button:focus {
+.player.controller-active .volume-button.focused {
   outline: 2.5px solid #ffffff !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
   transform: scale(1.06);
   transition: transform 120ms ease, box-shadow 120ms ease;
   z-index: 10;
+}
+
+.player.controller-active .volume-slider:focus,
+.player.controller-active .volume-slider.focused {
+  outline: 2.5px solid #ffffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  z-index: 10;
+}
+
+.player.controller-active .track-row:focus,
+.player.controller-active .track-row.focused,
+.player.controller-active .source-row:focus,
+.player.controller-active .source-row.focused,
+.player.controller-active .subtitle-language-row:focus,
+.player.controller-active .subtitle-language-row.focused,
+.player.controller-active .subtitle-option-row:focus,
+.player.controller-active .subtitle-option-row.focused,
+.player.controller-active .filter-chip:focus,
+.player.controller-active .panel-button:focus,
+.player.controller-active .round-step:focus,
+.player.controller-active .font-row:focus,
+.player.controller-active button:focus {
+  outline: 2.5px solid #ffffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  transform: none !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  transition: background 120ms ease, box-shadow 120ms ease;
+  z-index: 10;
+}
+
+.player.controller-active .track-row.selected:focus,
+.player.controller-active .track-row.selected.focused,
+.player.controller-active .source-row.selected.focused,
+.player.controller-active .subtitle-language-row.selected:focus,
+.player.controller-active .subtitle-language-row.selected.focused,
+.player.controller-active .subtitle-option-row.selected:focus,
+.player.controller-active .subtitle-option-row.selected.focused {
+  background: rgba(255, 255, 255, 0.28) !important;
+  outline: 2.5px solid #ffffff !important;
+  transform: none !important;
 }
 
 .player.controller-active .scrub:focus,

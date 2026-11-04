@@ -36,6 +36,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioBackButton
@@ -165,9 +167,22 @@ internal fun SettingsSidebarItem(
 ) {
     val tokens = MaterialTheme.nuvio
     val primary = tokens.colors.accent
-    val background = if (selected) primary.copy(alpha = tokens.opacity.hover) else Color.Transparent
-    val iconChip = if (selected) primary.copy(alpha = tokens.opacity.selected) else Color.Transparent
-    val contentColor = if (selected) tokens.colors.textPrimary else tokens.colors.textMuted
+    val nodeId = remember(label) { "settings_sidebar_${label.lowercase().replace(" ", "_")}" }
+    val isFocused = isControllerNodeFocused(nodeId)
+    val background = when {
+        isFocused -> primary.copy(alpha = 0.32f)
+        selected -> primary.copy(alpha = tokens.opacity.hover)
+        else -> Color.Transparent
+    }
+    val iconChip = when {
+        isFocused -> primary.copy(alpha = 0.35f)
+        selected -> primary.copy(alpha = tokens.opacity.selected)
+        else -> Color.Transparent
+    }
+    val contentColor = when {
+        isFocused || selected -> tokens.colors.textPrimary
+        else -> tokens.colors.textMuted
+    }
 
     Row(
         modifier = Modifier
@@ -175,7 +190,11 @@ internal fun SettingsSidebarItem(
             .padding(horizontal = tokens.spacing.listGap, vertical = NuvioTokens.Space.s2)
             .background(background, RoundedCornerShape(NuvioTokens.Space.s10))
             .controllerFocusable(
+                id = nodeId,
+                groupKey = "settings_sidebar",
                 shape = RoundedCornerShape(NuvioTokens.Space.s10),
+                focusScale = 1.0f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = "Select Category",
             )
@@ -253,13 +272,21 @@ internal fun SettingsNavigationRow(
     val iconSize = if (isTablet) 42.dp else 36.dp
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
+    val nodeId = remember(title) { "settings_nav_${title.lowercase().replace(" ", "_").take(24)}" }
+    val isFocused = isControllerNodeFocused(nodeId)
+    val background = if (isFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(background, tokens.shapes.compactCard)
             .controllerFocusable(
+                id = nodeId,
+                groupKey = "settings_content",
                 enabled = enabled,
                 shape = tokens.shapes.compactCard,
+                focusScale = 1.0f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = "Open",
             )
@@ -339,13 +366,21 @@ internal fun SettingsSwitchRow(
 ) {
     val tokens = MaterialTheme.nuvio
     val verticalPadding = if (isTablet) 16.dp else 14.dp
+    val nodeId = remember(title) { "settings_switch_${title.lowercase().replace(" ", "_").take(24)}" }
+    val isFocused = isControllerNodeFocused(nodeId)
+    val background = if (isFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(background, tokens.shapes.compactCard)
             .controllerFocusable(
+                id = nodeId,
+                groupKey = "settings_content",
                 enabled = enabled,
                 shape = tokens.shapes.compactCard,
+                focusScale = 1.0f,
+                hideFocusRing = true,
                 onSelect = { onCheckedChange(!checked) },
                 selectLabel = "Toggle",
             )
@@ -453,12 +488,20 @@ internal fun HomescreenCatalogRow(
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val verticalPadding = if (isTablet) 18.dp else 16.dp
     val hapticFeedback = LocalHapticFeedback.current
+    val nodeId = remember(item.key) { "settings_catalog_${item.key}" }
+    val isFocused = isControllerNodeFocused(nodeId)
+    val background = if (isFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(background, tokens.shapes.compactCard)
             .controllerFocusable(
+                id = nodeId,
+                groupKey = "settings_content",
                 shape = tokens.shapes.compactCard,
+                focusScale = 1.0f,
+                hideFocusRing = true,
                 onSelect = { onEnabledChange(!item.enabled) },
                 selectLabel = "Toggle Visibility",
                 onSecondaryAction = { onExpandedChange(!expanded) },

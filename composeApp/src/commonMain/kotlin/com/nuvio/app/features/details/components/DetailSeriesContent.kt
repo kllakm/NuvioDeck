@@ -963,18 +963,18 @@ private fun EpisodeHorizontalCard(
         modifier = Modifier
             .width(metrics.cardWidth)
             .height(metrics.cardHeight)
+            .posterCardClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+                zoomImageUrl = imageUrl,
+                zoomCornerRadius = metrics.cornerRadius,
+            )
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .nuvioCardDepth(
                 shape = cardShape,
                 surface = NuvioCardDepthSurface.EpisodeCards,
                 fallbackBorderAlpha = 0.12f,
-            )
-            .posterCardClickable(
-                onClick = onClick,
-                onLongClick = onLongPress,
-                zoomImageUrl = imageUrl,
-                zoomCornerRadius = metrics.cornerRadius,
             ),
     ) {
         val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
@@ -1348,6 +1348,15 @@ private fun EpisodeListCard(
         modifier = modifier
             .fillMaxWidth()
             .height(sizing.cardHeight)
+            .controllerFocusable(
+                id = "episode_${video.id}",
+                enabled = onClick != null || onLongPress != null,
+                shape = cardShape,
+                onSelect = { onClick?.invoke() },
+                selectLabel = "Play Episode",
+                onSecondaryAction = onLongPress,
+                secondaryActionLabel = "Episode Options",
+            )
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .border(
@@ -1359,14 +1368,6 @@ private fun EpisodeListCard(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongPress,
-            )
-            .controllerFocusable(
-                enabled = onClick != null || onLongPress != null,
-                shape = cardShape,
-                onSelect = { onClick?.invoke() },
-                selectLabel = "Play Episode",
-                onSecondaryAction = onLongPress,
-                secondaryActionLabel = "Episode Options",
             )
             .secondaryClick(onLongPress),
     ) {
