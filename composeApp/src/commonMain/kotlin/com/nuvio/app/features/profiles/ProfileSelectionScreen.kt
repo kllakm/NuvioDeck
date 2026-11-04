@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.nuvio.app.features.profiles
 
 import androidx.compose.animation.AnimatedVisibility
@@ -53,10 +55,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -232,7 +237,7 @@ fun ProfileSelectionScreen(
         )
 
         MemberBrandWordmark(
-            height = if (isTabletLayout) 36.dp else 28.dp,
+            height = if (isTabletLayout) 30.dp else 26.dp,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(LocalVerticalBarPadding.current)
@@ -482,17 +487,38 @@ private fun ProfileAvatarCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val rawHovered by interactionSource.collectIsHoveredAsState()
+    var isMouseHovered by remember { mutableStateOf(false) }
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
     val focusId = "profile_card_${profile.profileIndex}"
     val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
     val isControllerFocused = isControllerActive && focusedNodeId == focusId
-    val isHovered = (!isControllerActive && rawHovered) || isControllerFocused
+    val isHovered = isMouseHovered || (!isControllerActive && rawHovered)
+    val isSelected = isHovered || isControllerFocused
     val currentOnHoverChange = rememberUpdatedState(onHoverChange)
     val pressScale = if (isPressed) 0.95f else 1f
 
-    LaunchedEffect(isHovered, profile.profileIndex) {
+    val selectionBgAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 0.15f else 0f,
+        animationSpec = if (isSelected) {
+            tween(150, easing = FastOutSlowInEasing)
+        } else {
+            tween(700, easing = FastOutSlowInEasing)
+        },
+        label = "profile_selection_bg_alpha",
+    )
+    val hoverScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.04f else 1f,
+        animationSpec = if (isSelected) {
+            tween(150, easing = FastOutSlowInEasing)
+        } else {
+            tween(700, easing = FastOutSlowInEasing)
+        },
+        label = "profile_hover_scale",
+    )
+
+    LaunchedEffect(isSelected, profile.profileIndex) {
         if (isDesktop) {
-            currentOnHoverChange.value(isHovered)
+            currentOnHoverChange.value(isSelected)
         }
     }
 
@@ -510,17 +536,27 @@ private fun ProfileAvatarCard(
             .width(150.dp)
             .graphicsLayer {
                 alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
+                scaleX = animScale.value * pressScale * hoverScale
+                scaleY = animScale.value * pressScale * hoverScale
                 translationY = animOffset.value
             }
+            .then(
+                if (isDesktop) {
+                    Modifier
+                        .onPointerEvent(PointerEventType.Enter) { isMouseHovered = true }
+                        .onPointerEvent(PointerEventType.Exit) { isMouseHovered = false }
+                        .hoverable(interactionSource)
+                } else {
+                    Modifier
+                },
+            )
             .controllerFocusable(
                 id = focusId,
                 groupKey = "profile_cards",
                 isDefaultFocus = isDefaultFocus,
                 enabled = enabled,
                 shape = RoundedCornerShape(20.dp),
-                scaleOnFocus = 1.04f,
+                scaleOnFocus = 1.0f,
                 hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = if (isEditMode) "Edit Profile" else "Select Profile",
@@ -528,17 +564,7 @@ private fun ProfileAvatarCard(
                 secondaryActionLabel = "Edit Profile",
             )
             .clip(RoundedCornerShape(20.dp))
-            .background(
-                if (isHovered) Color.White.copy(alpha = 0.15f)
-                else Color.Transparent,
-            )
-            .then(
-                if (isDesktop) {
-                    Modifier.hoverable(interactionSource)
-                } else {
-                    Modifier
-                },
-            )
+            .background(Color.White.copy(alpha = selectionBgAlpha))
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
@@ -678,12 +704,33 @@ private fun AddProfileCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val rawHovered by interactionSource.collectIsHoveredAsState()
+    var isMouseHovered by remember { mutableStateOf(false) }
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
     val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
     val isControllerFocused = isControllerActive && focusedNodeId == "profile_card_add"
-    val isHovered = (!isControllerActive && rawHovered) || isControllerFocused
+    val isHovered = isMouseHovered || (!isControllerActive && rawHovered)
+    val isSelected = isHovered || isControllerFocused
     val pressScale = if (isPressed) 0.95f else 1f
     val addLabel = stringResource(Res.string.compose_profile_add_profile)
+
+    val selectionBgAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 0.15f else 0f,
+        animationSpec = if (isSelected) {
+            tween(150, easing = FastOutSlowInEasing)
+        } else {
+            tween(700, easing = FastOutSlowInEasing)
+        },
+        label = "add_profile_selection_bg_alpha",
+    )
+    val hoverScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.04f else 1f,
+        animationSpec = if (isSelected) {
+            tween(150, easing = FastOutSlowInEasing)
+        } else {
+            tween(700, easing = FastOutSlowInEasing)
+        },
+        label = "add_profile_hover_scale",
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -691,32 +738,32 @@ private fun AddProfileCard(
             .width(150.dp)
             .graphicsLayer {
                 alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
+                scaleX = animScale.value * pressScale * hoverScale
+                scaleY = animScale.value * pressScale * hoverScale
                 translationY = animOffset.value
             }
+            .then(
+                if (isDesktop) {
+                    Modifier
+                        .onPointerEvent(PointerEventType.Enter) { isMouseHovered = true }
+                        .onPointerEvent(PointerEventType.Exit) { isMouseHovered = false }
+                        .hoverable(interactionSource)
+                } else {
+                    Modifier
+                },
+            )
             .controllerFocusable(
                 id = "profile_card_add",
                 groupKey = "profile_cards",
                 enabled = enabled,
                 shape = RoundedCornerShape(20.dp),
-                scaleOnFocus = 1.04f,
+                scaleOnFocus = 1.0f,
                 hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = addLabel,
             )
             .clip(RoundedCornerShape(20.dp))
-            .background(
-                if (isHovered) Color.White.copy(alpha = 0.15f)
-                else Color.Transparent,
-            )
-            .then(
-                if (isDesktop) {
-                    Modifier.hoverable(interactionSource)
-                } else {
-                    Modifier
-                },
-            )
+            .background(Color.White.copy(alpha = selectionBgAlpha))
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,

@@ -452,8 +452,9 @@ object WindowsControllerService {
                         maxLeftTrigger > TRIGGER_PRESS_THRESHOLD ||
                         maxRightTrigger > TRIGGER_PRESS_THRESHOLD
 
+                    val wasControllerInactive = !ControllerManager.isControllerActive.value
                     if (hasAnalogActivity || mergedButtons.isNotEmpty()) {
-                        if (!ControllerManager.isControllerActive.value) {
+                        if (wasControllerInactive) {
                             SwingUtilities.invokeLater {
                                 ControllerManager.notifyControllerInput()
                                 ControllerFocusEngine.ensureValidFocus()
@@ -498,7 +499,11 @@ object WindowsControllerService {
                     val desiredDirection = dpadDirection ?: stickDirection
 
                     if (desiredDirection != null) {
-                        if (desiredDirection != activeNavDirection) {
+                        if (wasControllerInactive) {
+                            // First movement solely wakes the controller without stepping away from default focus
+                            activeNavDirection = desiredDirection
+                            nextRepeatEpochMs = now + REPEAT_INITIAL_DELAY_MS
+                        } else if (desiredDirection != activeNavDirection) {
                             activeNavDirection = desiredDirection
                             nextRepeatEpochMs = now + REPEAT_INITIAL_DELAY_MS
                             SwingUtilities.invokeLater {

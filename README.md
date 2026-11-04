@@ -787,8 +787,34 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Seamless App Entry:** Eliminates abrupt dismissal or frozen states when entering the app from the login / profile selection screen, providing a smooth cinematic transition matching Netflix and Apple TV.
 
 #### 5. Documentation & Version Tracking
-- **Version Maintained:** Retained `FORK_VERSION_NAME = "0.1.14"` and `VERSION_NAME=0.1.14` (build increment suppressed per user instruction).
+- **Version Increment:** Updated `FORK_VERSION_NAME = "0.1.14"` and `VERSION_NAME=0.1.14`.
 - **Upstream Patch Registry:** Synchronized patch entries in `UPSTREAM_PATCHES.md`.
+
+---
+
+### [2026-11-04] - Version 0.1.15: OSD Stream Sources D-Pad Traversal, Controller Wake-Up Logic, Profile Hover & 1s Fade-Out Polish, and CI Sideload Source Guard
+
+#### 1. Player OSD Stream Sources Navigation Fix (`controls.js`)
+- **Resolved Reload/Top Stream Loop:** Fixed the issue where navigating stream sources caused rapid flashing between the "Reload" button and the top stream. 
+- **Fixed Command Token Timing:** Captured `previousControllerCommandToken` before state merging in `window.playerControls`, preventing destructive modal re-renders and DOM wipes during controller command dispatches.
+- **Persistent Focus in Virtualizer:** Added focus retention logic in `renderSourceVirtualRows` and removed the aggressive 60ms timer in `renderSourceModal` that previously destroyed focused nodes and reverted focus to `document.body` or `sourceReloadButton`.
+- **Full D-Pad Traversal for Sources & Episodes:** Comprehensive D-Pad routing between `sourceReloadButton`, `sourceCloseButton`, filter chips, and virtual stream rows, as well as full navigation for `episodesModal` stream views.
+
+#### 2. First-Movement Controller Wake-Up Handling (`WindowsControllerService.kt`, `ControllerModels.kt`)
+- **Dormant Wake-Up UX:** When the app is in desktop/mouse mode and dormant, the first directional controller movement now wakes the app into controller mode and illuminates the default focus (the first profile on the login screen) without immediately advancing to the next item.
+- **Seamless Dual-Mode Handoff:** Subsequent controller inputs navigate normally once active.
+
+#### 3. Login Screen Refinements, 700ms Selection Fade-Out & DECK Wordmark Polish (`ProfileSelectionScreen.kt`, `AppBrandWordmark.kt`)
+- **Mouse Hover Selection Fill:** Connected mouse hover events on avatar and "Add Profile" cards to the same translucent selection background fill as controller focus.
+- **Cinematic 700ms Fade-Out:** Added smooth 700ms animated fade-out transitions (`animateFloatAsState` with `tween(700, easing = FastOutSlowInEasing)`) for background alpha and scale whenever a profile loses hover or controller focus moves away.
+- **Top-Left Wordmark & Proportional DECK Badge:** Relocated the NuvioDeck logo to the top-left corner with ideal sizing (30.dp tablet / 26.dp mobile). Re-engineered `NuvioDeckMonikerBadge` with an explicit compact height (52% of wordmark height) and `lineHeight = fontSize`, perfectly vertically centering the "DECK" text and border box against the "nuvio" wordmark without excessive box height.
+
+#### 4. GitHub Actions CI Sideload Source Guard (`update-store-source.yml`)
+- **Graceful Desktop Release Handling:** Added an automated check in `update-store-source.yml` that detects when 0 `.ipa` assets are attached, logging a skip notice and cleanly completing the action with success (exit 0) so Windows-only desktop releases avoid false-alarm CI failures.
+
+#### 5. Version Increment & Upstream Alignment
+- **Version Bump:** `FORK_VERSION_NAME = "0.1.15"` and `VERSION_NAME=0.1.15` (Build 15).
+
 
 
 

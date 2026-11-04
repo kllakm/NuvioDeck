@@ -1,4 +1,4 @@
-﻿const root = document.getElementById("playerRoot");
+const root = document.getElementById("playerRoot");
 const seek = document.getElementById("seek");
 const positionLabel = document.getElementById("position");
 const durationLabel = document.getElementById("duration");
@@ -1962,6 +1962,19 @@ const renderSourceVirtualRows = () => {
   }
   sourceVirtualSpacer.appendChild(fragment);
 
+  const curFocused = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("source-row") && document.activeElement.dataset.sourceIndex !== undefined)
+    ? Number(document.activeElement.dataset.sourceIndex)
+    : (state.isControllerActive ? focusedSourceIndex : -1);
+  if (curFocused >= 0) {
+    const rowToFocus = sourceList.querySelector('button.source-row[data-source-index="' + curFocused + '"]');
+    if (rowToFocus) {
+      if (state.isControllerActive) rowToFocus.classList.add("focused");
+      if (document.activeElement !== rowToFocus && state.isControllerActive) {
+        rowToFocus.focus({ preventScroll: true });
+      }
+    }
+  }
+
   window.requestAnimationFrame(() => {
     let changed = false;
     rendered.forEach(({ index, wrapper }) => {
@@ -2052,7 +2065,7 @@ const renderSourceModal = (modalOpened = false) => {
     return;
   }
   const nextKey = sourceKeyForItems(items);
-  if (nextKey === sourceVirtualKey && sourceVirtualSpacer && !modalOpened) {
+  if (nextKey === sourceVirtualKey && sourceVirtualSpacer) {
     sourceVirtualItems = items;
     return;
   }
@@ -2070,16 +2083,6 @@ const renderSourceModal = (modalOpened = false) => {
   sourceList.appendChild(sourceVirtualSpacer);
   rebuildSourceVirtualLayout();
   requestSourceVirtualRender();
-
-  if (state.isControllerActive && activeModal === "sources" && modalOpened) {
-    window.setTimeout(() => {
-      if (activeModal === "sources" && state.isControllerActive) {
-        if (!sourceList.contains(document.activeElement)) {
-          focusFirstModalElement();
-        }
-      }
-    }, 60);
-  }
 };
 
 const appendEpisodeRow = (container, item) => {
@@ -3733,6 +3736,9 @@ window.playerUpdate = update => {
 };
 
 window.playerControls = nextState => {
+  const previousControllerCommandToken = Number(state.controllerCommandToken) || 0;
+  const newControllerCommandToken = Number(nextState.controllerCommandToken) || 0;
+  const isControllerCommandDispatch = newControllerCommandToken !== previousControllerCommandToken && newControllerCommandToken > 0;
   const previousCloseToken = Number(state.closeModalsToken) || 0;
   const previousSubmitIntroSuccessToken = Number(state.submitIntroSuccessToken) || 0;
   const previousNotificationToken = Number(state.notificationToken) || 0;
@@ -3787,9 +3793,6 @@ window.playerControls = nextState => {
   ) {
     resetSubtitleSelectionState();
   }
-  const previousControllerCommandToken = Number(state.controllerCommandToken) || 0;
-  const newControllerCommandToken = Number(nextState.controllerCommandToken) || 0;
-  const isControllerCommandDispatch = newControllerCommandToken !== previousControllerCommandToken && newControllerCommandToken > 0;
 
   if (isControllerCommandDispatch && activeModal) {
     renderChrome();
@@ -4815,10 +4818,26 @@ function focusFirstModalElement() {
 
   if (activeModal === "sources") {
     if (sourceVirtualItems.length > 0) {
-      const currentPlayingIdx = sourceVirtualItems.findIndex(item => item && item.isCurrent);
-      const targetIdx = currentPlayingIdx >= 0 ? currentPlayingIdx : (focusedSourceIndex >= 0 ? Math.min(focusedSourceIndex, sourceVirtualItems.length - 1) : 0);
+      let targetIdx = (focusedSourceIndex >= 0 && focusedSourceIndex < sourceVirtualItems.length)
+        ? focusedSourceIndex
+        : sourceVirtualItems.findIndex(item => item && item.isCurrent);
+      if (targetIdx < 0) targetIdx = 0;
       scrollToAndFocusSource(targetIdx);
       return;
+    }
+  }
+
+  if (activeModal === "episodes" && state.episodeStreamsVisible) {
+    const streamItems = Array.from(episodeStreamList.querySelectorAll(".track-row:not([disabled]):not([hidden])"));
+    if (streamItems.length > 0) {
+      const target = streamItems.find(el => el.classList.contains("selected")) || streamItems[0];
+      if (target) {
+        streamItems.forEach(el => el.classList.remove("focused"));
+        target.classList.add("focused");
+        target.focus({ preventScroll: false });
+        target.scrollIntoView({ block: "nearest" });
+        return;
+      }
     }
   }
 
@@ -4853,8 +4872,24 @@ function moveModalControllerFocus(delta, axis = "vertical") {
   if (!modalEl) return;
 
   if (activeModal === "sources") {
+    const chips = Array.from(sourceFilterList.querySelectorAll(".filter-chip:not([hidden])")).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+    const activeEl = document.activeElement;
+
     if (axis === "horizontal") {
-      const chips = Array.from(sourceFilterList.querySelectorAll(".filter-chip:not([hidden])")).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+      if (activeEl === sourceReloadButton || activeEl === sourceCloseButton) {
+        const nextBtn = activeEl === sourceReloadButton ? sourceCloseButton : sourceReloadButton;
+        nextBtn.focus();
+        return;
+      }
+      if (chips.length > 0 && (sourceFilterList.contains(activeEl) || activeEl === root || activeEl === document.body)) {
+        let selectedIndex = chips.findIndex(el => el.classList.contains("selected") || el === activeEl);
+        if (selectedIndex === -1) selectedIndex = 0;
+        const nextIndex = (selectedIndex + delta + chips.length) % chips.length;
+        chips[nextIndex].focus();
+        chips[nextIndex].click();
+        chips[nextIndex].scrollIntoView({ block: "nearest", inline: "nearest" });
+        return;
+      }
       if (chips.length > 0) {
         let selectedIndex = chips.findIndex(el => el.classList.contains("selected"));
         if (selectedIndex === -1) selectedIndex = 0;
@@ -4864,32 +4899,54 @@ function moveModalControllerFocus(delta, axis = "vertical") {
         return;
       }
     }
+
     if (axis === "vertical") {
-      const activeEl = document.activeElement;
-      if (sourceFilterList.contains(activeEl) || activeEl === sourceCloseButton || activeEl === sourceReloadButton) {
+      if (activeEl === sourceCloseButton || activeEl === sourceReloadButton) {
+        if (delta > 0) {
+          if (chips.length > 0) {
+            const activeChip = chips.find(el => el.classList.contains("selected")) || chips[0];
+            activeChip.focus();
+            activeChip.scrollIntoView({ block: "nearest" });
+          } else if (sourceVirtualItems.length > 0) {
+            const target = (focusedSourceIndex >= 0 && focusedSourceIndex < sourceVirtualItems.length) ? focusedSourceIndex : 0;
+            scrollToAndFocusSource(target);
+          }
+        }
+        return;
+      }
+
+      if (sourceFilterList.contains(activeEl)) {
+        if (delta < 0) {
+          sourceReloadButton.focus();
+          return;
+        }
         if (delta > 0 && sourceVirtualItems.length > 0) {
-          const target = focusedSourceIndex >= 0 ? Math.min(focusedSourceIndex, sourceVirtualItems.length - 1) : 0;
+          const target = (focusedSourceIndex >= 0 && focusedSourceIndex < sourceVirtualItems.length) ? focusedSourceIndex : 0;
           scrollToAndFocusSource(target);
           return;
         }
-      } else {
-        if (sourceVirtualItems.length === 0) return;
-        let currentIdx = focusedSourceIndex >= 0 ? focusedSourceIndex : 0;
-        let nextIdx = currentIdx + delta;
-        if (nextIdx < 0) {
-          const activeChip = sourceFilterList.querySelector(".filter-chip.selected") || sourceFilterList.querySelector(".filter-chip");
-          if (activeChip) {
-            activeChip.focus();
-            activeChip.scrollIntoView({ block: "nearest" });
-            return;
-          }
-          nextIdx = 0;
-        } else if (nextIdx >= sourceVirtualItems.length) {
-          nextIdx = sourceVirtualItems.length - 1;
-        }
-        scrollToAndFocusSource(nextIdx);
-        return;
       }
+
+      if (sourceVirtualItems.length === 0) return;
+      let currentIdx = (activeEl && activeEl.dataset && activeEl.dataset.sourceIndex !== undefined)
+        ? Number(activeEl.dataset.sourceIndex)
+        : (focusedSourceIndex >= 0 ? focusedSourceIndex : 0);
+
+      let nextIdx = currentIdx + delta;
+      if (nextIdx < 0) {
+        if (chips.length > 0) {
+          const activeChip = chips.find(el => el.classList.contains("selected")) || chips[0];
+          activeChip.focus();
+          activeChip.scrollIntoView({ block: "nearest" });
+        } else {
+          sourceReloadButton.focus();
+        }
+        return;
+      } else if (nextIdx >= sourceVirtualItems.length) {
+        nextIdx = sourceVirtualItems.length - 1;
+      }
+      scrollToAndFocusSource(nextIdx);
+      return;
     }
   }
 
@@ -4959,6 +5016,89 @@ function moveModalControllerFocus(delta, axis = "vertical") {
   }
 
   if (activeModal === "episodes") {
+    if (state.episodeStreamsVisible) {
+      const streamChips = Array.from(episodeStreamFilterList.querySelectorAll(".filter-chip:not([hidden])")).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+      const streamItems = Array.from(episodeStreamList.querySelectorAll(".track-row:not([disabled]):not([hidden])"));
+      const activeEl = document.activeElement;
+
+      if (axis === "horizontal") {
+        if (activeEl === episodeBackButton || activeEl === episodeReloadButton || activeEl === episodeStreamsCloseButton) {
+          const topButtons = [episodeBackButton, episodeReloadButton, episodeStreamsCloseButton];
+          const curBtnIdx = topButtons.indexOf(activeEl);
+          const nextBtnIdx = (curBtnIdx + delta + topButtons.length) % topButtons.length;
+          topButtons[nextBtnIdx].focus();
+          return;
+        }
+        if (streamChips.length > 0) {
+          let selectedIndex = streamChips.findIndex(el => el.classList.contains("selected") || el === activeEl);
+          if (selectedIndex === -1) selectedIndex = 0;
+          const nextIndex = (selectedIndex + delta + streamChips.length) % streamChips.length;
+          streamChips[nextIndex].focus();
+          streamChips[nextIndex].click();
+          streamChips[nextIndex].scrollIntoView({ block: "nearest", inline: "nearest" });
+          return;
+        }
+      }
+
+      if (axis === "vertical") {
+        if (activeEl === episodeBackButton || activeEl === episodeReloadButton || activeEl === episodeStreamsCloseButton) {
+          if (delta > 0) {
+            if (streamChips.length > 0) {
+              const activeChip = streamChips.find(el => el.classList.contains("selected")) || streamChips[0];
+              activeChip.focus();
+            } else if (streamItems.length > 0) {
+              const firstStream = streamItems.find(el => el.classList.contains("selected")) || streamItems[0];
+              firstStream.focus();
+              firstStream.scrollIntoView({ block: "nearest" });
+            }
+          }
+          return;
+        }
+
+        if (episodeStreamFilterList.contains(activeEl)) {
+          if (delta < 0) {
+            episodeReloadButton.focus();
+            return;
+          }
+          if (delta > 0 && streamItems.length > 0) {
+            const firstStream = streamItems.find(el => el.classList.contains("selected")) || streamItems[0];
+            firstStream.focus();
+            firstStream.scrollIntoView({ block: "nearest" });
+            return;
+          }
+        }
+
+        if (streamItems.length > 0) {
+          let idx = streamItems.indexOf(activeEl);
+          if (idx === -1) {
+            idx = streamItems.findIndex(el => el.classList.contains("selected") || el.classList.contains("focused"));
+            if (idx === -1) idx = 0;
+          } else {
+            let nextIdx = idx + delta;
+            if (nextIdx < 0) {
+              if (streamChips.length > 0) {
+                const chip = streamChips.find(el => el.classList.contains("selected")) || streamChips[0];
+                chip.focus();
+                chip.scrollIntoView({ block: "nearest" });
+              } else {
+                episodeReloadButton.focus();
+              }
+              return;
+            } else if (nextIdx >= streamItems.length) {
+              nextIdx = streamItems.length - 1;
+            }
+            idx = nextIdx;
+          }
+          streamItems.forEach(el => el.classList.remove("focused"));
+          streamItems[idx].classList.add("focused");
+          streamItems[idx].focus({ preventScroll: true });
+          streamItems[idx].scrollIntoView({ block: "nearest" });
+          return;
+        }
+      }
+      return;
+    }
+
     if (axis === "horizontal") {
       const chips = Array.from(modalEl.querySelectorAll(".filter-chip:not([hidden])")).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
       if (chips.length > 0) {

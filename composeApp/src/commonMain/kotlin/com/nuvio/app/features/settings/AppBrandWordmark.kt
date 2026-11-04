@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,7 +67,7 @@ internal fun AppBrandWordmark(
                 contentScale = ContentScale.Fit,
             )
             if (showDeckMoniker) {
-                Spacer(modifier = Modifier.width(effectiveHeight * 0.16f))
+                Spacer(modifier = Modifier.width(effectiveHeight * 0.12f))
                 NuvioDeckMonikerBadge(height = effectiveHeight)
             }
         }
@@ -78,16 +79,16 @@ private fun NuvioDeckMonikerBadge(
     height: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val h = height.value
-    val fontSize = (h * 0.28f).coerceIn(9f, 16f).sp
-    val cornerRadius = (h * 0.12f).coerceIn(3f, 8f).dp
-    val hPad = (h * 0.18f).coerceIn(4f, 10f).dp
-    val vPad = (h * 0.04f).coerceIn(1.5f, 4f).dp
+    val badgeHeight = (height * 0.52f).coerceAtLeast(14.dp)
+    val fontSize = (badgeHeight.value * 0.58f).coerceIn(8.5f, 13f).sp
+    val cornerRadius = (badgeHeight * 0.22f).coerceIn(3.dp, 6.dp)
+    val hPad = (badgeHeight * 0.40f).coerceIn(5.dp, 10.dp)
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = modifier
+            .height(badgeHeight)
             .clip(RoundedCornerShape(cornerRadius))
             .background(primaryColor.copy(alpha = 0.16f))
             .border(
@@ -95,7 +96,7 @@ private fun NuvioDeckMonikerBadge(
                 color = primaryColor.copy(alpha = 0.50f),
                 shape = RoundedCornerShape(cornerRadius),
             )
-            .padding(horizontal = hPad, vertical = vPad),
+            .padding(horizontal = hPad),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -103,7 +104,8 @@ private fun NuvioDeckMonikerBadge(
             color = primaryColor,
             fontSize = fontSize,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.6.sp,
+            letterSpacing = 1.2.sp,
+            lineHeight = fontSize,
         )
     }
 }

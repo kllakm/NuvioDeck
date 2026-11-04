@@ -162,7 +162,13 @@ object ControllerManager {
     }
 
     fun dispatchEvent(event: ControllerEvent) {
-        notifyControllerInput()
+        val wokeUp = notifyControllerInput()
+        if (wokeUp && event is ControllerEvent.Navigate) {
+            // First movement wakes the app into controller mode without moving the selection
+            ControllerFocusEngine.ensureValidFocus()
+            _events.tryEmit(event)
+            return
+        }
         val handledByEngine = ControllerFocusEngine.handleEvent(event)
         if (!handledByEngine) {
             _events.tryEmit(event)
