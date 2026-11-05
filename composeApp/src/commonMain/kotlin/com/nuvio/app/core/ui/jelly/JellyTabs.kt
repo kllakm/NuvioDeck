@@ -118,6 +118,7 @@ internal fun JellyTabTargets(
                         groupKey = "top_nav",
                         shape = RoundedCornerShape(50),
                         scaleOnFocus = 1f,
+                        hideFocusRing = true,
                         onSelect = onClick,
                         selectLabel = item.label,
                     )

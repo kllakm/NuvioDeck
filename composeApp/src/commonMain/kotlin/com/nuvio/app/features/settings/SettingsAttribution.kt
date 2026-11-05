@@ -12,7 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.build.AppVersionPolicy
 import com.nuvio.app.core.build.NuvioDeckVersionConfig
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_about_version_format
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SettingsAttribution(
@@ -43,7 +47,11 @@ internal fun SettingsAttribution(
             modifier = Modifier.height(4.dp),
         )
         Text(
-            text = NuvioDeckVersionConfig.dualVersionDisplayString,
+            text = stringResource(
+                Res.string.compose_about_version_format,
+                NuvioDeckVersionConfig.FORK_VERSION_NAME,
+                AppVersionPolicy.displayVersionCode,
+            ),
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -426,6 +426,12 @@ object ControllerFocusEngine {
         return false
     }
 
+    fun focusNodeById(id: String, triggerScroll: Boolean = true): Boolean {
+        val node = nodes[id]?.takeIf { it.isVisibleAndValid } ?: return false
+        focusNodeInternal(node, triggerScroll = triggerScroll)
+        return true
+    }
+
     private fun focusNodeInternal(
         node: ControllerFocusNode,
         triggerScroll: Boolean,
@@ -1075,12 +1081,24 @@ object ControllerFocusEngine {
                 }
             }
             XboxButton.Y -> {
-                val tertiary = current?.onTertiaryAction
-                if (tertiary != null) {
-                    tertiary.invoke()
+                // If a visible text input field exists on screen (e.g. search input field),
+                // pressing Y immediately focuses it and invokes the virtual keyboard without requiring 'A' press confirmation
+                val textInputNode = nodes.values.firstOrNull { it.isTextInput && it.isVisibleAndValid }
+                if (textInputNode != null) {
+                    ControllerSoundPlayer.playSelect()
+                    if (_focusedNodeId.value != textInputNode.id) {
+                        focusNodeInternal(textInputNode, triggerScroll = true)
+                    }
+                    textInputNode.onSelect()
                     true
                 } else {
-                    invokeGlobalHandler { it.onActionY?.invoke() == true }
+                    val tertiary = current?.onTertiaryAction
+                    if (tertiary != null) {
+                        tertiary.invoke()
+                        true
+                    } else {
+                        invokeGlobalHandler { it.onActionY?.invoke() == true }
+                    }
                 }
             }
             XboxButton.LB -> invokeGlobalHandler { it.onBumperLeft?.invoke() == true }

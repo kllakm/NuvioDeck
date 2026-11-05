@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
@@ -172,6 +173,8 @@ private fun FilterChip(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
+    val chipNodeId = remember(label, contentDescription) { "provider_filter_${(label ?: contentDescription ?: "").hashCode()}" }
+    val isFocused = isControllerNodeFocused(chipNodeId)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -180,10 +183,10 @@ private fun FilterChip(
         label = "filter_chip_scale",
     )
     val containerColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.primary
+            isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         },
         animationSpec = tween(durationMillis = 180),
         label = "filter_chip_container",
@@ -207,7 +210,9 @@ private fun FilterChip(
             .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
             .controllerFocusable(
+                id = chipNodeId,
                 shape = RoundedCornerShape(16.dp),
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = label ?: contentDescription ?: "Filter",
             )

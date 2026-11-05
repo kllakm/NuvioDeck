@@ -105,6 +105,15 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     var isSearchFocused by remember { mutableStateOf(false) }
 
+    androidx.compose.runtime.DisposableEffect(focusRequester) {
+        com.nuvio.app.controller.PlatformVirtualKeyboard.registerInputFocusRestorer {
+            runCatching { focusRequester.requestFocus() }
+        }
+        onDispose {
+            com.nuvio.app.controller.PlatformVirtualKeyboard.registerInputFocusRestorer(null)
+        }
+    }
+
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) {
             isSearchFocused = false
@@ -116,6 +125,8 @@ fun SearchScreen(
     ScreenActivityEffect(searchFocusRequestCount) { screenActive ->
         if (screenActive && searchFocusRequestCount > 0) {
             focusRequester.requestFocus()
+            com.nuvio.app.controller.ControllerFocusEngine.focusNodeById("search_input_field")
+            com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = false)
         }
     }
 
@@ -286,7 +297,6 @@ fun SearchScreen(
                         NuvioInputField(
                             value = query,
                             onValueChange = {
-                                focusRequester.captureFocus()
                                 query = it
                             },
                             placeholder = stringResource(Res.string.compose_search_placeholder),
@@ -294,11 +304,16 @@ fun SearchScreen(
                             modifier = Modifier
                                 .focusRequester(focusRequester)
                                 .controllerFocusable(
+                                    id = "search_input_field",
                                     isTextInput = true,
                                     shape = RoundedCornerShape(16.dp),
+                                    onFocused = {
+                                        focusRequester.requestFocus()
+                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = true)
+                                    },
                                     onSelect = {
                                         focusRequester.requestFocus()
-                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show()
+                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = false)
                                     },
                                     selectLabel = "Type with Keyboard",
                                     onSecondaryAction = if (query.isNotEmpty()) { { query = "" } } else null,
@@ -306,10 +321,6 @@ fun SearchScreen(
                                 )
                                 .onFocusChanged {
                                     isSearchFocused = it.isFocused
-                                    if (query.isNotBlank()) focusRequester.captureFocus()
-                                    if (!it.isFocused) {
-                                        com.nuvio.app.controller.PlatformVirtualKeyboard.hide()
-                                    }
                                 },
                             trailingContent = if (query.isNotBlank()) {
                                 {
@@ -333,7 +344,6 @@ fun SearchScreen(
 
         if (query.isBlank()) {
             if (isSearchFocused && recentSearches.isNotEmpty()) {
-                focusRequester.captureFocus()
                 item(key = "recent_searches") {
                     SearchRecentSection(
                         recentSearches = recentSearches,

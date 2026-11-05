@@ -3,7 +3,7 @@
   <img src="https://github.com/kllakm/NuvioDeck/blob/Dev/composeApp/src/commonMain/composeResources/drawable/app_logo_wordmark.png?raw=true" alt="Nuvio" width="320" />
 
   <p>
-    A free, open-source media app for Windows, macOS, and Linux.
+    A free, open-source media app for Windows, <del>macOS, and Linux</del>.
     <br />
     Bring your own sources. NuvioDeck turns them into a library with artwork, ratings, subtitles, and your place saved on every screen  but with full controller support for Windows and Handhelds.
   </p>
@@ -53,8 +53,8 @@ Expect breaking changes with every update. Features, settings, stored data, and 
 Download the latest upstream build from [GitHub Releases](https://github.com/kllakm/NuvioDeck/releases/).
 
 - Windows: MSI installer / Standalone `.exe`
-- macOS: DMG installer
-- Linux: DEB, RPM, Flatpak, or AppImage
+- ~~macOS: DMG installer~~
+- ~~Linux: DEB, RPM, Flatpak, or AppImage~~
 
 ## Build from source
 
@@ -857,6 +857,28 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 
 #### 4. Version Increment
 - **Version Bump:** `FORK_VERSION_NAME = "0.1.17"` and `VERSION_NAME=0.1.17` (Build 17).
+
+---
+
+### [2026-11-05] - Version 0.1.18: Application-Level On-Screen Keyboard Focus Management, "Y" Hotkey Binding, Grey/White OSD Focus Styling, Updated Brand Logos & Version Sync
+
+#### 1. Application-Level On-Screen Keyboard & Window Focus Management (`SearchScreen.kt`, `ControllerFocusEngine.kt`, `WindowsVirtualKeyboardManager.kt`, `DesktopControllerWindowIntegration.kt`, `WindowsControllerService.kt`)
+- **Known Issue / Status Note:** **The Windows on-screen virtual keyboard (`TabTip.exe`) integration is still buggy and not yet resolved.**
+- **Application-Level Window & Activation Lifecycle:** Replaced system COM/thread-input hacks with clean application-level window focus (`WindowFocusListener`), window activation (`WindowListener`), and Compose input focus restoration (`registerInputFocusRestorer`) when the Windows input pane (`TabTip.exe`) opens and closes.
+- **Eliminated Focus Lockout & Preserved Controller Polling:** Removed permanent `CoreWindow` visibility polling and `captureFocus()` locks that previously caused the app to lose window focus and controller responsiveness when opening or closing the on-screen keyboard.
+- **Controller Autofocus & "Y" Hotkey Binding:** Selecting or focusing `search_input_field` or pressing `XboxButton.Y` immediately routes to Search, establishes active Compose IME text input focus, and invokes the on-screen keyboard without requiring an extra `A` press confirmation.
+
+#### 2. Unified Grey/White Solid Focus Style Consistency (`AppShellComponents.kt`, `StreamCard.kt`, `ProviderFilterRow.kt`, `controls.css`)
+- **Left-Hand Main Navigation Polish:** Removed the white focus border (`hideFocusRing = true`) across all left-hand sidebar items (`DesktopSidebarItem` and `sidebar_profile_trigger`), replacing it with the solid background fill (`tokens.colors.accent.copy(alpha = 0.32f)`) matching the settings menu options.
+- **Player OSD Subtitle & Stream Selectors:** Updated the native video player OSD (`controls.css`) to match the standard grey/white app theme (`rgba(255, 255, 255, 0.24)` on focus and `rgba(255, 255, 255, 0.34)` when selected+focused) with no borders or purple outlines.
+- **Streams Screen Card & Filter Chip Consistency:** Removed outer focus rings from `StreamCard`, `ProviderFilterRow` filter chips, and `JellyTabs`.
+
+#### 3. Updated App Logo & Integrated NuvioDeck Wordmark (`app_logo_wordmark.png`, `app_icon_original*.png`, `AppBrandWordmark.kt`)
+- **Integrated Wordmark & Emblem Assets:** Updated all app icon and wordmark assets across Compose drawables, desktop `.png`/multi-res `.ico` resources, and themed wordmarks using the new `app_logo.png` and `app_logo_wordmark.png` (with the `DECK` emblem built directly into the PNG), removing the synthetic Compose `NuvioDeckMonikerBadge`.
+
+#### 4. Settings Version Display & Build Config Synchronization (`AboutSettingsPage.kt`, `SettingsAttribution.kt`, `composeApp/build.gradle.kts`)
+- **Unified v0.1.18 Version Display:** Bound `generateRuntimeConfigs` `appVersionName`/`appVersionCode` to the desktop release version (`0.1.18` / `18`) and routed `settingsFooterContent` through `SettingsAttribution` so Settings and About screens accurately display `Version 0.1.18 (18)`.
+
 
 
 

@@ -23,6 +23,7 @@ import java.awt.event.AWTEventListener
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
+import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import java.awt.image.BufferedImage
@@ -117,14 +118,40 @@ fun DesktopControllerWindowHost(
         val focusListener = object : WindowFocusListener {
             override fun windowGainedFocus(e: WindowEvent?) {
                 WindowsControllerService.isAppWindowFocused = true
+                WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(window)
             }
 
             override fun windowLostFocus(e: WindowEvent?) {
+                WindowsVirtualKeyboardManager.onWindowLostFocusOrDeactivated(window)
                 val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
-                WindowsControllerService.isAppWindowFocused = window.isActive || window.isFocused || pipActive || WindowsControllerService.isWindowCurrentlyFocused()
+                WindowsControllerService.isAppWindowFocused =
+                    window.isActive || window.isFocused || pipActive || PlatformVirtualKeyboard.isKeyboardActive
+            }
+        }
+        val activationListener = object : WindowAdapter() {
+            override fun windowActivated(e: WindowEvent?) {
+                WindowsControllerService.isAppWindowFocused = true
+                WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(window)
+            }
+
+            override fun windowDeactivated(e: WindowEvent?) {
+                WindowsVirtualKeyboardManager.onWindowLostFocusOrDeactivated(window)
+                val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
+                WindowsControllerService.isAppWindowFocused =
+                    window.isActive || window.isFocused || pipActive || PlatformVirtualKeyboard.isKeyboardActive
+            }
+
+            override fun windowDeiconified(e: WindowEvent?) {
+                WindowsControllerService.isAppWindowFocused = true
+                WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(window)
+            }
+
+            override fun windowIconified(e: WindowEvent?) {
+                WindowsControllerService.isAppWindowFocused = false
             }
         }
         window.addWindowFocusListener(focusListener)
+        window.addWindowListener(activationListener)
         WindowsControllerService.activateAndFocusWindow(window)
 
         val awtListener = AWTEventListener { event ->
@@ -150,7 +177,13 @@ fun DesktopControllerWindowHost(
                 }
                 is KeyEvent -> {
                     if (event.id == KeyEvent.KEY_PRESSED) {
-                        ControllerManager.notifyMouseOrKeyboardInput()
+                        if (PlatformVirtualKeyboard.isKeyboardActive) {
+                            if (event.keyCode == KeyEvent.VK_ESCAPE || event.keyCode == KeyEvent.VK_ENTER) {
+                                PlatformVirtualKeyboard.hide()
+                            }
+                        } else {
+                            ControllerManager.notifyMouseOrKeyboardInput()
+                        }
                     }
                 }
             }
@@ -164,6 +197,7 @@ fun DesktopControllerWindowHost(
 
         onDispose {
             window.removeWindowFocusListener(focusListener)
+            window.removeWindowListener(activationListener)
             Toolkit.getDefaultToolkit().removeAWTEventListener(awtListener)
             DesktopControllerCursorManager.applyCursorToWindowTree(window, hideCursor = false)
         }

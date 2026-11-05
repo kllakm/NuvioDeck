@@ -95,34 +95,56 @@ object WindowsControllerService {
     }
 
     fun isWindowCurrentlyFocused(): Boolean {
-        if (PlatformVirtualKeyboard.isKeyboardActive) return false
         if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return isAppWindowFocused
+        val win = appWindow
+        if (win != null) {
+            val iconified = ((win as? java.awt.Frame)?.extendedState ?: 0) and java.awt.Frame.ICONIFIED != 0
+            if (!win.isVisible || !win.isShowing || iconified) return false
+            if (win.isActive || win.isFocused) {
+                if (PlatformVirtualKeyboard.isKeyboardActive && WindowsVirtualKeyboardManager.inputPaneTookWindowFocus) {
+                    WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(win)
+                }
+                return true
+            }
+        }
         val hwnd = appWindowHwnd
         val user = user32
         if (user != null) {
             val fg = runCatching { user.GetForegroundWindow() }.getOrDefault(0L)
             if (fg != 0L) {
-                if (hwnd != 0L && fg == hwnd) return true
-                if (hwnd != 0L && runCatching { user.IsChild(hwnd, fg) }.getOrDefault(false)) return true
-                if (hwnd != 0L) {
-                    val root = runCatching { user.GetAncestor(fg, 2 /* GA_ROOT */) }.getOrDefault(0L)
-                    val rootOwner = runCatching { user.GetAncestor(fg, 3 /* GA_ROOTOWNER */) }.getOrDefault(0L)
-                    if (root == hwnd || rootOwner == hwnd) return true
+                val isOurHwnd = (hwnd != 0L && fg == hwnd) ||
+                    (hwnd != 0L && runCatching { user.IsChild(hwnd, fg) }.getOrDefault(false)) ||
+                    (hwnd != 0L && (
+                        runCatching { user.GetAncestor(fg, 2 /* GA_ROOT */) }.getOrDefault(0L) == hwnd ||
+                            runCatching { user.GetAncestor(fg, 3 /* GA_ROOTOWNER */) }.getOrDefault(0L) == hwnd
+                        ))
+                if (isOurHwnd) {
+                    if (PlatformVirtualKeyboard.isKeyboardActive && WindowsVirtualKeyboardManager.inputPaneTookWindowFocus) {
+                        WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(win)
+                    }
+                    return true
                 }
                 val fgProcessId = IntArray(1)
                 runCatching { user.GetWindowThreadProcessId(fg, fgProcessId) }
                 val currentProcessId = runCatching { kernel32?.GetCurrentProcessId() ?: 0 }.getOrDefault(0)
                 if (currentProcessId != 0 && fgProcessId[0] == currentProcessId) {
+                    if (PlatformVirtualKeyboard.isKeyboardActive && WindowsVirtualKeyboardManager.inputPaneTookWindowFocus) {
+                        WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(win)
+                    }
                     return true
                 }
-                // Foreground window belongs to another application or OS component (e.g. TextInputHost)
-                return false
+            } else if (PlatformVirtualKeyboard.isKeyboardActive && win != null) {
+                // Foreground window became 0L when input pane closed; restore app window focus immediately
+                WindowsVirtualKeyboardManager.onWindowGainedFocusOrActivated(win)
+                activateAndFocusWindow(win)
+                return true
             }
         }
-        val win = appWindow
-        if (win != null && (win.isActive || win.isFocused)) return true
         val pipActive = DesktopPlayerPictureInPicture.pipWindow?.isActive == true
         if (pipActive) return true
+        if (PlatformVirtualKeyboard.isKeyboardActive && WindowsVirtualKeyboardManager.inputPaneTookWindowFocus) {
+            return false
+        }
         return isAppWindowFocused
     }
 
@@ -454,8 +476,8 @@ object WindowsControllerService {
                 ltPressed = XboxButton.LT in mergedButtons
                 rtPressed = XboxButton.RT in mergedButtons
 
-                // Only dispatch input events if the app window is focused and virtual keyboard is not taking input
-                if (isWindowCurrentlyFocused() && totalConnected > 0 && !PlatformVirtualKeyboard.isKeyboardActive) {
+                // Only dispatch input events if the app window is focused
+                if (isWindowCurrentlyFocused() && totalConnected > 0) {
                     // Check for any analog stick movement past deadzone to activate controller mode immediately
                     val hasAnalogActivity = hypot(maxLeftStickX, maxLeftStickY) > 0.25f ||
                         hypot(maxRightStickX, maxRightStickY) > 0.25f ||

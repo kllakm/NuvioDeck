@@ -1,4 +1,4 @@
-﻿package com.nuvio.app
+package com.nuvio.app
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -66,6 +66,7 @@ import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.ControllerFocusZone
 import com.nuvio.app.controller.ControllerManager
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.DisintegrationRequest
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.CinematicBackground
@@ -798,6 +799,8 @@ internal fun DesktopHoverSidebar(
                 label = "desktop_sidebar_nav_offset",
             )
 
+            val isProfileFocused = isControllerNodeFocused("sidebar_profile_trigger")
+            val profileTriggerShape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -805,12 +808,17 @@ internal fun DesktopHoverSidebar(
                     .fillMaxWidth()
                     .height(DesktopSidebarItemHeight)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .background(
+                        color = if (isProfileFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent,
+                        shape = profileTriggerShape,
+                    )
                     .controllerFocusable(
                         id = "sidebar_profile_trigger",
                         zone = ControllerFocusZone.Navigation,
                         groupKey = "sidebar",
-                        shape = RoundedCornerShape(16.dp),
+                        shape = profileTriggerShape,
                         scaleOnFocus = 1f,
+                        hideFocusRing = true,
                         onSelect = { onProfileStackVisibleChange(!profileStackVisible) },
                         selectLabel = activeProfileName,
                     )
@@ -975,9 +983,15 @@ private fun DesktopSidebarItem(
     icon: @Composable (Color) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    val contentColor = if (selected) tokens.colors.textPrimary else tokens.colors.textMuted
+    val nodeId = "sidebar_item_$label"
+    val isFocused = isControllerNodeFocused(nodeId)
+    val contentColor = if (selected || isFocused) tokens.colors.textPrimary else tokens.colors.textMuted
     val iconColor = if (selected) tokens.colors.onAccent else contentColor
     val shape = RoundedCornerShape(16.dp)
+    val background = when {
+        isFocused -> tokens.colors.accent.copy(alpha = 0.32f)
+        else -> Color.Transparent
+    }
 
     Surface(
         onClick = onClick,
@@ -986,15 +1000,16 @@ private fun DesktopSidebarItem(
             .height(DesktopSidebarItemHeight)
             .padding(horizontal = 6.dp, vertical = 4.dp)
             .controllerFocusable(
-                id = "sidebar_item_$label",
+                id = nodeId,
                 zone = ControllerFocusZone.Navigation,
                 groupKey = "sidebar",
                 shape = shape,
                 scaleOnFocus = 1f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = label,
             ),
-        color = Color.Transparent,
+        color = background,
         shape = shape,
     ) {
         Row(

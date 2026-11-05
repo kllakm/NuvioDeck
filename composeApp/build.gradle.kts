@@ -558,8 +558,8 @@ fun runtimeConfigBoolean(key: String, default: Boolean): Boolean =
 val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generateRuntimeConfigs") {
     outputDir.set(generatedRuntimeConfigDir)
     localPropertiesFile.set(rootProject.layout.projectDirectory.file("local.properties"))
-    appVersionName.set(releaseAppVersionName)
-    appVersionCode.set(releaseAppVersionCode)
+    appVersionName.set(desktopReleaseVersionName)
+    appVersionCode.set(desktopReleaseVersionCode)
     desktopAppVersionName.set(desktopReleaseVersionName)
     desktopAppVersionCode.set(desktopReleaseVersionCode)
     supabaseUrl.set(runtimeConfigValue("NUVIO_SUPABASE_URL", "https://api.nuvio.tv"))

@@ -3776,19 +3776,20 @@ svg {
 .player.controller-active .action.focused,
 .player.controller-active .volume-button:focus,
 .player.controller-active .volume-button.focused {
-  outline: 2.5px solid #ffffff !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.24) !important;
   transform: scale(1.06);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform 120ms ease, background 120ms ease;
   z-index: 10;
 }
 
 .player.controller-active .volume-slider:focus,
 .player.controller-active .volume-slider.focused {
-  outline: 2.5px solid #ffffff !important;
+  outline: 2px solid rgba(255, 255, 255, 0.85) !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.24) !important;
   z-index: 10;
 }
 
@@ -3801,28 +3802,43 @@ svg {
 .player.controller-active .subtitle-option-row:focus,
 .player.controller-active .subtitle-option-row.focused,
 .player.controller-active .filter-chip:focus,
+.player.controller-active .filter-chip.focused,
 .player.controller-active .panel-button:focus,
+.player.controller-active .panel-button.focused,
 .player.controller-active .round-step:focus,
+.player.controller-active .round-step.focused,
 .player.controller-active .font-row:focus,
+.player.controller-active .font-row.focused,
 .player.controller-active button:focus {
-  outline: 2.5px solid #ffffff !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
   transform: none !important;
-  background: rgba(255, 255, 255, 0.22) !important;
-  transition: background 120ms ease, box-shadow 120ms ease;
+  background: rgba(255, 255, 255, 0.24) !important;
+  transition: background 120ms ease;
   z-index: 10;
+}
+
+.player.controller-active .player-modal .header-button:focus,
+.player.controller-active .player-modal .header-button.focused {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.24) !important;
 }
 
 .player.controller-active .track-row.selected:focus,
 .player.controller-active .track-row.selected.focused,
+.player.controller-active .source-row.selected:focus,
 .player.controller-active .source-row.selected.focused,
 .player.controller-active .subtitle-language-row.selected:focus,
 .player.controller-active .subtitle-language-row.selected.focused,
 .player.controller-active .subtitle-option-row.selected:focus,
 .player.controller-active .subtitle-option-row.selected.focused {
-  background: rgba(255, 255, 255, 0.28) !important;
-  outline: 2.5px solid #ffffff !important;
+  background: rgba(255, 255, 255, 0.34) !important;
+  color: #ffffff !important;
+  outline: none !important;
+  box-shadow: none !important;
   transform: none !important;
 }
 
@@ -3831,9 +3847,9 @@ svg {
 .player.controller-active #seek:focus,
 .player.controller-active #seek.focused,
 .player.controller-active input[type="range"]:focus {
-  outline: 2.5px solid #ffffff !important;
+  outline: 2px solid rgba(255, 255, 255, 0.85) !important;
   outline-offset: 4px !important;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.6) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.24) !important;
   transform: scaleY(1.35);
   transition: transform 120ms ease, box-shadow 120ms ease;
   z-index: 10;

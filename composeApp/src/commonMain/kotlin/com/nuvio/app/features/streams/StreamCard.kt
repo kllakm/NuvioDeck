@@ -102,7 +102,7 @@ internal fun StreamCard(
             .clip(cardShape)
             .background(
                 when {
-                    isFocused -> Color(0xFF232738)
+                    isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
                     isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     else -> Color.White.copy(alpha = 0.05f)
                 },
@@ -133,6 +133,7 @@ internal fun StreamCard(
                 shape = cardShape,
                 focusScale = 1.0f,
                 scaleOnFocus = 1.0f,
+                hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = "Play Stream",
                 onSecondaryAction = if (isDesktop && enabled && onSecondaryClick != null) {
