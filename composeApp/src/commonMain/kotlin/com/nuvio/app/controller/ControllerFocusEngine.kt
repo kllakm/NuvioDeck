@@ -247,6 +247,7 @@ object ControllerFocusEngine {
     }
 
     private var activeRouteKey: String? = null
+    private var hasUserNavigatedOnCurrentRoute: Boolean = false
 
     fun onRouteOrTabChanged(routeKey: Any? = null) {
         val newRouteStr = routeKey?.toString()
@@ -263,6 +264,7 @@ object ControllerFocusEngine {
             lastFocusedByZone.clear()
             lastFocusedByGroup.clear()
             manualSidebarOpen = false
+            hasUserNavigatedOnCurrentRoute = false
             _isNavigationZoneExpanded.value = false
         } else {
             val current = _focusedNodeId.value?.let { nodes[it] }
@@ -301,10 +303,17 @@ object ControllerFocusEngine {
 
         val currentNode = currentId?.let { nodes[it] }
         if (node.zone == ControllerFocusZone.Content && node.isVisibleAndValid) {
-            if (currentNode == null || !currentNode.isVisibleAndValid || (currentNode.zone == ControllerFocusZone.Navigation && !manualSidebarOpen)) {
+            val shouldPromoteDefaultNode = node.isDefaultFocus &&
+                !hasUserNavigatedOnCurrentRoute &&
+                currentNode?.isDefaultFocus != true
+            if (shouldPromoteDefaultNode || currentNode == null || !currentNode.isVisibleAndValid || (currentNode.zone == ControllerFocusZone.Navigation && !manualSidebarOpen)) {
                 if (node.isDefaultFocus || currentId == null || currentNode?.zone == ControllerFocusZone.Navigation) {
                     val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
+                    val settingsSidebarTopNode = contentNodes
+                        .filter { it.groupKey == "settings_sidebar" }
+                        .minByOrNull { it.boundsInRoot.top }
                     val target = contentNodes.firstOrNull { it.isDefaultFocus }
+                        ?: settingsSidebarTopNode
                         ?: contentNodes.minWithOrNull(
                             compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
                                 .thenBy { it.boundsInRoot.left },
@@ -397,11 +406,14 @@ object ControllerFocusEngine {
             val rememberedId = lastFocusedByZone[ControllerFocusZone.Content]
             val remembered = rememberedId?.let { id -> contentNodes.firstOrNull { it.id == id } }
             val defaultNode = contentNodes.firstOrNull { it.isDefaultFocus }
+            val settingsSidebarTopNode = contentNodes
+                .filter { it.groupKey == "settings_sidebar" }
+                .minByOrNull { it.boundsInRoot.top }
             val topLeftNode = contentNodes.minWithOrNull(
                 compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
                     .thenBy { it.boundsInRoot.left },
             )
-            val chosen = defaultNode ?: remembered ?: topLeftNode
+            val chosen = defaultNode ?: remembered ?: settingsSidebarTopNode ?: topLeftNode
             if (chosen != null) {
                 focusNodeInternal(chosen, triggerScroll = false)
                 return true
@@ -1443,6 +1455,7 @@ object ControllerFocusEngine {
     }
 
     private fun handleNavigate(direction: ControllerDirection): Boolean {
+        hasUserNavigatedOnCurrentRoute = true
         lastNavigationDirection = direction
         if (PlatformVirtualKeyboard.isKeyboardActive) {
             PlatformVirtualKeyboard.hide()

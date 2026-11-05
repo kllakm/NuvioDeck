@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
@@ -46,11 +47,12 @@ private data class DustMote(
 )
 
 /**
- * Creates a high-frequency micro-dither noise tile (128x128) using a triangular distribution
- * to mathematically eliminate color banding across 8-bit, 10-bit, 1080p, and 4K TV/desktop panels.
+ * Creates a high-frequency micro-dither noise tile (256x256) using a triangular distribution
+ * rendered at 1:1 native physical device pixels to mathematically eliminate color banding across
+ * 8-bit, 10-bit, 1080p, 1440p, and 4K High-DPI panels without visible grain.
  */
 private fun createCinematicDitherBitmap(): ImageBitmap {
-    val size = 128
+    val size = 256
     val bitmap = ImageBitmap(size, size)
     val canvas = Canvas(bitmap)
     val paint = Paint()
@@ -59,10 +61,10 @@ private fun createCinematicDitherBitmap(): ImageBitmap {
         for (x in 0 until size) {
             val noise = rnd.nextFloat() - rnd.nextFloat()
             if (noise > 0f) {
-                paint.color = Color.White.copy(alpha = noise * 0.042f)
+                paint.color = Color.White.copy(alpha = noise * 0.015f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
             } else if (noise < 0f) {
-                paint.color = Color.Black.copy(alpha = (-noise) * 0.042f)
+                paint.color = Color.Black.copy(alpha = (-noise) * 0.015f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
             }
         }
@@ -178,11 +180,14 @@ fun CinematicBackground(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
                             0.00f to coreColor.copy(alpha = coreAlpha),
-                            0.18f to coreColor.copy(alpha = coreAlpha * 0.82f),
-                            0.36f to Color(0xFF260C14).copy(alpha = 0.38f),
-                            0.55f to Color(0xFF18070D).copy(alpha = 0.28f),
-                            0.72f to Color(0xFF0F0408).copy(alpha = 0.18f),
-                            0.88f to Color(0xFF070204).copy(alpha = 0.08f),
+                            0.10f to coreColor.copy(alpha = coreAlpha * 0.92f),
+                            0.20f to coreColor.copy(alpha = coreAlpha * 0.78f),
+                            0.32f to Color(0xFF2A0D16).copy(alpha = 0.42f),
+                            0.44f to Color(0xFF200911).copy(alpha = 0.33f),
+                            0.56f to Color(0xFF17060C).copy(alpha = 0.25f),
+                            0.68f to Color(0xFF100409).copy(alpha = 0.17f),
+                            0.80f to Color(0xFF0A0306).copy(alpha = 0.10f),
+                            0.90f to Color(0xFF060203).copy(alpha = 0.04f),
                             1.00f to Color.Transparent,
                         ),
                         center = glowCenter,
@@ -246,8 +251,19 @@ fun CinematicBackground(
                     }
                 }
 
-                // 8. Banding-prevention dither & natural cinematic film-grain layer
-                drawRect(brush = ditherBrush, size = size)
+                // 8. High-DPI native 1:1 physical pixel anti-banding dither layer
+                val invScale = (1f / density.density).coerceIn(0.2f, 1f)
+                withTransform({
+                    scale(invScale, invScale, Offset.Zero)
+                }) {
+                    drawRect(
+                        brush = ditherBrush,
+                        size = size.copy(
+                            width = width / invScale,
+                            height = height / invScale,
+                        ),
+                    )
+                }
             },
     )
 }

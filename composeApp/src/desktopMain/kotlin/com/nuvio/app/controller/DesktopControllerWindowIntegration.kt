@@ -32,7 +32,8 @@ import javax.swing.SwingUtilities
 import kotlin.math.hypot
 
 object DesktopControllerCursorManager {
-    private const val MOUSE_JITTER_THRESHOLD_PX = 5.0
+    private const val MOUSE_JITTER_THRESHOLD_PX = 6.0
+    private const val SYNTHETIC_MOUSE_GUARD_MS = 180L
 
     val hiddenAwtCursor: Cursor by lazy {
         val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
@@ -46,14 +47,33 @@ object DesktopControllerCursorManager {
     @Volatile
     private var anchorMouseScreenPoint: Point? = null
 
+    @Volatile
+    private var lastKnownMouseScreenPoint: Point? = null
+
+    @Volatile
+    private var lastCursorRefreshEpochMs: Long = 0L
+
     fun recordControllerActivated() {
-        anchorMouseScreenPoint = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull()
+        val pt = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull() ?: lastKnownMouseScreenPoint
+        if (pt != null) {
+            anchorMouseScreenPoint = pt
+            lastKnownMouseScreenPoint = pt
+        }
+        lastCursorRefreshEpochMs = System.currentTimeMillis()
+    }
+
+    fun ensureHiddenOnControllerInput(window: Window?) {
+        val targetWin = window ?: WindowsControllerService.appWindow ?: return
+        applyCursorToWindowTree(targetWin, hideCursor = true)
     }
 
     fun applyCursorToWindowTree(window: Window?, hideCursor: Boolean) {
         if (window == null) return
         val targetCursor = if (hideCursor) hiddenAwtCursor else Cursor.getDefaultCursor()
-        SwingUtilities.invokeLater {
+        if (hideCursor) {
+            lastCursorRefreshEpochMs = System.currentTimeMillis()
+        }
+        val applyBlock = {
             applyCursorRecursive(window, targetCursor)
             if (window is RootPaneContainer) {
                 window.rootPane?.cursor = targetCursor
@@ -61,6 +81,19 @@ object DesktopControllerCursorManager {
                 window.layeredPane?.cursor = targetCursor
                 window.glassPane?.cursor = targetCursor
             }
+            if (hideCursor) {
+                val pt = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull() ?: anchorMouseScreenPoint
+                if (pt != null) {
+                    anchorMouseScreenPoint = pt
+                    lastCursorRefreshEpochMs = System.currentTimeMillis()
+                    runCatching { WindowsControllerService.user32?.SetCursorPos(pt.x, pt.y) }
+                }
+            }
+        }
+        if (SwingUtilities.isEventDispatchThread()) {
+            applyBlock()
+        } else {
+            SwingUtilities.invokeLater(applyBlock)
         }
     }
 
@@ -77,10 +110,17 @@ object DesktopControllerCursorManager {
     }
 
     fun shouldWakeOnMouseMove(event: MouseEvent): Boolean {
-        if (!ControllerManager.isControllerActive.value) return false
         val screenLoc = try {
             event.locationOnScreen
         } catch (_: Throwable) {
+            return false
+        }
+        lastKnownMouseScreenPoint = screenLoc
+        if (!ControllerManager.isControllerActive.value) {
+            anchorMouseScreenPoint = screenLoc
+            return false
+        }
+        if (System.currentTimeMillis() - lastCursorRefreshEpochMs < SYNTHETIC_MOUSE_GUARD_MS) {
             return false
         }
         val anchor = anchorMouseScreenPoint

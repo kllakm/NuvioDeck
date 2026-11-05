@@ -17,9 +17,11 @@ import org.jetbrains.skia.Data
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
+import org.jetbrains.skia.FilterMipmap
+import org.jetbrains.skia.FilterMode
+import org.jetbrains.skia.MipmapMode
 
-private const val MAX_FRAME_DIMENSION = 512
+private const val MAX_FRAME_DIMENSION = 1024
 
 /**
  * Decodes GIFs (and, on request, animated WebPs) with Skia.
@@ -120,7 +122,7 @@ class SkiaGifDecoder(
                         skiaImg,
                         Rect.makeWH(w.toFloat(), h.toFloat()),
                         Rect.makeWH(tw.toFloat(), th.toFloat()),
-                        SamplingMode.LINEAR,
+                        FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
                         null,
                         true,
                     )

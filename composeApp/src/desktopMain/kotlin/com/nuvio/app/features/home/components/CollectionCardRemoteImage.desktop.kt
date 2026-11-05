@@ -45,9 +45,11 @@ import org.jetbrains.skia.Data
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
+import org.jetbrains.skia.FilterMipmap
+import org.jetbrains.skia.FilterMode
+import org.jetbrains.skia.MipmapMode
 
-private const val MAX_FRAME_DIMENSION = 512
+private const val MAX_FRAME_DIMENSION = 1024
 
 // How many decoded gif bytes we're willing to keep on disk between app runs.
 private const val MAX_DISK_CACHE_FILES = 200
@@ -302,7 +304,7 @@ internal actual fun CollectionCardRemoteImage(
                                         skiaImg,
                                         Rect.makeWH(currentHolder.width.toFloat(), currentHolder.height.toFloat()),
                                         Rect.makeWH(currentHolder.targetWidth.toFloat(), currentHolder.targetHeight.toFloat()),
-                                        SamplingMode.LINEAR,
+                                        FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
                                         null,
                                         true,
                                     )

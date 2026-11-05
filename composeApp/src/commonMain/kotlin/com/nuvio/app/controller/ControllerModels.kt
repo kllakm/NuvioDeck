@@ -137,7 +137,7 @@ object ControllerManager {
     fun notifyMouseOrKeyboardInput() {
         // Guard against synthetic AWT mouse move events fired immediately during layout/cursor changes
         val elapsed = System.currentTimeMillis() - lastControllerInputEpochMs
-        if (elapsed < 45L) return
+        if (elapsed < 180L) return
         if (_isControllerActive.value) {
             _isControllerActive.value = false
         }

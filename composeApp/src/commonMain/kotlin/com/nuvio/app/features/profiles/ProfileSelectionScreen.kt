@@ -59,6 +59,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
@@ -493,10 +494,15 @@ private fun ProfileAvatarCard(
     val rawHovered by interactionSource.collectIsHoveredAsState()
     var isMouseHovered by remember { mutableStateOf(false) }
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    LaunchedEffect(isControllerActive) {
+        if (isControllerActive) {
+            isMouseHovered = false
+        }
+    }
     val focusId = "profile_card_${profile.profileIndex}"
     val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
     val isControllerFocused = isControllerActive && focusedNodeId == focusId
-    val isHovered = isMouseHovered || (!isControllerActive && rawHovered)
+    val isHovered = !isControllerActive && (isMouseHovered || rawHovered)
     val isSelected = isHovered || isControllerFocused
     val currentOnHoverChange = rememberUpdatedState(onHoverChange)
     val pressScale = if (isPressed) 0.95f else 1f
@@ -547,7 +553,7 @@ private fun ProfileAvatarCard(
             .then(
                 if (isDesktop) {
                     Modifier
-                        .onPointerEvent(PointerEventType.Enter) { isMouseHovered = true }
+                        .onPointerEvent(PointerEventType.Enter) { if (!isControllerActive) isMouseHovered = true }
                         .onPointerEvent(PointerEventType.Exit) { isMouseHovered = false }
                         .hoverable(interactionSource)
                 } else {
@@ -614,6 +620,7 @@ private fun ProfileAvatarCard(
                         contentDescription = avatarItem?.displayName ?: profile.name,
                         modifier = Modifier.size(100.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop,
+                        filterQuality = FilterQuality.High,
                         desktopAnimation = NuvioDesktopAnimation.Always,
                     )
                 } else if (profile.name.isNotBlank()) {
@@ -710,9 +717,14 @@ private fun AddProfileCard(
     val rawHovered by interactionSource.collectIsHoveredAsState()
     var isMouseHovered by remember { mutableStateOf(false) }
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    LaunchedEffect(isControllerActive) {
+        if (isControllerActive) {
+            isMouseHovered = false
+        }
+    }
     val focusedNodeId by ControllerFocusEngine.focusedNodeId.collectAsState()
     val isControllerFocused = isControllerActive && focusedNodeId == "profile_card_add"
-    val isHovered = isMouseHovered || (!isControllerActive && rawHovered)
+    val isHovered = !isControllerActive && (isMouseHovered || rawHovered)
     val isSelected = isHovered || isControllerFocused
     val pressScale = if (isPressed) 0.95f else 1f
     val addLabel = stringResource(Res.string.compose_profile_add_profile)
@@ -749,7 +761,7 @@ private fun AddProfileCard(
             .then(
                 if (isDesktop) {
                     Modifier
-                        .onPointerEvent(PointerEventType.Enter) { isMouseHovered = true }
+                        .onPointerEvent(PointerEventType.Enter) { if (!isControllerActive) isMouseHovered = true }
                         .onPointerEvent(PointerEventType.Exit) { isMouseHovered = false }
                         .hoverable(interactionSource)
                 } else {

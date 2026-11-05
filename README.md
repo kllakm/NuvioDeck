@@ -879,6 +879,26 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 #### 4. Settings Version Display & Build Config Synchronization (`AboutSettingsPage.kt`, `SettingsAttribution.kt`, `composeApp/build.gradle.kts`)
 - **Unified v0.1.18 Version Display:** Bound `generateRuntimeConfigs` `appVersionName`/`appVersionCode` to the desktop release version (`0.1.18` / `18`) and routed `settingsFooterContent` through `SettingsAttribution` so Settings and About screens accurately display `Version 0.1.18 (18)`.
 
+---
+
+### [2026-11-05] - Version 0.1.19: Uncompressed Upstream Poster Quality, Parallel Asset Decoding, High-DPI Login & App Rendering, Login Cursor Hiding & Settings Default Selection
+
+#### 1. Reverted Poster Image Compression & Added Multi-Core Parallel Asset Loading (`AsyncImage.desktop.kt`, `PlatformImageLoader.desktop.kt`)
+- **Restored Upstream Full-Resolution Decoding (`1536px` & `FilterQuality.High`):** Reverted the image downsampling/compression changes in `AsyncImage.desktop.kt` back to upstream `NuvioMedia/NuvioDesktop:Dev` (`MaxDesktopSourceSizePx = 1536`, `MinCustomDownscaleRatio = 1.08f`, `FilterQuality.High` bicubic filtering) and added `1.25x` High-DPI supersampling in `ScaledBitmapPainter` so posters and avatars stay razor-sharp even when scaled up on hover/focus (`1.04x–1.08x`).
+- **Multi-Core Parallel Fetching & Decoding:** Improved asset loading speed without lowering image quality by expanding Coil's `MemoryCache` to `512MB` and `DiskCache` to `1GB`, and configuring parallel `fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(32))` and `decoderCoroutineContext(Dispatchers.Default.limitedParallelism(cpuCores))` in `PlatformImageLoader.desktop.kt`.
+
+#### 2. High-DPI Display Enhancements on Login Screen & Across Main App (`CinematicBackground.kt`, `AppBrandWordmark.kt`, `ProfileSelectionScreen.kt`, `ProfileBackgroundBackdrop.kt`, `Theme.kt`)
+- **Native 1:1 Physical Pixel Background Rendering:** Upgraded `CinematicBackground` with a `256x256` ultra-fine sub-LSB anti-banding dither rendered in 1:1 physical device pixel coordinates (`scale(1f / density.density)`) and 10-stop radial gradients, eliminating upscaled low-resolution grain on 1440p and 4K High-DPI displays.
+- **High-DPI Brand Wordmark & Avatar Filtering:** Updated `AppBrandWordmark`, `ProfileSelectionScreen`, and `ProfileBackgroundBackdrop` to render with `FilterQuality.High` bicubic interpolation.
+- **High-DPI UI Scaling (`Theme.kt`):** Enhanced `desktopUiScaleForWindow` to preserve the `1.0f..1.18f` curve up to 1080p (`1920x1080`) while smoothly scaling QHD (`1440p`) and 4K High-DPI viewports up to `1.42f`.
+
+#### 3. Immediate Mouse Cursor Hiding on Login Screen (`DesktopControllerWindowIntegration.kt`, `WindowsControllerService.kt`, `ProfileSelectionScreen.kt`)
+- **Immediate Win32 Stationary Cursor Hide:** Updated `DesktopControllerCursorManager` and `WindowsControllerService` to immediately apply the transparent cursor across the window hierarchy and trigger a zero-delta Win32 `SetCursorPos(pt.x, pt.y)` refresh with a `180ms` synthetic mouse-event guard whenever controller input occurs—ensuring the mouse cursor disappears immediately on the Login / Profile Selection screen even when the physical mouse has been stationary since launch, and only reappears when the mouse is physically moved (`>= 6px`).
+- **Cleared Stale Hover State on Controller Wake:** Updated `ProfileAvatarCard` and `AddProfileCard` in `ProfileSelectionScreen.kt` so controller activation immediately clears `isMouseHovered`.
+
+#### 4. Settings Screen Default Focus on Top Left-Column Item (`SettingsScreen.kt`, `SettingsComponents.kt`, `ControllerFocusEngine.kt`)
+- **Top Left-Pane Option Selected on Open:** Marked the first item (`SettingsCategory.Look`) in `TabletSettingsScreen` with `isDefaultFocus = true`, added initial focus targeting to `firstSidebarNodeId`, and updated `ControllerFocusEngine.upsertNode` / `ensureValidFocus` to prioritize `isDefaultFocus` and `"settings_sidebar"` nodes over `"settings_content"` before user navigation begins.
+
 
 
 

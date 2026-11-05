@@ -39,8 +39,10 @@ import org.jetbrains.skia.MipmapMode
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private const val MinCustomDownscaleRatio = 2.0f
-private const val MaxScaledBitmapPixels = 1_250_000L
+private const val MinCustomDownscaleRatio = 1.08f
+private const val MaxDesktopSourceSizePx = 1536
+private const val MaxScaledBitmapPixels = 2_500_000L
+private const val HighDpiSupersampleFactor = 1.25f
 
 private val IsWindowsDesktop: Boolean =
     System.getProperty("os.name")
@@ -89,9 +91,10 @@ internal actual fun NuvioAsyncImage(
     val effectiveDesktopImageScaling = remember(desktopImageScaling) {
         if (IsWindowsDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
     }
-    val requestModel = remember(context, model, animated) {
+    val requestModel = remember(context, model, effectiveDesktopImageScaling, animated) {
         model.withDesktopImageOptions(
             context = context,
+            highQualitySize = effectiveDesktopImageScaling != NuvioDesktopImageScaling.Disabled,
             animated = animated,
         )
     }
@@ -154,7 +157,7 @@ internal actual fun NuvioAsyncImage(
         contentScale = contentScale,
         alpha = alpha,
         colorFilter = colorFilter,
-        filterQuality = filterQuality ?: FilterQuality.Medium,
+        filterQuality = filterQuality ?: FilterQuality.High,
         clipToBounds = clipToBounds,
     )
 }
@@ -165,10 +168,11 @@ internal actual fun NuvioAsyncImage(
  */
 private fun Any?.withDesktopImageOptions(
     context: PlatformContext,
+    highQualitySize: Boolean,
     animated: Boolean,
 ): Any? {
     if (this == null) return null
-    if (!animated) return this
+    if (!highQualitySize && !animated) return this
 
     val builder = if (this is ImageRequest) {
         newBuilder()
@@ -176,8 +180,11 @@ private fun Any?.withDesktopImageOptions(
         ImageRequest.Builder(context).data(this)
     }
     builder.apply {
-        extras[NuvioAnimatedImageKey] = true
-        memoryCacheKeyExtra("nuvio.animated", "true")
+        if (highQualitySize) size(MaxDesktopSourceSizePx)
+        if (animated) {
+            extras[NuvioAnimatedImageKey] = true
+            memoryCacheKeyExtra("nuvio.animated", "true")
+        }
     }
     return builder.build()
 }
@@ -228,7 +235,7 @@ private class ScaledBitmapPainter(
             dstSize = drawSize,
             alpha = alpha,
             colorFilter = colorFilter,
-            filterQuality = if (cacheSize == drawSize) FilterQuality.None else FilterQuality.Medium,
+            filterQuality = FilterQuality.High,
         )
     }
 
@@ -261,7 +268,7 @@ private class ScaledBitmapPainter(
             dstSize = drawSize,
             alpha = alpha,
             colorFilter = colorFilter,
-            filterQuality = FilterQuality.Medium,
+            filterQuality = FilterQuality.High,
         )
     }
 
@@ -274,10 +281,12 @@ private class ScaledBitmapPainter(
     }
 
     private fun IntSize.cacheSize(): IntSize {
-        val quantum = cacheQuantum()
+        val targetWidth = (width * HighDpiSupersampleFactor).roundToInt().coerceAtMost(image.width).coerceAtLeast(1)
+        val targetHeight = (height * HighDpiSupersampleFactor).roundToInt().coerceAtMost(image.height).coerceAtLeast(1)
+        val quantum = IntSize(targetWidth, targetHeight).cacheQuantum()
         return IntSize(
-            width = width.roundUpTo(quantum),
-            height = height.roundUpTo(quantum),
+            width = targetWidth.roundUpTo(quantum).coerceAtMost(image.width),
+            height = targetHeight.roundUpTo(quantum).coerceAtMost(image.height),
         )
     }
 

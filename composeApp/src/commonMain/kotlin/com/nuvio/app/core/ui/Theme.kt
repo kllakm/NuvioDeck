@@ -201,7 +201,8 @@ private const val NuvioDesktopFontScale = 1.08f
 private const val NuvioDesktopBaseWidthDp = 1280f
 private const val NuvioDesktopBaseHeightDp = 820f
 private const val NuvioDesktopMinUiScale = 1f
-private const val NuvioDesktopMaxUiScale = 1.18f
+private const val NuvioDesktopStandardMaxUiScale = 1.18f
+private const val NuvioDesktopMaxUiScale = 1.42f
 
 internal fun desktopUiScaleForWindow(widthDp: Float, heightDp: Float): Float {
     if (!isDesktop || widthDp <= 0f || heightDp <= 0f) return NuvioDesktopMinUiScale
@@ -210,7 +211,14 @@ internal fun desktopUiScaleForWindow(widthDp: Float, heightDp: Float): Float {
         widthDp / NuvioDesktopBaseWidthDp,
         heightDp / NuvioDesktopBaseHeightDp,
     )
-    return rawScale.coerceIn(NuvioDesktopMinUiScale, NuvioDesktopMaxUiScale)
+    if (widthDp <= 1920f && heightDp <= 1080f) {
+        return rawScale.coerceIn(NuvioDesktopMinUiScale, NuvioDesktopStandardMaxUiScale)
+    }
+    val highResBonus = ((rawScale - 1.317f).coerceAtLeast(0f)) * 0.42f
+    return (NuvioDesktopStandardMaxUiScale + highResBonus).coerceIn(
+        NuvioDesktopMinUiScale,
+        NuvioDesktopMaxUiScale,
+    )
 }
 
 @Composable

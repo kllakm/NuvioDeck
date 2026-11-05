@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.LocalControllerGroupKey
 import com.nuvio.app.controller.RegisterControllerVerticalScroll
 import androidx.compose.runtime.LaunchedEffect
@@ -902,6 +903,18 @@ private fun TabletSettingsScreen(
     val activeCategory = settingsCategoryForName(selectedCategory)
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val topOffset = topChromePadding ?: (max(statusBarPadding + 24.dp, 48.dp) + 64.dp)
+    val firstCategoryLabel = stringResource(SettingsCategory.entries.first().labelRes)
+    val firstSidebarNodeId = remember(firstCategoryLabel) {
+        "settings_sidebar_${firstCategoryLabel.lowercase().replace(" ", "_")}"
+    }
+
+    LaunchedEffect(Unit) {
+        if (page == SettingsPage.Root) {
+            selectedCategory = SettingsCategory.entries.first().name
+        }
+        delay(32)
+        ControllerFocusEngine.requestFocus(firstSidebarNodeId, triggerScroll = false)
+    }
 
     LaunchedEffect(page) {
         if (page.opensInlineOnTablet) {
@@ -942,11 +955,12 @@ private fun TabletSettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    SettingsCategory.entries.forEach { category ->
+                    SettingsCategory.entries.forEachIndexed { index, category ->
                         SettingsSidebarItem(
                             label = stringResource(category.labelRes),
                             icon = category.icon,
                             selected = category == activeCategory,
+                            isDefaultFocus = index == 0,
                             onClick = {
                                 selectedCategory = category.name
                                 if (page != SettingsPage.Root) {

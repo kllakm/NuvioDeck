@@ -139,7 +139,7 @@ private class AnimatedSkiaPainter(
                 image,
                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                 Rect.makeWH(drawSize.width.toFloat(), drawSize.height.toFloat()),
-                SamplingMode.LINEAR,
+                SamplingMode.MITCHELL,
                 paint,
                 true,
             )
@@ -356,7 +356,7 @@ internal class FramePlayer(private val source: AnimatedSkiaImage) {
                 image,
                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                 Rect.makeWH(width.toFloat(), height.toFloat()),
-                if (heavyDownscale) FilterMipmap(FilterMode.LINEAR, MipmapMode.NEAREST) else SamplingMode.LINEAR,
+                if (heavyDownscale) FilterMipmap(FilterMode.LINEAR, MipmapMode.NEAREST) else SamplingMode.MITCHELL,
                 null,
                 true,
             )

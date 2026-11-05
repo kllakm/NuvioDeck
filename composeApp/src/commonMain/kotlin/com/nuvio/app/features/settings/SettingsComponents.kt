@@ -163,6 +163,7 @@ internal fun SettingsSidebarItem(
     label: String,
     icon: ImageVector,
     selected: Boolean,
+    isDefaultFocus: Boolean = false,
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -192,6 +193,7 @@ internal fun SettingsSidebarItem(
             .controllerFocusable(
                 id = nodeId,
                 groupKey = "settings_sidebar",
+                isDefaultFocus = isDefaultFocus,
                 shape = RoundedCornerShape(NuvioTokens.Space.s10),
                 focusScale = 1.0f,
                 hideFocusRing = true,

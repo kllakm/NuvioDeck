@@ -53,6 +53,7 @@ object WindowsControllerService {
         fun SetFocus(hWnd: Long): Long
         fun AttachThreadInput(idAttach: Int, idAttachTo: Int, fAttach: Boolean): Boolean
         fun AllowSetForegroundWindow(dwProcessId: Int): Boolean
+        fun SetCursorPos(X: Int, Y: Int): Boolean
     }
 
     internal interface Kernel32Library : Library {
@@ -486,9 +487,11 @@ object WindowsControllerService {
 
                     val wasControllerInactive = !ControllerManager.isControllerActive.value
                     if (hasAnalogActivity || mergedButtons.isNotEmpty()) {
-                        if (wasControllerInactive) {
-                            SwingUtilities.invokeLater {
-                                ControllerManager.notifyControllerInput()
+                        DesktopControllerCursorManager.recordControllerActivated()
+                        SwingUtilities.invokeLater {
+                            ControllerManager.notifyControllerInput()
+                            DesktopControllerCursorManager.ensureHiddenOnControllerInput(appWindow)
+                            if (wasControllerInactive) {
                                 ControllerFocusEngine.ensureValidFocus()
                             }
                         }

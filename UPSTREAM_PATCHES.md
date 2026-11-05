@@ -57,8 +57,9 @@ Edits to core NuvioDesktop files are minimized to lightweight 1-line hook-ins or
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/DropdownChip.kt` | Dropdown focus hook | Adds `.controllerFocusable` to selectable dropdown triggers. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/FloatingPrompt.kt` | Prompt action hook | Adds `.controllerFocusable` to floating resume prompt buttons. |
 | `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/PosterZoomActionOverlay.kt` | Overlay button focus hook | Adds `.controllerFocusable` to poster zoom dialog action buttons. |
-| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/PlatformImageLoader.desktop.kt` | Persistent 512MB Disk Cache | Configures Coil 3 Okio-backed `DiskCache` in `%LOCALAPPDATA%\NuvioDeck\Cache\image_cache` ensuring media artwork is cached locally on SSD and loads in 1–3ms. |
-| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/AsyncImage.desktop.kt` | GPU Trilinear Mipmapping & Sizing | Uses hardware GPU trilinear mipmapping (`FilterQuality.Medium`) and removes forced 1536px decode sizes, eliminating CPU draw-pass downscaling and dropped frames. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/PlatformImageLoader.desktop.kt` | Persistent 1GB Disk Cache, 512MB RAM Cache & Multi-Core Parallel Decoding | Configures Coil 3 `MemoryCache` (512MB), `DiskCache` (1GB in `%LOCALAPPDATA%\NuvioDeck\Cache\image_cache`), and multi-core `fetcherCoroutineContext` / `decoderCoroutineContext` parallelism so full-resolution `1536px` media artwork loads rapidly without compression. |
+| `composeApp/src/desktopMain/kotlin/com/nuvio/app/core/ui/AsyncImage.desktop.kt` | Upstream `1536px` Source Decode & `1.25x` High-DPI Supersampling | Restores upstream `MaxDesktopSourceSizePx = 1536`, `MinCustomDownscaleRatio = 1.08f`, and `FilterQuality.High` bicubic filtering, with `1.25x` supersampled `cacheSize` for razor-sharp rendering on High-DPI displays and focus/hover scale-ups. |
+| `composeApp/src/commonMain/kotlin/com/nuvio/app/core/ui/Theme.kt` | High-DPI Responsive UI Scale (`desktopUiScaleForWindow`) | Preserves the `1.0f..1.18f` scale up to `1920x1080` and smoothly scales High-DPI QHD/4K viewports up to `1.42f`. |
 
 ### 4. Features & Screens
 | File Path | Nature of Patch | Purpose / Justification |
