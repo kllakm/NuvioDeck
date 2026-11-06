@@ -1365,6 +1365,16 @@ tasks.withType<AbstractJPackageTask>()
     .matching { it.name.endsWith("Msi") || it.name.endsWith("Exe") }
     .configureEach {
         freeArgs.add("--win-shortcut-prompt")
+        val packagingWindowsDir = rootProject.file("packaging/windows")
+        val licenseTxt = packagingWindowsDir.resolve("LICENSE.txt")
+        if (licenseTxt.exists()) {
+            freeArgs.add("--license-file")
+            freeArgs.add(licenseTxt.absolutePath)
+        }
+        if (packagingWindowsDir.exists()) {
+            freeArgs.add("--resource-dir")
+            freeArgs.add(packagingWindowsDir.absolutePath)
+        }
     }
 
 fun renameMacosDmgOutput(release: Boolean) {

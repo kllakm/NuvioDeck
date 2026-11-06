@@ -1,0 +1,28 @@
+NuvioDeck License and Terms of Use
+==================================
+
+1. License Information
+----------------------
+NuvioDeck is free and open-source software, licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+Copyright (C) 2026 NuvioDeck Contributors & Upstream NuvioDesktop Authors.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+2. Terms and Disclaimers
+------------------------
+* NuvioDeck is a media player interface designed for Windows and handheld devices.
+* NuvioDeck does not host, provide, distribute, or bundle any media content, video streams, or copyrighted files.
+* Users are solely responsible for configuring their own media sources, integrations, and content providers in compliance with all applicable local and international copyright laws and terms of service.
+* NuvioDeck and its developers are not affiliated with any third-party streaming services, content networks, or addon providers.
+
+3. Source Code & Attributions
+-----------------------------
+Source repository: https://github.com/kllakm/NuvioDeck
+Upstream repository: https://github.com/NuvioMedia/NuvioDesktop
+Report issues: https://github.com/kllakm/NuvioDeck/issues
+
