@@ -1366,10 +1366,10 @@ tasks.withType<AbstractJPackageTask>()
     .configureEach {
         freeArgs.add("--win-shortcut-prompt")
         val packagingWindowsDir = rootProject.file("packaging/windows")
-        val licenseTxt = packagingWindowsDir.resolve("LICENSE.txt")
-        if (licenseTxt.exists()) {
+        val licenseRtf = packagingWindowsDir.resolve("LICENSE.rtf")
+        if (licenseRtf.exists()) {
             freeArgs.add("--license-file")
-            freeArgs.add(licenseTxt.absolutePath)
+            freeArgs.add(licenseRtf.absolutePath)
         }
         if (packagingWindowsDir.exists()) {
             freeArgs.add("--resource-dir")
