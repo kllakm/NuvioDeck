@@ -4635,21 +4635,25 @@ function renderXboxGlyphHtml(glyph) {
       return '<span class="xbox-glyph-circle xbox-glyph-x">X</span>';
     case "Y":
       return '<span class="xbox-glyph-circle xbox-glyph-y">Y</span>';
-    case "LB":
-    case "RB":
+    case "LB/RB":
+      return '<span class="xbox-glyph-bumper-pair"><span class="xbox-glyph-bumper">LB</span><span class="xbox-glyph-bumper">RB</span></span>';
+    case "LT/RT":
+      return '<span class="xbox-glyph-bumper-pair"><span class="xbox-glyph-trigger">LT</span><span class="xbox-glyph-trigger">RT</span></span>';
     case "LT":
     case "RT":
+      return `<span class="xbox-glyph-trigger">${glyph}</span>`;
     case "LS":
     case "RS":
-    case "LB/RB":
-    case "LT/RT":
+      return `<span class="xbox-glyph-circle" style="font-size:9.5px">${glyph}</span>`;
+    case "LB":
+    case "RB":
       return `<span class="xbox-glyph-bumper">${glyph}</span>`;
     case "D-Pad":
-      return '<span class="xbox-glyph-dpad"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="20" rx="1.5" fill="#fff"/><rect x="2" y="9" width="20" height="6" rx="1.5" fill="#fff"/><circle cx="12" cy="12" r="2" fill="#2B2B33"/></svg></span>';
+      return '<span class="xbox-glyph-dpad"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="2.5" width="6" height="19" rx="1.5" stroke="#fff" stroke-width="1.8"/><rect x="2.5" y="9" width="19" height="6" rx="1.5" stroke="#fff" stroke-width="1.8"/></svg></span>';
     case "View":
-      return '<span class="xbox-glyph-bumper" title="View"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="9" height="7" rx="1.2" stroke="#fff" stroke-width="1.8"/><rect x="8" y="9" width="9" height="7" rx="1.2" fill="#2B2B33" stroke="#fff" stroke-width="1.8"/></svg></span>';
+      return '<span class="xbox-glyph-circle" title="View"><svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M3 11V4H12V8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="8" y="9" width="9" height="7" rx="1.2" stroke="#fff" stroke-width="1.8"/></svg></span>';
     case "Menu":
-      return '<span class="xbox-glyph-bumper" title="Menu"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><line x1="4" y1="6" x2="16" y2="6" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="10" x2="16" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="14" x2="16" y2="14" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>';
+      return '<span class="xbox-glyph-circle" title="Menu"><svg width="12" height="12" viewBox="0 0 20 20" fill="none"><line x1="4" y1="5.5" x2="16" y2="5.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="10" x2="16" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="4" y1="14.5" x2="16" y2="14.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>';
     default:
       return `<span class="xbox-glyph-bumper">${glyph}</span>`;
   }

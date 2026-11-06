@@ -600,8 +600,154 @@ object MetaDetailsRepository {
     }
 
    
+    data class ResolvedPlaybackTarget(
+        val type: String,
+        val videoId: String,
+        val parentMetaId: String,
+        val parentMetaType: String,
+    )
+
+    fun normalizePlaybackType(rawType: String): String =
+        when (rawType.trim().lowercase()) {
+            "movie", "film" -> "movie"
+            "series", "show", "tv", "tvshow" -> "series"
+            else -> rawType.trim().ifBlank { "movie" }
+        }
+
+    fun hasPendingAddonManifests(): Boolean =
+        AddonRepository.uiState.value.hasPendingEnabledAddonManifests()
+
+    suspend fun waitForReadyAddonManifests() {
+        AddonRepository.initialize()
+        if (!AddonRepository.uiState.value.hasPendingEnabledAddonManifests()) return
+        withTimeoutOrNull(METADATA_PROVIDER_READY_TIMEOUT_MS) {
+            AddonRepository.uiState.first { state ->
+                !state.hasPendingEnabledAddonManifests()
+            }
+        }
+    }
+
+    fun peekResolvedVideoId(
+        type: String,
+        videoId: String,
+        parentMetaId: String,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null,
+    ): String {
+        val normalizedType = normalizePlaybackType(type)
+        val meta = peek(normalizedType, parentMetaId) ?: return videoId
+        if (seasonNumber != null && episodeNumber != null) {
+            val matched = meta.videos.firstOrNull { video ->
+                video.season == seasonNumber && video.episode == episodeNumber
+            }?.id?.takeIf { it.isNotBlank() }
+            if (matched != null) return matched
+        }
+        return videoId
+    }
+
+    suspend fun resolvePlaybackTarget(
+        type: String,
+        videoId: String,
+        parentMetaId: String,
+        parentMetaType: String = type,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null,
+    ): ResolvedPlaybackTarget {
+        waitForReadyAddonManifests()
+        val normalizedType = normalizePlaybackType(type.ifBlank { parentMetaType })
+        val effectiveParentId = parentMetaId.trim().ifBlank {
+            videoId.trim().substringBefore(':').ifBlank { videoId.trim() }
+        }
+        val meta = peek(normalizedType, effectiveParentId)
+            ?: runCatching { fetch(normalizedType, effectiveParentId, cacheResult = true) }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull()
+
+        val resolvedType = normalizePlaybackType(meta?.type?.ifBlank { normalizedType } ?: normalizedType)
+        val rawCanonicalParentId = meta?.id?.takeIf { it.isNotBlank() } ?: effectiveParentId
+        val resolvedParentMetaId = resolveMetaLookupId(
+            itemId = rawCanonicalParentId,
+            itemType = resolvedType,
+        ).ifBlank { rawCanonicalParentId }
+
+        val matchedEpisodeVideoId = if (meta != null && (resolvedType == "series" || seasonNumber != null || episodeNumber != null)) {
+            meta.videos.firstOrNull { video ->
+                if (seasonNumber != null && episodeNumber != null) {
+                    video.season == seasonNumber && video.episode == episodeNumber
+                } else {
+                    com.nuvio.app.features.watchprogress.buildPlaybackVideoId(
+                        parentMetaId = meta.id,
+                        seasonNumber = video.season,
+                        episodeNumber = video.episode,
+                        fallbackVideoId = video.id,
+                    ) == videoId || video.id == videoId
+                }
+            }?.id?.takeIf { it.isNotBlank() }
+        } else {
+            null
+        }
+
+        val constructedEpisodeVideoId = if (seasonNumber != null && episodeNumber != null && resolvedParentMetaId.isNotBlank()) {
+            com.nuvio.app.features.watchprogress.buildPlaybackVideoId(
+                parentMetaId = resolvedParentMetaId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                fallbackVideoId = matchedEpisodeVideoId ?: videoId,
+            )
+        } else if (videoId.startsWith("tmdb:", ignoreCase = true) && resolvedParentMetaId != effectiveParentId) {
+            val parts = videoId.split(':')
+            if (parts.size >= 4) {
+                "$resolvedParentMetaId:${parts[2]}:${parts[3]}"
+            } else {
+                resolvedParentMetaId
+            }
+        } else {
+            null
+        }
+
+        val candidateVideoIds = buildList {
+            if (resolvedType == "series" || seasonNumber != null || episodeNumber != null) {
+                matchedEpisodeVideoId?.let(::add)
+                constructedEpisodeVideoId?.let(::add)
+                add(videoId)
+            } else {
+                if (resolvedParentMetaId.isNotBlank()) add(resolvedParentMetaId)
+                meta?.id?.takeIf { it.isNotBlank() }?.let(::add)
+                meta?.videos?.firstOrNull()?.id?.takeIf { it.isNotBlank() }?.let(::add)
+                add(videoId)
+            }
+        }.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+
+        val availability = com.nuvio.app.features.streams.PlaybackAvailability.current()
+        val resolvedVideoId = candidateVideoIds.firstOrNull { candidate ->
+            availability.canStream(resolvedType, candidate)
+        } ?: candidateVideoIds.firstOrNull() ?: videoId
+
+        return ResolvedPlaybackTarget(
+            type = resolvedType,
+            videoId = resolvedVideoId,
+            parentMetaId = resolvedParentMetaId.ifBlank { parentMetaId },
+            parentMetaType = resolvedType,
+        )
+    }
+
     fun findEmbeddedStreams(videoId: String): List<com.nuvio.app.features.streams.StreamItem> {
-        val meta = _uiState.value.meta ?: return emptyList()
+        _uiState.value.meta?.let { activeMeta ->
+            val streams = findEmbeddedStreamsInMeta(activeMeta, videoId)
+            if (streams.isNotEmpty()) return streams
+        }
+        for (entry in cachedMetaByRequestKey.values) {
+            val cachedMeta = entry.metaScreenMeta ?: entry.baseMeta
+            val streams = findEmbeddedStreamsInMeta(cachedMeta, videoId)
+            if (streams.isNotEmpty()) return streams
+        }
+        return emptyList()
+    }
+
+    private fun findEmbeddedStreamsInMeta(
+        meta: MetaDetails,
+        videoId: String,
+    ): List<com.nuvio.app.features.streams.StreamItem> {
         val videosWithStreams = meta.videos.filter { it.streams.isNotEmpty() }
         if (videosWithStreams.isEmpty()) return emptyList()
 

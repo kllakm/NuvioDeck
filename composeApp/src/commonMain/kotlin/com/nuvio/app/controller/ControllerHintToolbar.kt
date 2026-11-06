@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,18 +41,22 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.nuvio
+import kotlin.math.roundToInt
 
-private val XboxGreen = Color(0xFF107C10)
-private val XboxRed = Color(0xFFE81123)
-private val XboxBlue = Color(0xFF0078D7)
-private val XboxAmber = Color(0xFFFFB900)
-private val DarkGlassBackground = Color(12, 12, 16, (255 * 0.68f).toInt())
-private val GlyphSurface = Color(0xFF232733)
-private val GlyphBorder = Color(0x66FFFFFF)
+private val XboxGreen = Color(0xFF38D430)
+private val XboxRed = Color(0xFFFF3B30)
+private val XboxBlue = Color(0xFF2899FF)
+private val XboxAmber = Color(0xFFFFC800)
+private val DarkGlassBackground = Color(16, 16, 18, (255 * 0.68f).toInt())
+private val GlyphWhite = Color.White
 
 /**
  * Dynamic, context-aware Xbox-glyph Controller Hint Toolbar anchored to the bottom-right corner.
@@ -80,11 +86,11 @@ fun ControllerHintToolbar(
         modifier = modifier,
     ) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(8.dp),
             color = DarkGlassBackground,
             contentColor = Color.White,
             border = null,
-            shadowElevation = 12.dp,
+            shadowElevation = 0.dp,
             tonalElevation = 0.dp,
         ) {
             AnimatedContent(
@@ -300,13 +306,13 @@ fun XboxButtonGlyphBadge(
         XboxGlyph.A -> XboxFaceButtonBadge("A", XboxGreen, modifier)
         XboxGlyph.B -> XboxFaceButtonBadge("B", XboxRed, modifier)
         XboxGlyph.X -> XboxFaceButtonBadge("X", XboxBlue, modifier)
-        XboxGlyph.Y -> XboxFaceButtonBadge("Y", XboxAmber, modifier, darkText = true)
+        XboxGlyph.Y -> XboxFaceButtonBadge("Y", XboxAmber, modifier)
         XboxGlyph.LB -> XboxBumperBadge("LB", modifier)
         XboxGlyph.RB -> XboxBumperBadge("RB", modifier)
         XboxGlyph.LB_RB -> {
             Row(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 XboxBumperBadge("LB")
@@ -318,7 +324,7 @@ fun XboxButtonGlyphBadge(
         XboxGlyph.LT_RT -> {
             Row(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 XboxTriggerBadge("LT")
@@ -334,27 +340,63 @@ fun XboxButtonGlyphBadge(
 }
 
 @Composable
+private fun CenteredBadgeText(
+    text: String,
+    color: Color,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+) {
+    Layout(
+        modifier = modifier,
+        content = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = fontSize,
+                    lineHeight = fontSize,
+                    fontWeight = FontWeight.ExtraBold,
+                ),
+                color = color,
+                maxLines = 1,
+            )
+        },
+    ) { measurables, constraints ->
+        val placeable = measurables.first().measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val width = if (constraints.hasFixedWidth) constraints.maxWidth else placeable.width
+        val height = if (constraints.hasFixedHeight) constraints.maxHeight else placeable.height
+        val baseline = placeable[FirstBaseline]
+        val placeX = ((width - placeable.width) / 2f).roundToInt()
+        val placeY = if (baseline != AlignmentLine.Unspecified) {
+            val capHeight = fontSize.toPx() * 0.74f
+            val capCenterY = baseline - (capHeight / 2f)
+            (height / 2f - capCenterY).roundToInt()
+        } else {
+            ((height - placeable.height) / 2f).roundToInt()
+        }
+        layout(width, height) {
+            placeable.place(placeX, placeY)
+        }
+    }
+}
+
+@Composable
 private fun XboxFaceButtonBadge(
     letter: String,
     accentColor: Color,
     modifier: Modifier = Modifier,
-    darkText: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(accentColor.copy(alpha = 0.92f))
-            .border(1.2.dp, Color.White.copy(alpha = 0.45f), CircleShape),
+            .border(1.75.dp, accentColor, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
+        CenteredBadgeText(
             text = letter,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.ExtraBold,
-            ),
-            color = if (darkText) Color(0xFF14161D) else Color.White,
+            color = accentColor,
+            fontSize = 11.sp,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -369,18 +411,15 @@ private fun XboxBumperBadge(
         modifier = modifier
             .height(20.dp)
             .clip(shape)
-            .background(GlyphSurface)
-            .border(1.dp, GlyphBorder, shape)
+            .border(1.65.dp, GlyphWhite, shape)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
+        CenteredBadgeText(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-            ),
-            color = Color.White,
+            color = GlyphWhite,
+            fontSize = 10.sp,
+            modifier = Modifier.fillMaxHeight(),
         )
     }
 }
@@ -395,18 +434,15 @@ private fun XboxTriggerBadge(
         modifier = modifier
             .height(20.dp)
             .clip(shape)
-            .background(GlyphSurface)
-            .border(1.dp, GlyphBorder, shape)
+            .border(1.65.dp, GlyphWhite, shape)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
+        CenteredBadgeText(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-            ),
-            color = Color.White,
+            color = GlyphWhite,
+            fontSize = 10.sp,
+            modifier = Modifier.fillMaxHeight(),
         )
     }
 }
@@ -420,17 +456,14 @@ private fun XboxStickBadge(
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(GlyphSurface)
-            .border(1.2.dp, GlyphBorder, CircleShape),
+            .border(1.75.dp, GlyphWhite, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
+        CenteredBadgeText(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 9.5.sp,
-                fontWeight = FontWeight.ExtraBold,
-            ),
-            color = Color.White,
+            color = GlyphWhite,
+            fontSize = 9.5.sp,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -447,33 +480,23 @@ private fun XboxDPadBadge(
         Canvas(modifier = Modifier.size(20.dp)) {
             val w = size.width
             val h = size.height
+            val stroke = 1.5.dp.toPx()
             val armThickness = w * 0.34f
             val armOffset = (w - armThickness) / 2f
             val radius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-            // Outer border/fill for cross
             drawRoundRect(
-                color = GlyphBorder,
-                topLeft = Offset(armOffset - 1f, 0f),
-                size = Size(armThickness + 2f, h),
+                color = GlyphWhite,
+                topLeft = Offset(armOffset, stroke / 2f),
+                size = Size(armThickness, h - stroke),
                 cornerRadius = radius,
+                style = Stroke(width = stroke),
             )
             drawRoundRect(
-                color = GlyphBorder,
-                topLeft = Offset(0f, armOffset - 1f),
-                size = Size(w, armThickness + 2f),
+                color = GlyphWhite,
+                topLeft = Offset(stroke / 2f, armOffset),
+                size = Size(w - stroke, armThickness),
                 cornerRadius = radius,
-            )
-            drawRoundRect(
-                color = GlyphSurface,
-                topLeft = Offset(armOffset, 1f),
-                size = Size(armThickness, h - 2f),
-                cornerRadius = radius,
-            )
-            drawRoundRect(
-                color = GlyphSurface,
-                topLeft = Offset(1f, armOffset),
-                size = Size(w - 2f, armThickness),
-                cornerRadius = radius,
+                style = Stroke(width = stroke),
             )
         }
     }
@@ -487,30 +510,48 @@ private fun XboxViewBadge(
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(GlyphSurface)
-            .border(1.dp, GlyphBorder, CircleShape),
+            .border(1.75.dp, GlyphWhite, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.size(12.dp)) {
+        Canvas(modifier = Modifier.size(11.dp)) {
             val stroke = 1.4.dp.toPx()
             val boxW = size.width * 0.62f
             val boxH = size.height * 0.56f
-            // Back rectangle (top-left)
-            drawRect(
-                color = Color.White.copy(alpha = 0.85f),
-                topLeft = Offset(0f, 0f),
-                size = Size(boxW, boxH),
-                style = Stroke(width = stroke),
+            val frontLeft = size.width - boxW
+            val frontTop = size.height - boxH
+            // Back rectangle (top-left L-shape so it doesn't overlap inside the front rectangle)
+            drawLine(
+                color = GlyphWhite,
+                start = Offset(0f, 0f),
+                end = Offset(boxW, 0f),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = GlyphWhite,
+                start = Offset(0f, 0f),
+                end = Offset(0f, boxH),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = GlyphWhite,
+                start = Offset(boxW, 0f),
+                end = Offset(boxW, frontTop),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = GlyphWhite,
+                start = Offset(0f, boxH),
+                end = Offset(frontLeft, boxH),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
             )
             // Front rectangle (bottom-right)
             drawRect(
-                color = GlyphSurface,
-                topLeft = Offset(size.width - boxW, size.height - boxH),
-                size = Size(boxW, boxH),
-            )
-            drawRect(
-                color = Color.White,
-                topLeft = Offset(size.width - boxW, size.height - boxH),
+                color = GlyphWhite,
+                topLeft = Offset(frontLeft, frontTop),
                 size = Size(boxW, boxH),
                 style = Stroke(width = stroke),
             )
@@ -526,31 +567,30 @@ private fun XboxMenuBadge(
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(GlyphSurface)
-            .border(1.dp, GlyphBorder, CircleShape),
+            .border(1.75.dp, GlyphWhite, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(11.dp)) {
-            val stroke = 1.5.dp.toPx()
+            val stroke = 1.6.dp.toPx()
             val y1 = size.height * 0.22f
             val y2 = size.height * 0.5f
             val y3 = size.height * 0.78f
             drawLine(
-                color = Color.White,
+                color = GlyphWhite,
                 start = Offset(0f, y1),
                 end = Offset(size.width, y1),
                 strokeWidth = stroke,
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = Color.White,
+                color = GlyphWhite,
                 start = Offset(0f, y2),
                 end = Offset(size.width, y2),
                 strokeWidth = stroke,
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = Color.White,
+                color = GlyphWhite,
                 start = Offset(0f, y3),
                 end = Offset(size.width, y3),
                 strokeWidth = stroke,

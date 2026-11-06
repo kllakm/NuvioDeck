@@ -27,10 +27,12 @@ internal fun enrichWatchProgressEntry(
         null
     }
     return current.copy(
-        videoId = if (current.source != WatchProgressSourceLocal && episodeVideo != null) {
-            episodeVideo.id.takeIf(String::isNotBlank) ?: current.videoId
-        } else {
-            current.videoId
+        videoId = when {
+            episodeVideo != null && episodeVideo.id.isNotBlank() -> episodeVideo.id
+            current.seasonNumber == null && current.episodeNumber == null &&
+                current.videoId.startsWith("tmdb:", ignoreCase = true) &&
+                meta.id.isNotBlank() -> meta.id
+            else -> current.videoId
         },
         title = meta.name.takeIf(String::isNotBlank) ?: current.title,
         poster = meta.poster?.takeIf(String::isNotBlank) ?: current.poster,

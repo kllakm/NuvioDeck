@@ -1998,8 +1998,12 @@ private fun ContinueWatchingItem.withFallbackMetadata(
         logo = logo.orNonBlank(fallback?.logo),
         poster = poster.orNonBlank(fallback?.poster),
         background = background.orNonBlank(fallback?.background),
-        videoId = if (preserveFallbackPlaybackIdentity) {
-            fallback?.videoId?.takeIf { it.isNotBlank() } ?: videoId
+        videoId = if (
+            preserveFallbackPlaybackIdentity &&
+            !fallback?.videoId.isNullOrBlank() &&
+            (!fallback.videoId.startsWith("tmdb:", ignoreCase = true) || videoId.startsWith("tmdb:", ignoreCase = true))
+        ) {
+            fallback.videoId
         } else {
             videoId
         },

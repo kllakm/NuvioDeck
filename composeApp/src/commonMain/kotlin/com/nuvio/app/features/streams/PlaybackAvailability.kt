@@ -17,24 +17,58 @@ import com.nuvio.app.features.servers.ServerRepository
 import com.nuvio.app.features.servers.ServerStreams
 
 internal fun AddonManifest.supportsStream(type: String, videoId: String): Boolean =
-    supportsResource("stream", type, videoId)
+    supportsResource("stream", MetaDetailsRepository.normalizePlaybackType(type), videoId)
 
 internal fun hasCompatiblePlaybackSource(
     addons: List<ManagedAddon>,
     plugins: PluginsUiState,
     type: String,
     videoId: String,
-): Boolean = addons.any { it.enabled && it.manifest?.supportsStream(type, videoId) == true } ||
-    (plugins.pluginsEnabled && plugins.scrapers.any { it.enabled && it.supportsType(type) })
+): Boolean {
+    val normalizedType = MetaDetailsRepository.normalizePlaybackType(type)
+    return addons.any { it.enabled && it.manifest?.supportsStream(normalizedType, videoId) == true } ||
+        (plugins.pluginsEnabled && plugins.scrapers.any { it.enabled && it.supportsType(normalizedType) })
+}
 
 internal class PlaybackAvailability(
     private val addons: List<ManagedAddon>,
     private val plugins: PluginsUiState,
 ) {
-    fun canStream(type: String, videoId: String): Boolean =
-        hasCompatiblePlaybackSource(addons, plugins, type, videoId) ||
+    fun canStream(type: String, videoId: String): Boolean {
+        val normalizedType = MetaDetailsRepository.normalizePlaybackType(type)
+        return hasCompatiblePlaybackSource(addons, plugins, normalizedType, videoId) ||
             MetaDetailsRepository.findEmbeddedStreams(videoId).isNotEmpty() ||
-            ServerStreams.canServe(type, videoId)
+            ServerStreams.canServe(normalizedType, videoId)
+    }
+
+    fun canStreamOrResolve(
+        type: String,
+        videoId: String,
+        parentMetaId: String = videoId,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null,
+    ): Boolean {
+        val normalizedType = MetaDetailsRepository.normalizePlaybackType(type)
+        val resolvedVideoId = MetaDetailsRepository.peekResolvedVideoId(
+            type = normalizedType,
+            videoId = videoId,
+            parentMetaId = parentMetaId,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
+        )
+        if (canStream(normalizedType, resolvedVideoId)) return true
+        if (parentMetaId.isNotBlank() && canStream(normalizedType, parentMetaId)) return true
+        if (addons.any { it.enabled && it.manifest == null && it.isRefreshing }) return true
+        if (videoId.startsWith("tmdb:", ignoreCase = true) || parentMetaId.startsWith("tmdb:", ignoreCase = true)) {
+            val probeImdbId = if (seasonNumber != null && episodeNumber != null) {
+                "tt0000000:$seasonNumber:$episodeNumber"
+            } else {
+                "tt0000000"
+            }
+            if (canStream(normalizedType, probeImdbId)) return true
+        }
+        return false
+    }
 
     fun canPlay(
         type: String,
@@ -42,7 +76,13 @@ internal class PlaybackAvailability(
         parentMetaId: String,
         seasonNumber: Int? = null,
         episodeNumber: Int? = null,
-    ): Boolean = canStream(type, videoId) || DownloadsRepository.findPlayableDownload(
+    ): Boolean = canStreamOrResolve(
+        type = type,
+        videoId = videoId,
+        parentMetaId = parentMetaId,
+        seasonNumber = seasonNumber,
+        episodeNumber = episodeNumber,
+    ) || DownloadsRepository.findPlayableDownload(
         parentMetaId = parentMetaId,
         seasonNumber = seasonNumber,
         episodeNumber = episodeNumber,

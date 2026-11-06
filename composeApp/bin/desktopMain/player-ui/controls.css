@@ -3863,13 +3863,13 @@ svg {
   display: inline-flex;
   align-items: center;
   gap: 14px;
-  padding: 9px 16px;
-  border-radius: 999px;
-  background: rgba(16, 16, 20, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: rgba(16, 16, 18, 0.68);
+  border: none;
+  box-shadow: none;
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
   pointer-events: none;
   opacity: 0;
   transform: translate3d(0, 12px, 0);
@@ -3911,28 +3911,60 @@ svg {
 .xbox-glyph-circle {
   width: 22px;
   height: 22px;
+  box-sizing: border-box;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
   color: #ffffff;
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
-  border: 1.25px solid rgba(255, 255, 255, 0.4);
+  border: 1.75px solid #ffffff;
 }
 
-.xbox-glyph-a { background: #107C10; }
-.xbox-glyph-b { background: #D83B01; }
-.xbox-glyph-x { background: #0078D4; }
-.xbox-glyph-y { background: #C19C00; }
+.xbox-glyph-a,
+.xbox-glyph-b,
+.xbox-glyph-x,
+.xbox-glyph-y {
+  padding-bottom: 1.5px;
+}
+
+.xbox-glyph-a { border-color: #38D430; color: #38D430; }
+.xbox-glyph-b { border-color: #FF3B30; color: #FF3B30; }
+.xbox-glyph-x { border-color: #2899FF; color: #2899FF; }
+.xbox-glyph-y { border-color: #FFC800; color: #FFC800; }
+
+.xbox-glyph-bumper-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .xbox-glyph-bumper {
   height: 20px;
-  padding: 0 7px;
-  border-radius: 6px;
-  background: #2B2B33;
-  border: 1.25px solid rgba(255, 255, 255, 0.45);
+  box-sizing: border-box;
+  padding: 0 6px 1.5px 6px;
+  border-radius: 7px 7px 4px 4px;
+  background: transparent;
+  border: 1.65px solid #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.xbox-glyph-trigger {
+  height: 20px;
+  box-sizing: border-box;
+  padding: 0 6px 1.5px 6px;
+  border-radius: 4px 4px 8px 8px;
+  background: transparent;
+  border: 1.65px solid #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;

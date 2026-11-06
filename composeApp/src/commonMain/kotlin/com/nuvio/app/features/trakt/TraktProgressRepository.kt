@@ -1254,7 +1254,25 @@ object TraktProgressRepository {
                 null
             }
 
+            val hydratedVideoId = if (!entry.isCompleted) {
+                episode?.id?.takeIf(String::isNotBlank)
+                    ?: if (resolvedSeason != null && resolvedEpisode != null && meta.id.isNotBlank()) {
+                        buildPlaybackVideoId(
+                            parentMetaId = meta.id,
+                            seasonNumber = resolvedSeason,
+                            episodeNumber = resolvedEpisode,
+                            fallbackVideoId = entry.videoId,
+                        )
+                    } else {
+                        meta.id.takeIf { it.isNotBlank() && entry.seasonNumber == null && entry.episodeNumber == null }
+                            ?: entry.videoId
+                    }
+            } else {
+                entry.videoId
+            }
+
             entry.copy(
+                videoId = hydratedVideoId,
                 title = entry.title.takeIf { it.isNotBlank() } ?: meta.name,
                 logo = entry.logo?.takeIf(String::isNotBlank) ?: meta.logo,
                 poster = entry.poster?.takeIf(String::isNotBlank) ?: meta.poster,

@@ -1038,36 +1038,86 @@ internal fun MainAppContent(
                 }
             }
 
-            if (!PlaybackAvailability.current().canStream(type, videoId)) {
-                NuvioToastController.show(playbackUnavailableMessage)
+            val normalizedType = MetaDetailsRepository.normalizePlaybackType(type.ifBlank { parentMetaType })
+            val normalizedParentMetaType = MetaDetailsRepository.normalizePlaybackType(parentMetaType.ifBlank { type })
+            val peekedVideoId = MetaDetailsRepository.peekResolvedVideoId(
+                type = normalizedType,
+                videoId = videoId,
+                parentMetaId = parentMetaId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+            )
+
+            fun navigateToStream(
+                resolvedType: String,
+                resolvedVideoId: String,
+                resolvedParentMetaId: String,
+                resolvedParentMetaType: String,
+            ) {
+                val streamLaunchId = StreamLaunchStore.put(
+                    StreamLaunch(
+                        profileId = activePlaybackProfileId,
+                        type = resolvedType,
+                        videoId = resolvedVideoId,
+                        parentMetaId = resolvedParentMetaId,
+                        parentMetaType = resolvedParentMetaType,
+                        title = title,
+                        logo = logo,
+                        poster = poster,
+                        background = background,
+                        seasonNumber = seasonNumber,
+                        episodeNumber = episodeNumber,
+                        episodeTitle = episodeTitle,
+                        episodeThumbnail = episodeThumbnail,
+                        pauseDescription = pauseDescription,
+                        resumePositionMs = if (startFromBeginning) 0L else resumePositionMs,
+                        resumeProgressFraction = targetResumeProgressFraction,
+                        manualSelection = manualSelection,
+                        startFromBeginning = startFromBeginning,
+                    ),
+                )
+                navController.navigate(
+                    StreamRoute(launchId = streamLaunchId, title = title),
+                )
+            }
+
+            val needsPlaybackTargetResolution =
+                !PlaybackAvailability.current().canStream(normalizedType, peekedVideoId) ||
+                    peekedVideoId.startsWith("tmdb:", ignoreCase = true) ||
+                    parentMetaId.startsWith("tmdb:", ignoreCase = true) ||
+                    (seasonNumber != null && episodeNumber != null &&
+                        (peekedVideoId.isBlank() || peekedVideoId.equals(parentMetaId, ignoreCase = true)))
+
+            if (!needsPlaybackTargetResolution) {
+                navigateToStream(
+                    resolvedType = normalizedType,
+                    resolvedVideoId = peekedVideoId,
+                    resolvedParentMetaId = parentMetaId,
+                    resolvedParentMetaType = normalizedParentMetaType,
+                )
                 return
             }
 
-            val streamLaunchId = StreamLaunchStore.put(
-                StreamLaunch(
-                    profileId = activePlaybackProfileId,
-                    type = type,
-                    videoId = videoId,
+            coroutineScope.launch {
+                val resolvedTarget = MetaDetailsRepository.resolvePlaybackTarget(
+                    type = normalizedType,
+                    videoId = peekedVideoId,
                     parentMetaId = parentMetaId,
-                    parentMetaType = parentMetaType,
-                    title = title,
-                    logo = logo,
-                    poster = poster,
-                    background = background,
+                    parentMetaType = normalizedParentMetaType,
                     seasonNumber = seasonNumber,
                     episodeNumber = episodeNumber,
-                    episodeTitle = episodeTitle,
-                    episodeThumbnail = episodeThumbnail,
-                    pauseDescription = pauseDescription,
-                    resumePositionMs = if (startFromBeginning) 0L else resumePositionMs,
-                    resumeProgressFraction = targetResumeProgressFraction,
-                    manualSelection = manualSelection,
-                    startFromBeginning = startFromBeginning,
-                ),
-            )
-            navController.navigate(
-                StreamRoute(launchId = streamLaunchId, title = title),
-            )
+                )
+                if (!PlaybackAvailability.current().canStream(resolvedTarget.type, resolvedTarget.videoId)) {
+                    NuvioToastController.show(playbackUnavailableMessage)
+                    return@launch
+                }
+                navigateToStream(
+                    resolvedType = resolvedTarget.type,
+                    resolvedVideoId = resolvedTarget.videoId,
+                    resolvedParentMetaId = resolvedTarget.parentMetaId,
+                    resolvedParentMetaType = resolvedTarget.parentMetaType,
+                )
+            }
         }
 
         fun openPartyMedia(media: PartyMedia) {
@@ -1208,7 +1258,13 @@ internal fun MainAppContent(
 
         fun canSelectContinueWatchingStreams(item: ContinueWatchingItem): Boolean =
             !item.isCloudLibraryContinueWatchingItem() &&
-                playbackAvailability.canStream(item.parentMetaType, item.videoId)
+                playbackAvailability.canStreamOrResolve(
+                    type = item.parentMetaType,
+                    videoId = item.videoId,
+                    parentMetaId = item.parentMetaId,
+                    seasonNumber = item.seasonNumber,
+                    episodeNumber = item.episodeNumber,
+                )
 
         val openContinueWatching: (ContinueWatchingItem, Boolean, Boolean) -> Unit = { item, manualSelection, startFromBeginning ->
             resumePromptItem = null
