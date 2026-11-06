@@ -1,4 +1,4 @@
-﻿package com.nuvio.app.features.auth
+package com.nuvio.app.features.auth
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -72,7 +72,12 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
+import com.nuvio.app.controller.ControllerFocusZone
+import com.nuvio.app.controller.PlatformVirtualKeyboard
+import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -714,6 +719,8 @@ private fun AuthForm(
     onPasswordBoundsChange: (Rect) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
+    val emailFocusRequester = remember { FocusRequester() }
+    val passwordFocusRequester = remember { FocusRequester() }
     Column(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -724,9 +731,28 @@ private fun AuthForm(
             icon = Icons.Rounded.Email,
             metrics = metrics,
             scale = scale,
-            modifier = Modifier.onGloballyPositioned { coordinates ->
-                onEmailBoundsChange(coordinates.boundsInRoot())
-            },
+            modifier = Modifier
+                .focusRequester(emailFocusRequester)
+                .controllerFocusable(
+                    id = "auth_email_field",
+                    zone = ControllerFocusZone.Content,
+                    groupKey = "auth_form",
+                    isDefaultFocus = true,
+                    isTextInput = true,
+                    shape = RoundedCornerShape(14.dp),
+                    onFocused = {
+                        emailFocusRequester.requestFocus()
+                        PlatformVirtualKeyboard.show(fromAutoFocus = true)
+                    },
+                    onSelect = {
+                        emailFocusRequester.requestFocus()
+                        PlatformVirtualKeyboard.show(fromAutoFocus = false)
+                    },
+                    selectLabel = "Type Email",
+                )
+                .onGloballyPositioned { coordinates ->
+                    onEmailBoundsChange(coordinates.boundsInRoot())
+                },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next,
@@ -745,9 +771,27 @@ private fun AuthForm(
             isPassword = true,
             passwordVisible = passwordVisible,
             onPasswordVisibilityToggle = onPasswordVisibilityToggle,
-            modifier = Modifier.onGloballyPositioned { coordinates ->
-                onPasswordBoundsChange(coordinates.boundsInRoot())
-            },
+            modifier = Modifier
+                .focusRequester(passwordFocusRequester)
+                .controllerFocusable(
+                    id = "auth_password_field",
+                    zone = ControllerFocusZone.Content,
+                    groupKey = "auth_form",
+                    isTextInput = true,
+                    shape = RoundedCornerShape(14.dp),
+                    onFocused = {
+                        passwordFocusRequester.requestFocus()
+                        PlatformVirtualKeyboard.show(fromAutoFocus = true)
+                    },
+                    onSelect = {
+                        passwordFocusRequester.requestFocus()
+                        PlatformVirtualKeyboard.show(fromAutoFocus = false)
+                    },
+                    selectLabel = "Type Password",
+                )
+                .onGloballyPositioned { coordinates ->
+                    onPasswordBoundsChange(coordinates.boundsInRoot())
+                },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done,
@@ -787,6 +831,14 @@ private fun AuthForm(
             height = metrics.primaryHeight,
             scale = scale,
             onClick = onSubmit,
+            modifier = Modifier.controllerFocusable(
+                id = "auth_primary_submit",
+                zone = ControllerFocusZone.Content,
+                groupKey = "auth_form",
+                shape = RoundedCornerShape(16.dp),
+                selectLabel = if (isSignUp) "Create Account" else "Sign In",
+                onSelect = onSubmit,
+            ),
         )
 
         Spacer(modifier = Modifier.height(metrics.toggleTop))
@@ -811,6 +863,14 @@ private fun AuthForm(
                 scale = scale,
                 onStart = onStartDeviceLink,
                 onCancel = onCancelDeviceLink,
+                modifier = Modifier.controllerFocusable(
+                    id = "auth_device_link_button",
+                    zone = ControllerFocusZone.Content,
+                    groupKey = "auth_form",
+                    shape = RoundedCornerShape(16.dp),
+                    selectLabel = "TV Login",
+                    onSelect = onStartDeviceLink,
+                ),
             )
 
             Spacer(modifier = Modifier.height(14.dp * scale))
@@ -822,6 +882,14 @@ private fun AuthForm(
             height = metrics.secondaryHeight,
             scale = scale,
             onClick = onContinueWithoutAccount,
+            modifier = Modifier.controllerFocusable(
+                id = "auth_guest_continue",
+                zone = ControllerFocusZone.Content,
+                groupKey = "auth_form",
+                shape = RoundedCornerShape(16.dp),
+                selectLabel = "Continue Without Account",
+                onSelect = onContinueWithoutAccount,
+            ),
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -975,10 +1043,11 @@ internal fun AuthPrimaryButton(
     height: Dp,
     scale: Float,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(height),
         enabled = enabled,
@@ -1052,7 +1121,16 @@ private fun AuthModeToggle(
             Text(
                 text = if (signUp) stringResource(Res.string.compose_auth_sign_in)
                 else stringResource(Res.string.compose_auth_sign_up),
-                modifier = Modifier.clickable(onClick = onToggleAuthMode),
+                modifier = Modifier
+                    .controllerFocusable(
+                        id = "auth_toggle_mode",
+                        zone = ControllerFocusZone.Content,
+                        groupKey = "auth_form",
+                        shape = RoundedCornerShape(8.dp),
+                        selectLabel = if (signUp) "Switch to Sign In" else "Switch to Sign Up",
+                        onSelect = onToggleAuthMode,
+                    )
+                    .clickable(onClick = onToggleAuthMode),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = AuthTextPrimary,
                     fontSize = (14f * scale).sp,
@@ -1102,10 +1180,11 @@ internal fun AuthSecondaryButton(
     height: Dp,
     scale: Float,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(height),
         enabled = enabled,

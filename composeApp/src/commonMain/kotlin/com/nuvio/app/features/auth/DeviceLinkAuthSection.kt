@@ -49,6 +49,7 @@ internal fun DeviceLinkAuthSection(
     scale: Float,
     onStart: () -> Unit,
     onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
     var openFailed by remember(state) { mutableStateOf(false) }
@@ -61,6 +62,7 @@ internal fun DeviceLinkAuthSection(
                 height = height,
                 scale = scale,
                 onClick = onStart,
+                modifier = modifier,
             )
         }
         DeviceLinkAuthState.Starting -> {
@@ -70,6 +72,7 @@ internal fun DeviceLinkAuthSection(
                 height = height,
                 scale = scale,
                 onClick = {},
+                modifier = modifier,
             )
         }
         is DeviceLinkAuthState.Waiting -> {

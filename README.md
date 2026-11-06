@@ -914,6 +914,24 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Canonical Playback Target Resolution (`MetaDetailsRepository.resolvePlaybackTarget`):** Added `resolvePlaybackTarget`, `peekResolvedVideoId`, and `normalizePlaybackType` in `MetaDetailsRepository` and integrated them into `launchPlaybackWithDownloadPreference` (`MainAppContent.kt`) and `PlaybackAvailability.canStreamOrResolve` (`PlaybackAvailability.kt`) so Continue Watching playback resolves canonical addon IDs, episode video IDs, and pending addon manifests just like the Details screen.
 - **Cached Embedded Streams Lookup & Hydrated `videoId` Preservation:** Updated `MetaDetailsRepository.findEmbeddedStreams` to search `cachedMetaByRequestKey` in addition to `_uiState.value.meta`, updated `TraktProgressRepository.hydrateEntriesWithAddonMeta` and `WatchProgressMetadataProjection.enrichWatchProgressEntry` to hydrate `videoId` from resolved `MetaDetails`, and prevented stale `tmdb:` fallback IDs from overwriting hydrated `videoId` values in `HomeScreen.withFallbackMetadata`.
 
+#### 3. Lightweight Instant-Response Login Screen & Immediate Controller Polling (`AuthScreen.kt`, `CinematicBackground.kt`, `Main.kt`, `AppGate.kt`)
+- **Full Controller Spatial Navigation on Login Screen:** Added `controllerFocusable` across Email input (`id = "auth_email_field"` with `isDefaultFocus = true`, `isTextInput = true`), Password input (`id = "auth_password_field"` with `isTextInput = true`), Sign In / Create Account primary button, mode toggle button, TV Login / Device Link button, and Guest ("Continue without account") button. Pressing `A` or `Y` immediately focuses the target field and triggers the native on-screen controller keyboard.
+- **Micro-Dither Optimization & Zero Startup Lag Spike:** Replaced the 65,536-pixel canvas `drawRect` loop in `createCinematicDitherBitmap()` with a lightweight 64x64 micro-dither pattern statically cached via `cachedDitherBrush by lazy`, eliminating startup thread blocking.
+- **Zero-CPU Static Background on Boot/Login:** Disabled 60fps infinite transition animation loops when `showParticles = false`, allowing `CinematicBackground` to render statically on the Login and loading screens with virtually 0% CPU and GPU load.
+- **Early Controller Polling at Process Start:** Added `WindowsControllerService.startIfNeeded()` directly into `main()` so XInput and DirectInput controller polling and hot-plugging are running before the first Compose frame renders.
+- **Deferred Unauthenticated Profile Data:** Prevented eager background avatar fetching in `AppGate.kt` until after authentication is established.
+
+#### 4. Windows Installed Apps / Uninstall Version Alignment (`build.gradle.kts`, `main.wxs`)
+- **Fixed `1.1.20` -> `0.1.20` Version Coercion:** Removed `numbers[0] = numbers[0].coerceAtLeast(1)` in `composeApp/build.gradle.kts`'s `jpackageCompatibleVersion` that was previously coercing major version `0` into `1` (`0.1.20` -> `1.1.20`).
+- **Explicit `DisplayVersion` Property in WiX Installer:** Added `<Property Id="DisplayVersion" Value="$(var.JpAppVersion)"/>` inside `<Product>` in `packaging/windows/main.wxs`, ensuring Windows Settings -> Apps -> Installed Apps (Add or Remove Programs) and the Windows registry accurately display `0.1.20`.
+
+#### 5. Center-Aligned Fluid Vertical Row Scrolling (`ControllerFocusEngine.kt`)
+- **Vertical Midpoint Centering on Row Traversal:** Rewrote `scrollVerticalContainerToNode` to calculate the visual midpoint of the selected row (`visualRowCenterY`) and smoothly align it to the screen's vertical center (`viewportCenterY = vh * 0.52f`), ensuring poster cards, shelf title headers, and metadata slide fully and smoothly into view as rows are traversed.
+- **Top Boundary Clamping:** Clamped negative scroll deltas against `firstVisibleItemScrollOffset` and top chrome safe margins, guaranteeing that scrolling back up to the first row or hero section never overscrolls past offset 0.
+- **Fluid Easing Curve:** Replaced abrupt `tween(200, easing = SnappyEaseOut)` with a smooth `tween(280, easing = FastOutSlowInEasing)`, completely eliminating juddery and unsmooth scroll effects.
+- **Horizontal Browsing Deadzone:** Added a vertical adjustment deadzone (`abs(delta) < 32f`) when moving left-to-right within the same row, keeping the row stationary while browsing cards horizontally.
+
+
 
 
 

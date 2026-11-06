@@ -157,7 +157,6 @@ internal fun AppGate(
         NetworkStatusRepository.ensureStarted()
         MemberAccessRepository.ensureStarted()
         ProfileRepository.loadCachedProfiles()
-        AvatarRepository.fetchAvatars()
     }
 
     val authState by AuthRepository.state.collectAsStateWithLifecycle()
@@ -399,6 +398,7 @@ internal fun AppGate(
         val authenticatedState = authState as? AuthState.Authenticated ?: return@LaunchedEffect
         ProfileRepository.ensureLoaded(authenticatedState.userId)
         ProfileRepository.pullProfiles()
+        AvatarRepository.fetchAvatars()
     }
 
     LaunchedEffect(

@@ -101,6 +101,8 @@
     <Icon Id="JpARPPRODUCTICON" SourceFile="$(var.JpIcon)"/>
     <?endif?>
 
+    <Property Id="DisplayVersion" Value="$(var.JpAppVersion)"/>
+
     <WixVariable Id="WixUIDialogBmp" Value="C:\GitHub\NuvioDesktop\packaging\windows\dialog.bmp" />
     <WixVariable Id="WixUIBannerBmp" Value="C:\GitHub\NuvioDesktop\packaging\windows\banner.bmp" />
 

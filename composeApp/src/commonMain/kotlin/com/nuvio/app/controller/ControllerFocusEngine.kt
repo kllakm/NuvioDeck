@@ -1,6 +1,7 @@
 package com.nuvio.app.controller
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -872,9 +873,6 @@ object ControllerFocusEngine {
                 ?: 900f
             val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
 
-            val topChromeSafeMargin = 85f * scaleFactor
-            val maxBottomSafeZone = vh - (85f * scaleFactor)
-
             val composedRows = getComposedContentRows()
             val targetRow = composedRows.firstOrNull { row -> row.nodes.any { it.id == node.id } }
 
@@ -898,9 +896,7 @@ object ControllerFocusEngine {
                 (!node.groupKey.isNullOrEmpty() && node.groupKey?.startsWith("shelf_") == true) ||
                 node.id.startsWith("view_all_pill_")
 
-            // Section header height + title-to-row spacing + row content padding:
-            // ~145f * scaleFactor (approx 130px on 720p, 175px on 1080p, 230px on 1440p)
-            val headerClearance = if (isShelfRow) 145f * scaleFactor else 0f
+            val headerClearance = if (isShelfRow) 52f * scaleFactor else 0f
 
             val rowPill = if (isShelfRow) {
                 nodes.values.firstOrNull {
@@ -912,83 +908,67 @@ object ControllerFocusEngine {
                 }
             } else null
 
-            val headerTop = if (isShelfRow) {
+            val visualTop = if (isShelfRow) {
                 minOf(
-                    rowPill?.boundsInRoot?.top?.let { it - 20f * scaleFactor } ?: Float.MAX_VALUE,
+                    rowPill?.boundsInRoot?.top?.let { it - 12f * scaleFactor } ?: Float.MAX_VALUE,
                     rowCardTop - headerClearance
                 )
             } else {
                 rowCardTop
             }
 
-            // Bottom of row includes card bottom + title below + detail text + bottom shelf padding
-            val rowBottom = rowCardBottom + (85f * scaleFactor)
-
-            val isClippedBottom = rowBottom > maxBottomSafeZone
-            val isClippedTop = headerTop < topChromeSafeMargin
-
-            if (direction == ControllerDirection.Down) {
-                // When navigating Down, bring the entire row (and its bottom metadata) into full view
-                if (isClippedBottom) {
-                    val delta = rowBottom - maxBottomSafeZone
-                    val maxAllowedDelta = (headerTop - topChromeSafeMargin).coerceAtLeast(0f)
-                    val effectiveDelta = if (maxAllowedDelta > 0f) delta.coerceAtMost(maxAllowedDelta) else delta
-                    if (effectiveDelta > 3f) {
-                        if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                    }
-                }
-            } else if (direction == ControllerDirection.Up) {
-                // When navigating Up, bring the entire section header and row into full view
-                if (isClippedTop) {
-                    val delta = headerTop - topChromeSafeMargin
-                    if (delta < -3f) {
-                        val effectiveDelta = if (listState?.firstVisibleItemIndex == 0) {
-                            delta.coerceAtLeast(-listState.firstVisibleItemScrollOffset.toFloat())
-                        } else if (gridState?.firstVisibleItemIndex == 0) {
-                            delta.coerceAtLeast(-gridState.firstVisibleItemScrollOffset.toFloat())
-                        } else if (scrollState != null) {
-                            delta.coerceAtLeast(-scrollState.value.toFloat())
-                        } else {
-                            delta
-                        }
-                        if (abs(effectiveDelta) > 2f) {
-                            if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                            else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                            else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        }
-                    }
-                }
+            val visualBottom = if (isShelfRow) {
+                rowCardBottom + (56f * scaleFactor)
             } else {
-                // Direction unspecified (click, direct focus transfer, horizontal traversal)
-                if (isClippedBottom) {
-                    val delta = rowBottom - maxBottomSafeZone
-                    val maxAllowedDelta = (headerTop - topChromeSafeMargin).coerceAtLeast(0f)
-                    val effectiveDelta = if (maxAllowedDelta > 0f) delta.coerceAtMost(maxAllowedDelta) else delta
-                    if (effectiveDelta > 3f) {
-                        if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
+                rowCardBottom
+            }
+
+            // Visual vertical center of the active row including title header and poster card
+            val visualRowCenterY = (visualTop + visualBottom) / 2f
+
+            // Viewport vertical center (offset slightly to account for top bar chrome)
+            val viewportCenterY = vh * 0.52f
+
+            var delta = visualRowCenterY - viewportCenterY
+
+            // When navigating horizontally within the same row, suppress vertical micro-jitter
+            if (direction == ControllerDirection.Left || direction == ControllerDirection.Right) {
+                if (abs(delta) < 32f) return@launch
+            }
+
+            // Boundary clamping at top of container: never overscroll past offset 0
+            if (delta < 0f) {
+                val maxScrollUp = if (listState?.firstVisibleItemIndex == 0) {
+                    listState.firstVisibleItemScrollOffset.toFloat()
+                } else if (gridState?.firstVisibleItemIndex == 0) {
+                    gridState.firstVisibleItemScrollOffset.toFloat()
+                } else if (scrollState != null) {
+                    scrollState.value.toFloat()
+                } else {
+                    Float.MAX_VALUE
+                }
+                delta = delta.coerceAtLeast(-maxScrollUp)
+
+                val topChromeSafeMargin = 85f * scaleFactor
+                if (visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
+                    val clampedDelta = visualTop - topChromeSafeMargin
+                    if (clampedDelta > delta) {
+                        delta = clampedDelta
                     }
-                } else if (isClippedTop) {
-                    val delta = headerTop - topChromeSafeMargin
-                    if (delta < -3f) {
-                        val effectiveDelta = if (listState?.firstVisibleItemIndex == 0) {
-                            delta.coerceAtLeast(-listState.firstVisibleItemScrollOffset.toFloat())
-                        } else if (gridState?.firstVisibleItemIndex == 0) {
-                            delta.coerceAtLeast(-gridState.firstVisibleItemScrollOffset.toFloat())
-                        } else if (scrollState != null) {
-                            delta.coerceAtLeast(-scrollState.value.toFloat())
-                        } else {
-                            delta
-                        }
-                        if (abs(effectiveDelta) > 2f) {
-                            if (listState != null) runCatching { listState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                            else if (gridState != null) runCatching { gridState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                            else if (scrollState != null) runCatching { scrollState.animateScrollBy(effectiveDelta, tween(200, easing = SnappyEaseOut)) }
-                        }
-                    }
+                }
+            }
+
+            if (abs(delta) > 4f) {
+                val smoothScrollSpec = tween<Float>(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing,
+                )
+                if (listState != null) {
+                    runCatching { listState.animateScrollBy(delta, smoothScrollSpec) }
+                } else if (gridState != null) {
+                    runCatching { gridState.animateScrollBy(delta, smoothScrollSpec) }
+                } else if (scrollState != null) {
+                    runCatching { scrollState.animateScrollBy(delta, smoothScrollSpec) }
                 }
             }
         }
@@ -1351,14 +1331,15 @@ object ControllerFocusEngine {
 
                 activeVerticalScrollJob?.cancel()
                 activeVerticalScrollJob = scope.launch {
+                    val fallbackSpec = tween<Float>(280, easing = FastOutSlowInEasing)
                     if (listState != null) {
-                        runCatching { listState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        runCatching { listState.animateScrollBy(scrollDistance, fallbackSpec) }
                     } else if (gridState != null) {
-                        runCatching { gridState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        runCatching { gridState.animateScrollBy(scrollDistance, fallbackSpec) }
                     } else if (scrollState != null) {
-                        runCatching { scrollState.animateScrollBy(scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        runCatching { scrollState.animateScrollBy(scrollDistance, fallbackSpec) }
                     }
-                    delay(210)
+                    delay(290)
                     val refreshedRows = getComposedContentRows()
                     val currentInRefreshed = refreshedRows.indexOfFirst { r ->
                         (currentRow.rowLazyListState != null && r.rowLazyListState === currentRow.rowLazyListState) ||
@@ -1412,11 +1393,12 @@ object ControllerFocusEngine {
                         else if (gridState != null) runCatching { gridState.animateScrollToItem(0, 0) }
                         else if (scrollState != null) runCatching { scrollState.animateScrollTo(0) }
                     } else {
-                        if (listState != null) runCatching { listState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
-                        else if (gridState != null) runCatching { gridState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
-                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(-scrollDistance, tween(200, easing = SnappyEaseOut)) }
+                        val fallbackSpec = tween<Float>(280, easing = FastOutSlowInEasing)
+                        if (listState != null) runCatching { listState.animateScrollBy(-scrollDistance, fallbackSpec) }
+                        else if (gridState != null) runCatching { gridState.animateScrollBy(-scrollDistance, fallbackSpec) }
+                        else if (scrollState != null) runCatching { scrollState.animateScrollBy(-scrollDistance, fallbackSpec) }
                     }
-                    delay(210)
+                    delay(290)
                     val refreshedRows = getComposedContentRows()
                     val currentInRefreshed = refreshedRows.indexOfFirst { r ->
                         (currentRow.rowLazyListState != null && r.rowLazyListState === currentRow.rowLazyListState) ||

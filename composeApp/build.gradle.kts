@@ -405,7 +405,6 @@ fun jpackageCompatibleVersion(version: String): String {
     while (numbers.size < 3) {
         numbers += 0
     }
-    numbers[0] = numbers[0].coerceAtLeast(1)
     return numbers.joinToString(".")
 }
 

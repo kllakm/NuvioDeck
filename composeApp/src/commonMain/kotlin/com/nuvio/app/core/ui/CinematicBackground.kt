@@ -51,8 +51,8 @@ private data class DustMote(
  * rendered at 1:1 native physical device pixels to mathematically eliminate color banding across
  * 8-bit, 10-bit, 1080p, 1440p, and 4K High-DPI panels without visible grain.
  */
-private fun createCinematicDitherBitmap(): ImageBitmap {
-    val size = 256
+private val cachedDitherBrush: ShaderBrush by lazy {
+    val size = 64
     val bitmap = ImageBitmap(size, size)
     val canvas = Canvas(bitmap)
     val paint = Paint()
@@ -69,7 +69,12 @@ private fun createCinematicDitherBitmap(): ImageBitmap {
             }
         }
     }
-    return bitmap
+    val shader = ImageShader(
+        image = bitmap,
+        tileModeX = TileMode.Repeated,
+        tileModeY = TileMode.Repeated,
+    )
+    ShaderBrush(shader)
 }
 
 /**
@@ -87,20 +92,10 @@ private fun createCinematicDitherBitmap(): ImageBitmap {
 fun CinematicBackground(
     modifier: Modifier = Modifier,
     accentColor: Color? = null,
-    showParticles: Boolean = true,
+    showParticles: Boolean = false,
 ) {
     val density = LocalDensity.current
-
-    // Micro-dither tile shader (created once, cached for the lifetime of the composition)
-    val ditherBrush = remember {
-        val ditherTile = createCinematicDitherBitmap()
-        val shader = ImageShader(
-            image = ditherTile,
-            tileModeX = TileMode.Repeated,
-            tileModeY = TileMode.Repeated,
-        )
-        ShaderBrush(shader)
-    }
+    val ditherBrush = cachedDitherBrush
 
     // Deterministic atmospheric particles matching the celestial nebula depth
     val dustMotes = remember {
@@ -127,26 +122,34 @@ fun CinematicBackground(
         }
     }
 
-    // Two desynchronized subtle motion loops to create organic breathing without repetition
-    val infiniteTransition = rememberInfiniteTransition(label = "cinematic_nebula_transition")
-    val pulsePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6.2831855f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "cinematic_pulse_phase",
-    )
-    val driftPhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6.2831855f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 32000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "cinematic_drift_phase",
-    )
+    // Motion loops only active if particles/animation are explicitly enabled
+    val pulsePhase = if (showParticles) {
+        val infiniteTransition = rememberInfiniteTransition(label = "cinematic_nebula_transition")
+        val pulse by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 6.2831855f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 20000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "cinematic_pulse_phase",
+        )
+        pulse
+    } else 0f
+
+    val driftPhase = if (showParticles) {
+        val infiniteTransition = rememberInfiniteTransition(label = "cinematic_drift_transition")
+        val drift by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 6.2831855f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 32000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "cinematic_drift_phase",
+        )
+        drift
+    } else 0f
 
     Box(
         modifier = modifier
