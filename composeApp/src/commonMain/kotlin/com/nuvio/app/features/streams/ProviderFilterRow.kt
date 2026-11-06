@@ -46,6 +46,7 @@ import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.backdropControlColor
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
 import nuvio.composeapp.generated.resources.streams_refresh
@@ -186,7 +187,7 @@ private fun FilterChip(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.primary
             isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            else -> backdropControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         },
         animationSpec = tween(durationMillis = 180),
         label = "filter_chip_container",
