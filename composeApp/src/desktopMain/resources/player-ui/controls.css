@@ -3886,7 +3886,7 @@ svg {
 }
 
 .controller-hint-toolbar.lifted {
-  bottom: 84px;
+  bottom: max(124px, calc(var(--slider-bottom) + 96px));
 }
 
 .controller-hint-item {
@@ -3929,7 +3929,8 @@ svg {
 .xbox-glyph-b,
 .xbox-glyph-x,
 .xbox-glyph-y {
-  padding-bottom: 1.5px;
+  padding-top: 1px;
+  padding-bottom: 0;
 }
 
 .xbox-glyph-a { border-color: #38D430; color: #38D430; }

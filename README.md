@@ -931,6 +931,22 @@ The shared app is built with Kotlin Multiplatform and Compose Multiplatform.
 - **Fluid Easing Curve:** Replaced abrupt `tween(200, easing = SnappyEaseOut)` with a smooth `tween(280, easing = FastOutSlowInEasing)`, completely eliminating juddery and unsmooth scroll effects.
 - **Horizontal Browsing Deadzone:** Added a vertical adjustment deadzone (`abs(delta) < 32f`) when moving left-to-right within the same row, keeping the row stationary while browsing cards horizontally.
 
+### Update (2026-11-07 07:00:00 +08:00) — v0.1.21 (Upstream Sync Test & Toolbar Refinement)
+
+#### 1. Controller Toolbar Cleanup: Removed Redundant "A" & "D-Pad" Hints (`ControllerHintToolbar.kt`, `controls.js`, `PinEntryDialog.kt`)
+- **Removed Self-Evident "A" Accept/Open Hints:** Removed `XboxGlyph.A` from all context hints across Home, Search, Library, Settings, Catalog, Details, Streams, Player, Profile Selection, and Modals, freeing toolbar real estate for genuinely helpful secondary actions and shortcuts.
+- **Removed Redundant D-Pad "Navigate" / "Show Controls":** Eliminated `XboxGlyph.DPad` hints from both the Compose hint toolbar and the player OSD toolbar (`controls.js`), keeping the toolbar clean and focused on essential button actions.
+- **Fail-Safe Filter:** Added automatic filtering in `ControllerHintToolbar.kt` and `syncControllerStateAndToolbar` in `controls.js` to ensure no `A` or `D-Pad` hints slip into the UI.
+
+#### 2. Player OSD Button Letter Optical Centering & Clearance (`controls.css`, `controls.js`)
+- **Centered Button Letters (A, X, Y):** Replaced inverted bottom padding on `.xbox-glyph-a`, `.xbox-glyph-b`, `.xbox-glyph-x`, and `.xbox-glyph-y` with optical top padding (`padding-top: 1px; padding-bottom: 0;`), placing capital letters dead-center inside circular outlines without touching the top rim.
+- **Lifted Toolbar Position Above Seek Bar:** Updated `.controller-hint-toolbar.lifted` to `bottom: max(124px, calc(var(--slider-bottom) + 96px));`, completely clearing the timeline scrub bar, time indicators, and focus rings so the toolbar floats neatly above the player controls without overlapping.
+
+#### 3. Upstream 0.1.35 Sync & Version Alignment (`NuvioDeckVersionConfig.kt`, `DesktopVersion.properties`)
+- **Upstream Merge:** Integrated 118 upstream commits from `NuvioMedia/NuvioDesktop:Dev` including full Tamil localization, Simkl/MDBList ratings, torrent stall resume, and GIF codec crash prevention.
+- **Version Bump:** Updated `NuvioDeckVersionConfig.FORK_VERSION_NAME` and `DesktopVersion.properties` to `0.1.21` (based on upstream Nuvio `0.1.35`).
+
+
 
 
 

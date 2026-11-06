@@ -128,7 +128,6 @@ fun PinEntryDialog(
 
     val pinHints = remember {
         listOf(
-            ControllerHintItem(XboxGlyph.A, "Enter Digit"),
             ControllerHintItem(XboxGlyph.X, "Delete"),
             ControllerHintItem(XboxGlyph.B, "Cancel"),
         )

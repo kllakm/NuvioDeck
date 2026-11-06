@@ -5,12 +5,12 @@ object NuvioDeckVersionConfig {
      * NuvioDeck fork version name.
      * Rule: Incremented by 1 in the last digit after each update (unless a major revision is specified).
      */
-    const val FORK_VERSION_NAME = "0.1.20"
+    const val FORK_VERSION_NAME = "0.1.21"
 
     /**
      * Upstream Nuvio base version tag that this fork is derived from.
      */
-    const val UPSTREAM_BASE_VERSION_NAME = "0.1.33"
+    const val UPSTREAM_BASE_VERSION_NAME = "0.1.35"
 
     const val FORK_NAME = "NuvioDeck"
     const val DEVELOPER_NAME = "kllakm"

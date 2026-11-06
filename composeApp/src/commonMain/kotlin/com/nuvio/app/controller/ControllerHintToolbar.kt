@@ -75,6 +75,7 @@ fun ControllerHintToolbar(
 
     val hints = remember(screenContext, focusedSnapshot) {
         buildContextHints(screenContext, focusedSnapshot)
+            .filter { it.glyph != XboxGlyph.A && it.glyph != XboxGlyph.DPad && it.glyph != XboxGlyph.LS }
     }
 
     AnimatedVisibility(
@@ -127,7 +128,7 @@ internal fun buildContextHints(
     focused: ControllerFocusNodeSnapshot?,
 ): List<ControllerHintItem> {
     if (context.customHints != null && context.customHints.isNotEmpty()) {
-        return context.customHints.filter { it.glyph != XboxGlyph.DPad && it.glyph != XboxGlyph.LS }
+        return context.customHints.filter { it.glyph != XboxGlyph.A && it.glyph != XboxGlyph.DPad && it.glyph != XboxGlyph.LS }
     }
 
     // 1. Active modal / overlay / sheet / dialog
@@ -138,13 +139,11 @@ internal fun buildContextHints(
         val isPinModal = focused?.id?.startsWith("pin_key_") == true || context.customHints?.any { it.actionLabel == "Enter Digit" } == true
         if (isPinModal) {
             return listOf(
-                ControllerHintItem(XboxGlyph.A, "Enter Digit"),
                 ControllerHintItem(XboxGlyph.X, "Delete"),
                 ControllerHintItem(XboxGlyph.B, "Cancel"),
             )
         }
         return buildList {
-            add(ControllerHintItem(XboxGlyph.A, focused?.selectLabel ?: context.selectLabel ?: "Select"))
             if (focused?.hasSecondaryAction == true && !focused.secondaryActionLabel.isNullOrBlank()) {
                 add(ControllerHintItem(XboxGlyph.X, focused.secondaryActionLabel))
             }
@@ -156,7 +155,6 @@ internal fun buildContextHints(
     if (focused?.isTextInput == true) {
         val keyboardOpen = PlatformVirtualKeyboard.isKeyboardActive
         return buildList {
-            add(ControllerHintItem(XboxGlyph.A, if (keyboardOpen) "Keyboard" else (focused.selectLabel.takeIf { it.isNotBlank() } ?: "Type / Keyboard")))
             if (focused.hasSecondaryAction && !focused.secondaryActionLabel.isNullOrBlank()) {
                 add(ControllerHintItem(XboxGlyph.X, focused.secondaryActionLabel))
             }
@@ -167,26 +165,22 @@ internal fun buildContextHints(
     // 3. Navigation Zone (Sidebar / TopBar)
     if (focused?.zone == ControllerFocusZone.Navigation) {
         return listOf(
-            ControllerHintItem(XboxGlyph.A, focused.selectLabel.ifBlank { "Switch Tab" }),
             ControllerHintItem(XboxGlyph.LB_RB, "Tabs"),
             ControllerHintItem(XboxGlyph.B, "Content"),
         )
     }
 
     // 3. Screen-specific action button hints
-    val selectLabel = focused?.selectLabel?.takeIf { it.isNotBlank() } ?: "Select"
     val xLabel = focused?.secondaryActionLabel?.takeIf { focused.hasSecondaryAction && it.isNotBlank() }
     val yLabel = focused?.tertiaryActionLabel?.takeIf { focused.hasTertiaryAction && it.isNotBlank() }
 
     return when (context.screenType) {
         ControllerScreenType.ProfileSelection -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) add(ControllerHintItem(XboxGlyph.X, xLabel))
             if (context.canNavigateBack) add(ControllerHintItem(XboxGlyph.B, "Back"))
         }
 
         ControllerScreenType.Home -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) {
                 add(ControllerHintItem(XboxGlyph.X, xLabel))
             }
@@ -196,7 +190,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Search -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             add(ControllerHintItem(XboxGlyph.X, xLabel ?: "Clear Search"))
             add(ControllerHintItem(XboxGlyph.Y, yLabel ?: "Focus Search"))
             add(ControllerHintItem(XboxGlyph.LB_RB, "Tabs"))
@@ -205,7 +198,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Library -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) {
                 add(ControllerHintItem(XboxGlyph.X, xLabel))
             }
@@ -215,7 +207,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Settings -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) add(ControllerHintItem(XboxGlyph.X, xLabel))
             add(ControllerHintItem(XboxGlyph.LB_RB, "Tabs"))
             add(ControllerHintItem(XboxGlyph.Menu, "Navigation"))
@@ -223,7 +214,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Catalog -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) add(ControllerHintItem(XboxGlyph.X, xLabel))
             if (context.hasSeasonsOrTabs) {
                 add(ControllerHintItem(XboxGlyph.LB_RB, context.seasonsOrTabsLabel ?: "Switch Folder"))
@@ -233,7 +223,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Details -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel))
             if (xLabel != null) {
                 add(ControllerHintItem(XboxGlyph.X, xLabel))
             }
@@ -247,7 +236,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Streams -> buildList {
-            add(ControllerHintItem(XboxGlyph.A, selectLabel.takeIf { it != "Select" } ?: "Play"))
             add(ControllerHintItem(XboxGlyph.X, xLabel ?: "Options"))
             add(ControllerHintItem(XboxGlyph.Y, yLabel ?: "Reload"))
             if (context.hasSeasonsOrTabs) {
@@ -257,7 +245,6 @@ internal fun buildContextHints(
         }
 
         ControllerScreenType.Player -> listOf(
-            ControllerHintItem(XboxGlyph.A, "Play / Pause"),
             ControllerHintItem(XboxGlyph.LB_RB, "Seek 10s"),
             ControllerHintItem(XboxGlyph.X, "Audio"),
             ControllerHintItem(XboxGlyph.Y, "Subtitles"),
@@ -267,7 +254,6 @@ internal fun buildContextHints(
 
         ControllerScreenType.Modal,
         ControllerScreenType.ModalOverlay -> listOf(
-            ControllerHintItem(XboxGlyph.A, selectLabel),
             ControllerHintItem(XboxGlyph.B, "Close"),
         )
     }

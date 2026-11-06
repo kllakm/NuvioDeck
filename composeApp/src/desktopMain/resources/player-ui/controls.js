@@ -4740,10 +4740,7 @@ function focusTier2Element(el) {
 
 function getPlayerControllerHints() {
   if (activeModal || fontPickerOpen) {
-    const hints = [
-      { glyph: "D-Pad", label: "Navigate" },
-      { glyph: "A", label: "Select" },
-    ];
+    const hints = [];
     if (activeModal === "episodes" || activeModal === "sources" || activeModal === "subtitles") {
       hints.push({ glyph: "LB/RB", label: "Tabs / Filter" });
     }
@@ -4752,19 +4749,13 @@ function getPlayerControllerHints() {
   }
   if (!state.controlsVisible) {
     return [
-      { glyph: "D-Pad", label: "Show Controls" },
-      { glyph: "A", label: state.isPlaying ? (state.pauseLabel || "Pause") : (state.playLabel || "Play") },
       { glyph: "LB/RB", label: "-10s / +10s" },
       { glyph: "X", label: state.audioLabel || "Audio" },
       { glyph: "Y", label: state.subtitlesLabel || "Subs" },
       { glyph: "B", label: state.backLabel || "Back" },
     ];
   }
-  const currentTier = getCurrentOsdTier();
-  const dpadLabel = currentTier === 1 ? "Seek (L/R) / Tiers" : "Navigate";
   const hints = [
-    { glyph: "D-Pad", label: dpadLabel },
-    { glyph: "A", label: "Select" },
     { glyph: "LB/RB", label: "-10s / +10s" },
     { glyph: "X", label: state.audioLabel || "Audio" },
     { glyph: "Y", label: state.subtitlesLabel || "Subs" },
@@ -4793,7 +4784,7 @@ function syncControllerStateAndToolbar() {
   }
   const shouldLift = Boolean(state && state.controlsVisible && !activeModal && !playbackErrorText());
   toolbar.classList.toggle("lifted", shouldLift);
-  const hints = getPlayerControllerHints();
+  const hints = getPlayerControllerHints().filter(item => item && item.glyph !== "A" && item.glyph !== "D-Pad");
   const signature = JSON.stringify(hints);
   if (signature !== lastControllerToolbarSignature) {
     lastControllerToolbarSignature = signature;
