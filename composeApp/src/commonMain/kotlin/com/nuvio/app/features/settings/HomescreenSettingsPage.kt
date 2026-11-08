@@ -2,6 +2,7 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -33,11 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
@@ -131,28 +135,30 @@ internal fun LazyListScope.homescreenSettingsContent(
                     HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
                 )
                 val tokens = MaterialTheme.nuvio
+                val isRowLimitFocused = isControllerNodeFocused("settings_homescreen_row_item_limit")
+                val rowLimitBg = if (isRowLimitFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(rowLimitBg, RoundedCornerShape(12.dp))
                         .controllerFocusable(
                             id = "settings_homescreen_row_item_limit",
+                            groupKey = "settings_content",
                             cornerRadius = 12.dp,
+                            focusScale = 1.0f,
+                            hideFocusRing = true,
                             selectLabel = "Row Poster Limit",
                             onMoveLeft = {
                                 if (rowItemLimit > HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT) {
                                     HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit - 1)
-                                    true
-                                } else {
-                                    false
                                 }
+                                true
                             },
                             onMoveRight = {
                                 if (rowItemLimit < HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
                                     HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit + 1)
-                                    true
-                                } else {
-                                    false
                                 }
+                                true
                             },
                             onSelect = {
                                 val next = if (rowItemLimit >= HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
@@ -295,13 +301,26 @@ private fun HeroSourcesDropdown(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
 ) {
+    val tokens = MaterialTheme.nuvio
     val noSourcesSelected = stringResource(Res.string.settings_homescreen_no_sources_selected)
+    val isHeroHeaderFocused = isControllerNodeFocused("settings_homescreen_hero_sources_header")
+    val heroHeaderBg = if (isHeroHeaderFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
     SettingsGroup(isTablet = isTablet) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-                .clickable { onExpandedChange(!expanded) },
+                .background(heroHeaderBg, RoundedCornerShape(12.dp))
+                .controllerFocusable(
+                    id = "settings_homescreen_hero_sources_header",
+                    groupKey = "settings_content",
+                    cornerRadius = 12.dp,
+                    focusScale = 1.0f,
+                    hideFocusRing = true,
+                    selectLabel = if (expanded) "Collapse" else "Expand",
+                    onSelect = { onExpandedChange(!expanded) },
+                )
+                .clickable { onExpandedChange(!expanded) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(

@@ -1492,8 +1492,41 @@ tasks.matching { it.name == "notarizeReleaseDmg" }.configureEach {
     }
 }
 
+fun copyWindowsBrandingAssets(appDir: File) {
+    if (!isWindowsHost || !appDir.exists()) return
+    val brandingDir = rootProject.file("packaging/windows/branding")
+    if (!brandingDir.exists()) return
+    brandingDir.walkTopDown().forEach { file ->
+        val rel = file.relativeTo(brandingDir)
+        val dest = appDir.resolve(rel.path)
+        if (file.isDirectory) {
+            dest.mkdirs()
+        } else {
+            dest.parentFile?.mkdirs()
+            file.copyTo(dest, overwrite = true)
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("createDistributable") }.configureEach {
+    doLast {
+        if (isWindowsHost) {
+            listOf("main", "main-release").forEach { dist ->
+                val appDir = layout.buildDirectory.dir("compose/binaries/$dist/app/NuvioDeck").get().asFile
+                copyWindowsBrandingAssets(appDir)
+            }
+        }
+    }
+}
+
 tasks.matching { it.name == "packageMsi" }.configureEach {
     notCompatibleWithConfigurationCache("Windows MSI artifact publication uses script file operations.")
+    doFirst {
+        if (isWindowsHost) {
+            val appDir = layout.buildDirectory.dir("compose/binaries/main/app/NuvioDeck").get().asFile
+            copyWindowsBrandingAssets(appDir)
+        }
+    }
     doLast {
         publishWindowsMsiOutput(release = false)
     }
@@ -1501,6 +1534,12 @@ tasks.matching { it.name == "packageMsi" }.configureEach {
 
 tasks.matching { it.name == "packageReleaseMsi" }.configureEach {
     notCompatibleWithConfigurationCache("Windows MSI artifact publication uses script file operations.")
+    doFirst {
+        if (isWindowsHost) {
+            val appDir = layout.buildDirectory.dir("compose/binaries/main-release/app/NuvioDeck").get().asFile
+            copyWindowsBrandingAssets(appDir)
+        }
+    }
     doLast {
         publishWindowsMsiOutput(release = true)
     }

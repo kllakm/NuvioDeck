@@ -300,6 +300,9 @@ object ControllerFocusEngine {
     fun onRouteOrTabChanged(routeKey: Any? = null) {
         val newRouteStr = routeKey?.toString()
         val routeChanged = activeRouteKey != null && activeRouteKey != newRouteStr
+        if (routeChanged) {
+            saveCurrentRouteFocusMemory()
+        }
         activeRouteKey = newRouteStr
 
         // Purge nodes whose enabled is false or whose bounds are empty
@@ -407,8 +410,8 @@ object ControllerFocusEngine {
                     suppressVerticalScroll = true,
                     suppressHorizontalScroll = false,
                 )
+                return
             }
-            return
         }
 
         if (currentId == node.id) {
@@ -457,11 +460,15 @@ object ControllerFocusEngine {
             _focusedNodeSnapshot.value = null
             isInternalCleanupFocus = true
             try {
-                // If an overlay just closed, restore Content focus; otherwise pick nearest node in same zone
+                // If an overlay just closed, restore Content focus unless Navigation focus is actively selected
                 if (removed?.zone == ControllerFocusZone.Overlay) {
                     val remainingOverlay = nodes.values.filter { it.zone == ControllerFocusZone.Overlay && it.isVisibleAndValid }
                     if (remainingOverlay.isNotEmpty()) {
                         focusNodeInternal(remainingOverlay.first(), triggerScroll = false)
+                        return
+                    }
+                    val currentNav = _focusedNodeId.value?.let { nodes[it] }?.takeIf { it.isVisibleAndValid }
+                    if (currentNav?.zone == ControllerFocusZone.Navigation) {
                         return
                     }
                     val restoredContentId = lastFocusedByZone[ControllerFocusZone.Content]
@@ -537,9 +544,10 @@ object ControllerFocusEngine {
 
         val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
         if (contentNodes.isNotEmpty()) {
-            val rememberedId = lastFocusedByZone[ControllerFocusZone.Content]
+            val routeSavedId = activeRouteKey?.let { routeFocusHistory[it]?.focusedNodeId }
+            val rememberedId = routeSavedId ?: lastFocusedByZone[ControllerFocusZone.Content]
             val remembered = rememberedId?.let { id -> contentNodes.firstOrNull { it.id == id } }
-            if (hasUserNavigatedOnCurrentRoute && remembered != null) {
+            if (remembered != null) {
                 focusNodeInternal(remembered, triggerScroll = false)
                 return true
             }
@@ -1102,6 +1110,23 @@ object ControllerFocusEngine {
 
             var delta = visualRowCenterY - viewportCenterY
 
+            // Directional scroll safety:
+            // When navigating UP, we must NEVER scroll down (positive delta)
+            if (direction == ControllerDirection.Up && delta > 0f) {
+                delta = 0f
+            }
+            // When navigating DOWN, we must NEVER scroll up (negative delta)
+            if (direction == ControllerDirection.Down && delta < 0f) {
+                delta = 0f
+            }
+
+            // If non-shelf vertical content is already fully visible inside viewport safe margins, do not scroll
+            val topChromeSafeMargin = 85f * scaleFactor
+            val bottomSafeMargin = vh - (40f * scaleFactor)
+            if (!isShelfRow && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
+                delta = 0f
+            }
+
             // When navigating horizontally within the same row, suppress vertical micro-jitter
             if (direction == ControllerDirection.Left || direction == ControllerDirection.Right) {
                 if (abs(delta) < 32f) return@launch
@@ -1120,7 +1145,6 @@ object ControllerFocusEngine {
                 }
                 delta = delta.coerceAtLeast(-maxScrollUp)
 
-                val topChromeSafeMargin = 85f * scaleFactor
                 if (visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
                     val clampedDelta = visualTop - topChromeSafeMargin
                     if (clampedDelta > delta) {
@@ -1414,18 +1438,6 @@ object ControllerFocusEngine {
                 focusNodeInternal(target, triggerScroll = true, direction = direction)
                 return true
             }
-            if (direction == ControllerDirection.Up) {
-                val navNodes = nodes.values.filter { it.zone == ControllerFocusZone.Navigation && it.isVisibleAndValid }
-                if (navNodes.isNotEmpty()) {
-                    val navTarget = navNodes.firstOrNull { it.isDefaultFocus }
-                        ?: lastFocusedByZone[ControllerFocusZone.Navigation]?.let { id -> navNodes.firstOrNull { it.id == id } }
-                        ?: navNodes.minByOrNull { abs(it.unclippedBoundsInRoot.center.x - current.boundsInRoot.center.x) }
-                    if (navTarget != null) {
-                        focusNodeInternal(navTarget, triggerScroll = false, direction = direction)
-                        return true
-                    }
-                }
-            }
             return true
         }
 
@@ -1654,6 +1666,15 @@ object ControllerFocusEngine {
                 return ensureValidFocus()
             }
 
+        // Check custom node directional overrides first
+        val customHandled = when (direction) {
+            ControllerDirection.Up -> current.onMoveUp?.invoke() == true
+            ControllerDirection.Down -> current.onMoveDown?.invoke() == true
+            ControllerDirection.Left -> current.onMoveLeft?.invoke() == true
+            ControllerDirection.Right -> current.onMoveRight?.invoke() == true
+        }
+        if (customHandled) return true
+
         // Deterministic Netflix/Android TV row navigation for Content zone Up and Down
         if (activeZone == ControllerFocusZone.Content &&
             (direction == ControllerDirection.Down || direction == ControllerDirection.Up)
@@ -1673,8 +1694,7 @@ object ControllerFocusEngine {
                         (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_")))
                 }
                 if (contentNodes.isNotEmpty()) {
-                    val target = contentNodes.minByOrNull { abs(it.boundsInRoot.center.y - current.boundsInRoot.center.y) }
-                        ?: contentNodes.minByOrNull { it.boundsInRoot.top }
+                    val target = contentNodes.minByOrNull { it.boundsInRoot.top }
                         ?: contentNodes.first()
                     focusNodeInternal(target, triggerScroll = true, direction = direction)
                     return true
@@ -1721,15 +1741,6 @@ object ControllerFocusEngine {
                 return true
             }
         }
-
-        // Check custom node directional overrides first
-        val customHandled = when (direction) {
-            ControllerDirection.Up -> current.onMoveUp?.invoke() == true
-            ControllerDirection.Down -> current.onMoveDown?.invoke() == true
-            ControllerDirection.Left -> current.onMoveLeft?.invoke() == true
-            ControllerDirection.Right -> current.onMoveRight?.invoke() == true
-        }
-        if (customHandled) return true
 
         val zoneCandidates = nodes.values.filter {
             it.zone == activeZone && it.isVisibleAndValid && it.id != current.id
@@ -1875,17 +1886,8 @@ object ControllerFocusEngine {
                         return true
                     }
                 }
-                // At the very top of Content: transition to TopBar Navigation if present
-                val navNodes = nodes.values.filter { it.zone == ControllerFocusZone.Navigation && it.isVisibleAndValid }
-                if (navNodes.isNotEmpty()) {
-                    val target = navNodes.firstOrNull { it.isDefaultFocus }
-                        ?: lastFocusedByZone[ControllerFocusZone.Navigation]?.let { id -> navNodes.firstOrNull { it.id == id } }
-                        ?: navNodes.minByOrNull { abs(it.boundsInRoot.center.x - current.boundsInRoot.center.x) }
-                    if (target != null) {
-                        focusNodeInternal(target, triggerScroll = false)
-                        return true
-                    }
-                }
+                // At the very top of Content: clamp and remain in Content zone
+                return true
             } else if (direction == ControllerDirection.Down) {
                 // Scroll vertical container down to compose the next shelf/row
                 val activeScroll = getActiveScrollable()

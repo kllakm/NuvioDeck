@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -129,9 +130,12 @@ object TopBarTabOrderController {
         internal set
 
     internal var focusFullscreenAction: (() -> Unit)? = null
+    internal var focusNotificationsAction: (() -> Unit)? = null
+    internal var focusProfileAction: (() -> Unit)? = null
     internal var openNotificationsAction: (() -> Unit)? = null
     internal var openProfileAction: (() -> Unit)? = null
     internal var closeDropdownsAction: (() -> Unit)? = null
+    internal var activateTabAction: ((AppScreenTab) -> Unit)? = null
 
     /**
      * Cycles through the 7 top bar items in visual left-to-right order:
@@ -142,13 +146,14 @@ object TopBarTabOrderController {
         selectedTab: AppScreenTab,
         activateTab: (AppScreenTab) -> Unit,
     ): Boolean {
+        activateTabAction = activateTab
         val tabs = AppScreenTab.entries
         val totalSlots = tabs.size + 3 // 4 main tabs + Fullscreen (4) + Notifications (5) + Profile (6)
         val focusedId = ControllerFocusEngine.focusedNodeId.value
 
         val currentSlot = when {
-            isProfileOpen || focusedId == TOP_NAV_PROFILE_ID -> tabs.size + 2
-            isNotificationOpen || focusedId == TOP_NAV_NOTIFICATIONS_ID -> tabs.size + 1
+            isProfileOpen || focusedId == TOP_NAV_PROFILE_ID || focusedId?.startsWith("top_profile_") == true -> tabs.size + 2
+            isNotificationOpen || focusedId == TOP_NAV_NOTIFICATIONS_ID || focusedId?.startsWith("notification_") == true || focusedId?.startsWith("top_notification") == true -> tabs.size + 1
             focusedId == TOP_NAV_FULLSCREEN_ID -> tabs.size
             else -> tabs.indexOf(selectedTab).coerceIn(0, tabs.lastIndex)
         }
@@ -163,15 +168,18 @@ object TopBarTabOrderController {
                 true
             }
             tabs.size -> {
+                closeDropdownsAction?.invoke()
                 focusFullscreenAction?.invoke()
                 true
             }
             tabs.size + 1 -> {
-                openNotificationsAction?.invoke()
+                closeDropdownsAction?.invoke()
+                focusNotificationsAction?.invoke()
                 true
             }
             tabs.size + 2 -> {
-                openProfileAction?.invoke()
+                closeDropdownsAction?.invoke()
+                focusProfileAction?.invoke()
                 true
             }
             else -> false
@@ -228,9 +236,36 @@ internal fun NuvioDeckTopNavigationBar(
         ControllerFocusEngine.setTopBarVisibleByScroll(true)
         isNotificationDropdownOpen = false
         isProfileDropdownOpen = false
+        ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+        ControllerFocusEngine.requestFocus(TOP_NAV_FULLSCREEN_ID, triggerScroll = false)
         scope.launch {
-            delay(25)
+            delay(20)
+            ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
             ControllerFocusEngine.requestFocus(TOP_NAV_FULLSCREEN_ID, triggerScroll = false)
+        }
+    }
+    TopBarTabOrderController.focusNotificationsAction = {
+        ControllerFocusEngine.setTopBarVisibleByScroll(true)
+        isNotificationDropdownOpen = false
+        isProfileDropdownOpen = false
+        ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+        ControllerFocusEngine.requestFocus(TOP_NAV_NOTIFICATIONS_ID, triggerScroll = false)
+        scope.launch {
+            delay(20)
+            ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+            ControllerFocusEngine.requestFocus(TOP_NAV_NOTIFICATIONS_ID, triggerScroll = false)
+        }
+    }
+    TopBarTabOrderController.focusProfileAction = {
+        ControllerFocusEngine.setTopBarVisibleByScroll(true)
+        isNotificationDropdownOpen = false
+        isProfileDropdownOpen = false
+        ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+        ControllerFocusEngine.requestFocus(TOP_NAV_PROFILE_ID, triggerScroll = false)
+        scope.launch {
+            delay(20)
+            ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+            ControllerFocusEngine.requestFocus(TOP_NAV_PROFILE_ID, triggerScroll = false)
         }
     }
     TopBarTabOrderController.openNotificationsAction = {
@@ -255,6 +290,7 @@ internal fun NuvioDeckTopNavigationBar(
     TopBarTabOrderController.closeDropdownsAction = {
         isNotificationDropdownOpen = false
         isProfileDropdownOpen = false
+        ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
     }
 
     // Track scroll direction from both nestedScroll (mouse wheel/touch) and active LazyList/Grid/ScrollState (controller D-Pad & mouse wheel)
@@ -792,6 +828,16 @@ private fun NotificationCenterDropdownPanel(
             onDismiss()
             true
         },
+        onBumperLeft = {
+            onDismiss()
+            TopBarTabOrderController.focusFullscreenAction?.invoke()
+            true
+        },
+        onBumperRight = {
+            onDismiss()
+            TopBarTabOrderController.focusProfileAction?.invoke()
+            true
+        },
     )
 
     LaunchedEffect(cappedItems.size) {
@@ -1100,6 +1146,22 @@ private fun StandaloneProfileSwitcherDropdownPanel(
                 true
             }
         },
+        onBumperLeft = {
+            if (pinTargetProfile != null) {
+                pinTargetProfile = null
+            }
+            onDismiss()
+            TopBarTabOrderController.focusNotificationsAction?.invoke()
+            true
+        },
+        onBumperRight = {
+            if (pinTargetProfile != null) {
+                pinTargetProfile = null
+            }
+            onDismiss()
+            TopBarTabOrderController.activateTabAction?.invoke(AppScreenTab.Home)
+            true
+        },
     )
 
     val manageNodeId = "top_profile_dropdown_manage"
@@ -1118,7 +1180,7 @@ private fun StandaloneProfileSwitcherDropdownPanel(
 
     Surface(
         modifier = Modifier
-            .width(276.dp)
+            .width(if (pinTargetProfile != null) 336.dp else 276.dp)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
                     if (pinTargetProfile != null) {
@@ -1390,9 +1452,9 @@ private fun DropdownPinEntryPad(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1428,36 +1490,49 @@ private fun DropdownPinEntryPad(
             )
         }
 
-        // Sleek recessed pill for PIN status dots
-        Row(
+        // Sleek recessed pill for PIN status dots or loading indicator
+        Box(
             modifier = Modifier
+                .height(38.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color.White.copy(alpha = 0.04f))
                 .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                .padding(horizontal = 20.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            repeat(4) { idx ->
-                val filled = idx < pin.length
-                val hasErr = !error.isNullOrBlank()
-                val dotColor = when {
-                    hasErr -> MaterialTheme.colorScheme.error
-                    filled -> tokens.colors.accent
-                    else -> Color.White.copy(alpha = 0.22f)
-                }
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .then(
-                            if (filled) {
-                                Modifier.background(dotColor, CircleShape)
-                            } else {
-                                Modifier.border(1.5.dp, dotColor, CircleShape)
-                            },
-                        ),
+            if (isVerifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = tokens.colors.accent,
+                    strokeWidth = 2.dp,
                 )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    repeat(4) { idx ->
+                        val filled = idx < pin.length
+                        val hasErr = !error.isNullOrBlank()
+                        val dotColor = when {
+                            hasErr -> MaterialTheme.colorScheme.error
+                            filled -> tokens.colors.accent
+                            else -> Color.White.copy(alpha = 0.22f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .then(
+                                    if (filled) {
+                                        Modifier.background(dotColor, CircleShape)
+                                    } else {
+                                        Modifier.border(1.5.dp, dotColor, CircleShape)
+                                    },
+                                ),
+                        )
+                    }
+                }
             }
         }
 
@@ -1477,11 +1552,12 @@ private fun DropdownPinEntryPad(
             listOf("Cancel", "0", "Del"),
         )
         Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             rows.forEach { row ->
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 ) {
                     row.forEach { keyLabel ->
                         val nodeId = "top_profile_pin_digit_$keyLabel"
@@ -1510,8 +1586,8 @@ private fun DropdownPinEntryPad(
 
                         Box(
                             modifier = Modifier
-                                .width(76.dp)
-                                .height(38.dp)
+                                .width(88.dp)
+                                .height(44.dp)
                                 .clip(keyShape)
                                 .background(keyBg, keyShape)
                                 .border(1.dp, keyBorder, keyShape)
@@ -1538,13 +1614,13 @@ private fun DropdownPinEntryPad(
                                         imageVector = Icons.AutoMirrored.Rounded.Backspace,
                                         contentDescription = "Delete",
                                         tint = if (isFocused) Color.White else tokens.colors.textSecondary,
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                                 "Cancel" -> {
                                     Text(
                                         text = "Cancel",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                         fontWeight = FontWeight.SemiBold,
                                         color = if (isFocused) Color.White else tokens.colors.textMuted,
                                     )
@@ -1552,7 +1628,7 @@ private fun DropdownPinEntryPad(
                                 else -> {
                                     Text(
                                         text = keyLabel,
-                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
+                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
                                         fontWeight = FontWeight.SemiBold,
                                         color = if (isFocused) Color.White else tokens.colors.textPrimary,
                                     )

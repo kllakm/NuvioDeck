@@ -299,6 +299,7 @@ fun NuvioPosterCard(
                     zoomImageUrl = imageUrl,
                     zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
                     hoverScaleEnabled = false,
+                    focusId = remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" },
                 )
                 .clip(cardShape)
                 .background(tokens.colors.surface)
@@ -461,7 +462,7 @@ private fun NuvioSeeAllPosterCard(
     val cardWidth = shape.cardWidth(basePosterWidthDp = effectiveBasePosterWidthDp)
     val cardShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
     val viewAllText = stringResource(Res.string.home_view_all)
-    val cardId = remember(title, onClick) { "see_all_card_${title}_${onClick.hashCode()}" }
+    val cardId = remember(title) { "see_all_card_${title.hashCode()}" }
 
     Column(
         modifier = Modifier
@@ -476,6 +477,7 @@ private fun NuvioSeeAllPosterCard(
                 .aspectRatio(shape.aspectRatio)
                 .controllerFocusable(
                     id = cardId,
+                    groupKey = remember(title) { "shelf_${title.hashCode()}" },
                     shape = cardShape,
                     cornerRadius = posterCardStyle.cornerRadiusDp.dp,
                     focusScale = 1.07f,

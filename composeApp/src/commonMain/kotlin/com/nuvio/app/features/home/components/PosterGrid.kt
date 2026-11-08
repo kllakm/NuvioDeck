@@ -147,6 +147,7 @@ private fun PosterGridTile(
                         zoomImageUrl = item.poster,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
+                        focusId = remember(item.id) { "poster_grid_${item.id}" },
                     )
                     .nuvioCardDepth(
                         shape = RoundedCornerShape(cornerRadiusDp.dp),

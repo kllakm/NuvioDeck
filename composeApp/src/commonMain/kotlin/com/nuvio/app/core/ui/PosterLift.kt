@@ -1,4 +1,4 @@
-﻿package com.nuvio.app.core.ui
+package com.nuvio.app.core.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
@@ -77,11 +77,15 @@ internal fun Modifier.posterCardClickable(
     zoomImageUrl: String? = null,
     zoomCornerRadius: Dp = NuvioTokens.Radius.poster,
     hoverScaleEnabled: Boolean = true,
+    focusId: String? = null,
 ): Modifier {
     val graphicsContext = LocalGraphicsContext.current
     val source = remember(graphicsContext, zoomImageUrl) { PosterLiftSource(graphicsContext) }
     val onPosterClickAnchor = LocalPosterClickAnchor.current
-    val controllerFocusId = remember { "poster_card_${nextPosterCardFocusId++}" }
+    val controllerFocusId = remember(focusId, zoomImageUrl) {
+        focusId ?: zoomImageUrl?.takeIf { it.isNotBlank() }?.let { "poster_${it.hashCode()}" }
+            ?: "poster_card_${nextPosterCardFocusId++}"
+    }
     val posterModifier = Modifier
         .drawWithContent {
             source.layer.record { this@drawWithContent.drawContent() }

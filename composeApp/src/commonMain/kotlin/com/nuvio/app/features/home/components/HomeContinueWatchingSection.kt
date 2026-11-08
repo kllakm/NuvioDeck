@@ -719,6 +719,7 @@ private fun ContinueWatchingCard(
                 onLongClick = onLongClick,
                 zoomImageUrl = imageUrl,
                 zoomCornerRadius = cardMetrics.cornerRadius,
+                focusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" },
             )
             .width(cardMetrics.width)
             .aspectRatio(PosterLandscapeAspectRatio)
@@ -900,7 +901,11 @@ private fun ContinueWatchingWideCard(
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     Row(
         modifier = Modifier
-            .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
+            .posterCardClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                focusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" },
+            )
             .width(layout.wideCardWidth)
             .height(layout.wideCardHeight)
             .clip(RoundedCornerShape(cornerRadius))
@@ -1050,6 +1055,7 @@ private fun ContinueWatchingPosterCard(
                     zoomImageUrl = imageUrl,
                     zoomCornerRadius = cornerRadius,
                     hoverScaleEnabled = false,
+                    focusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" },
                 ),
         ) {
             val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(

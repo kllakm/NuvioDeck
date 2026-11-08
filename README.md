@@ -77,21 +77,23 @@
   - **Far Left:** Theme-aware Nuvio icon-only graphical mark.
   - **Main Navigation Tabs:** `Home`, `Search`, `Library`, and a dedicated `Settings` tab (decoupled from the profile avatar) with solid filled pill highlights on controller focus.
   - **Far Right Controls:** Dedicated **Fullscreen / Exit Fullscreen** toggle button, **Notification Bell** with unread badge indicator, and **Profile Avatar**.
-- **Full 7-Slot Controller & Bumper Tab Order:** Cycle seamlessly through `Home` → `Search` → `Library` → `Settings` → `Fullscreen` → `Notifications` → `Profile` using either D-Pad `Left`/`Right` or the `LB`/`RB` shoulder bumpers.
-- **Context-Aware Auto-Hide on Scroll:**
+- **Full 7-Slot Controller & Bumper Tab Order:** Cycle seamlessly through `Home` → `Search` → `Library` → `Settings` → `Fullscreen` → `Notifications` → `Profile` in both directions using `RB` (forward) or `LB` (backward) with full selection of the Fullscreen toggle without skipping.
+- **Context-Aware Auto-Hide on Scroll & Accidental Jump Prevention:**
   - **Home Page:** Smoothly slides upward off-screen as soon as you scroll or D-Pad navigate down, and slides immediately back into view when scrolling or navigating up.
   - **Search & Library:** Remains visible until page content scrolls up into the top bar's vertical space.
   - **Settings & Active Focus:** Stays locked in view while browsing **Settings**, while the top bar holds controller focus, or while the Notification/Profile dropdowns are open.
+  - **Accidental Jump Prevention:** Navigating UP with the D-Pad inside Settings or page content smoothly scrolls and clamps at the top without hopping focus into the top navigation bar.
 
 ### 🔔 10-Item "New Arrivals" Notification Center & Standalone Profile Switcher
 - **Verified "New Arrivals" Detection Engine (`NewArrivalsManager`):**
   - Quiet background service with throttled addon checks (`2.5s` delay between requests) that inspects series in your **Watch History / Continue Watching** and **Watchlist** alongside catalog releases.
+  - **Smart Series Filtering:** Announces new episodes strictly for series you are currently watching; for any other catalog series, it only announces brand new TV shows in general (Season 1 premieres aired within the last **7 days**), preventing unwanted notifications for random unwatched series.
   - Enforces a strict recency gate (series episodes aired within the last **7 days**; movies released within the last **120 days**, excluding older trending titles).
   - Verifies that at least one clean **`1080p`** or **`2160p` / `4K`** stream is available right now (automatically filtering out `CAM`, `TS`, `HDTS`, `TELESYNC`, and `SCREENER` sources) before creating a notification.
 - **10-Item FIFO Notification Dropdown:** Stores up to 10 notifications in `%APPDATA%\NuvioDeck\new_arrivals_notifications.json` (newest first, automatically dropping the oldest item on overflow) with 16:9 landscape thumbnails, `"New Arrival"` / `"New Episode • SxEx"` / `"Now Available in 4K"` badges, relative timestamps, and direct `A`-button navigation to the title's Details page.
 - **Standalone Profile Switcher Dropdown & Sleek Rounded-Rectangle PIN Pads:**
   - Clicking or pressing `A` on the top-right Profile Photo opens an anchored Profile Switcher dropdown with D-Pad `Up`/`Down` navigation and solid highlight fills (zero text clipping).
-  - Both the Profile Switcher dropdown and the main Profile Selection screen feature a unified, compact **rounded-rectangle PIN pad** (`RoundedCornerShape(18.dp)` dark studio surface, `"PROFILE PIN"` lock header, recessed 4-dot pill indicator, and a 3×4 controller-navigable key grid with `[X] Delete` and `[B] Cancel`).
+  - Both the Profile Switcher dropdown and the main Profile Selection screen feature a unified, spacious **rounded-rectangle PIN pad** (`RoundedCornerShape(18.dp)` dark studio surface, generous inner padding, larger tactile keys, `"PROFILE PIN"` lock header, recessed status pill with live verification spinner feedback upon entering 4 digits, and a 3×4 controller-navigable key grid with `[X] Delete` and `[B] Cancel`).
 
 ### 🎮 Universal Windows 11 Controller Support & Spatial Focus Engine
 - **Multi-Backend Hardware Polling & Hot-Plugging:** Low-latency JNA polling across **XInput** (`XInput1_4.dll`, `XInput9_1_0.dll`, `XInput1_3.dll`) and **Windows Multimedia / DirectInput** (`winmm.dll`) with automatic device deduplication and normalization for Xbox, Sony DualSense / DualShock 4, Nintendo Switch Pro / Joy-Con, and built-in handheld controllers.
@@ -101,12 +103,14 @@
   - **Season Poster-Only Selection:** On series detail pages, the selection border and scale effect wrap strictly around the season poster artwork (excluding the `"Season 1"` text label underneath).
   - **Synchronized Discover Card Borders:** Card depth borders in the Discover poster grid scale in lockstep with the selected poster artwork.
 - **In-Line "View All" Poster Card & Customizable Row Poster Limit (`10–30`):**
-  - Replaces the hard-to-reach header chevron with a full-size, semi-transparent **"View All"** poster card at the end of each catalog row.
-  - Includes a persistent **Row Poster Limit** slider (`10` to `30` posters per row, defaulting to **`15`**) under **Settings → Layout → Homescreen**, adjustable via mouse drag or controller D-Pad `Left`/`Right`.
-- **Single-Press Horizontal Poster Reveal & Center-Aligned Vertical Scrolling:**
+  - Replaces the hard-to-reach header chevron with a full-size, semi-transparent **"View All"** poster card at the end of each catalog row with deterministic ID stability so navigating back from catalog folders returns focus directly to the "View All" card.
+  - Includes a persistent **Row Poster Limit** slider (`10` to `30` posters per row, defaulting to **`15`**) under **Settings → Layout → Homescreen** styled with a pure accent fill (no white outer selection border) and adjustable via mouse drag or controller D-Pad `Left`/`Right`.
+  - Fully controller-selectable **Hero Catalogs** header with accent selection fill allowing users to expand and collapse hero source toggles with controller `A`.
+  - Seamless D-Pad `Right` navigation from the Settings sidebar always lands cleanly at the very top of the right content pane.
+- **Single-Press Horizontal Poster Reveal & Directional Vertical Scroll Guard:**
   - Tracks unclipped root-space bounds (`unclippedBoundsInRoot`) so pressing D-Pad `Left` or `Right` toward a partially off-screen poster reveals **100% of the card on the very first press**.
-  - Vertically centers the active shelf row (`visualRowCenterY` aligned to `52%` of viewport height) with `FastOutSlowInEasing` and top-boundary clamping so rows glide smoothly into view without judder or overscrolling.
-- **Per-Route Focus Memory on Back Navigation:** Remembers the exact focused poster or control for every route (`DetailRoute`, `CatalogRoute`, `TabsRoute`) and restores focus to the show/movie you just exited when pressing `B` to go back.
+  - Vertically centers the active shelf row (`visualRowCenterY` aligned to `52%` of viewport height) with `FastOutSlowInEasing` and strict directional guards so navigating UP never erroneously scrolls the page downward.
+- **Deterministic Poster Focus Restoration on Back Navigation:** Remembers exact focused poster IDs across every route (`DetailRoute`, `CatalogRoute`, `TabsRoute`) and restores focus to the exact show, movie, or collection folder you just exited when pressing `B` to go back without losing controller navigation.
 - **Native Windows 11 Virtual Keyboard & Search History Controls:**
   - Pressing `Y` (or selecting any text input with `A`) scrolls the field into view, commits Compose `FocusRequester` focus, and launches the native Windows 11 touch/gamepad keyboard (`TabTip.exe` / `osk.exe`) so keystrokes always type directly into the search or login field.
   - Full mouse click and controller D-Pad traversal across **Recent Searches**, with `[X]` to delete individual terms and a focusable **Clear** button to wipe search history.
@@ -124,6 +128,7 @@
   - Defaults to `StreamAutoPlayMode.FIRST_STREAM` to automatically play the first verified stream source for couch-ready playback.
 
 ### ⚡ High-Performance Desktop Engine & Side-by-Side Coexistence
+- **High-DPI Windows Shell, Xbox App & Game Bar Tile Integration:** Embeds a true multi-resolution icon (`16x16` up to a PNG-compressed `256x256` layer) directly into `NuvioDeck.exe` and shortcuts, paired with bundled high-resolution square branding assets (`512x512`, `256x256`, `Square150x150Logo`, `Square70x70Logo`) organized into a clean `Assets\` subfolder and referenced by `NuvioDeck.VisualElementsManifest.xml` (`#0D0D0D`) so the Windows Start Menu, Game Bar, and Xbox App render crisp, high-DPI thumbnails without root directory clutter.
 - **Subtle Studio Login Backdrop & Anti-Banding Display:** Clean, star-free dark obsidian-slate studio login background with a smooth `650ms` radial ambient wash tinted by the active profile's accent color, paired with a cached micro-dither brush to eliminate gradient banding on 8-bit/10-bit displays.
 - **512MB Persistent Disk Image Cache & High-Refresh VSync:** Okio-backed disk cache (`%LOCALAPPDATA%\NuvioDeck\Cache\image_cache`), hardware trilinear mipmapping (`FilterQuality.Medium`), low-pause G1GC (`-XX:+UseG1GC -XX:MaxGCPauseMillis=16`), and unlocked VSync (`-Dskiko.fps=-1 -Dskiko.vsync=true`) for 90Hz / 120Hz / 144Hz displays.
 - **Isolated Side-by-Side Installation:** Uses a dedicated `NuvioDeck` application identity, unique Windows MSI `upgradeUuid`, and isolated data directories (`%APPDATA%\NuvioDeck` and `%LOCALAPPDATA%\NuvioDeck\Cache`) so NuvioDeck and upstream NuvioDesktop can run side-by-side without conflict.
@@ -139,9 +144,9 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 ## 📦 Installation & Downloads
 
-Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.22.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
+Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.23.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.22.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.23.msi`) or Standalone Executable (`NuvioDeck.exe`)
 
 ---
 
@@ -172,7 +177,7 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.22.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.23.msi`
 
 ---
 

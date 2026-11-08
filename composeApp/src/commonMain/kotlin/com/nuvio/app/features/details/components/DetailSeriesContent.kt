@@ -968,6 +968,7 @@ private fun EpisodeHorizontalCard(
                 onLongClick = onLongPress,
                 zoomImageUrl = imageUrl,
                 zoomCornerRadius = metrics.cornerRadius,
+                focusId = remember(video.id) { "episode_card_${video.id}" },
             )
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))

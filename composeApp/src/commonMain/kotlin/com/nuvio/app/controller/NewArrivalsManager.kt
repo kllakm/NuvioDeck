@@ -422,67 +422,121 @@ object NewArrivalsManager {
 
         val nowEpochMs = EpisodeReleaseDatePlatform.nowEpochMs()
         val recentCutoffMs = nowEpochMs - (SERIES_EPISODE_WINDOW_DAYS * MILLIS_PER_DAY)
+        val isCurrentlyWatching = candidate.priorityTier == 1
 
-        // Strict Release Date Gate for Series:
-        // Only qualify episodes whose `released` air date is within the last 7 days and already aired.
-        val recentEpisodes = meta.videos
-            .filter { video ->
-                val season = video.season ?: 0
-                val episode = video.episode ?: 0
-                if (season <= 0 || episode <= 0) return@filter false
-                val releasedMs = parseEpisodeReleaseEpochMs(video.released) ?: return@filter false
-                releasedMs in recentCutoffMs..nowEpochMs
-            }
-            .sortedWith(
-                compareByDescending<MetaVideo> { parseEpisodeReleaseEpochMs(it.released) ?: 0L }
-                    .thenByDescending { it.season ?: 0 }
-                    .thenByDescending { it.episode ?: 0 }
+        if (isCurrentlyWatching) {
+            // Priority 1: User is currently watching this series in Watch History / Continue Watching.
+            // Check for newly aired episodes within the last 7 days.
+            val recentEpisodes = meta.videos
+                .filter { video ->
+                    val season = video.season ?: 0
+                    val episode = video.episode ?: 0
+                    if (season <= 0 || episode <= 0) return@filter false
+                    val releasedMs = parseEpisodeReleaseEpochMs(video.released) ?: return@filter false
+                    releasedMs in recentCutoffMs..nowEpochMs
+                }
+                .sortedWith(
+                    compareByDescending<MetaVideo> { parseEpisodeReleaseEpochMs(it.released) ?: 0L }
+                        .thenByDescending { it.season ?: 0 }
+                        .thenByDescending { it.episode ?: 0 }
+                )
+
+            val latestRecentEpisode = recentEpisodes.firstOrNull() ?: return false
+            val season = latestRecentEpisode.season ?: return false
+            val episode = latestRecentEpisode.episode ?: return false
+            val notificationId = "series:${meta.id}:S${season}E${episode}"
+            if (notificationId in seenIds) return false
+
+            // Verify HD/4K stream availability right now
+            val videoId = buildPlaybackVideoId(
+                parentMetaId = meta.id,
+                seasonNumber = season,
+                episodeNumber = episode,
+                fallbackVideoId = latestRecentEpisode.id,
             )
+            val verification = verifyCleanHdStreamAvailable(
+                type = "series",
+                videoId = videoId,
+                embeddedStreams = latestRecentEpisode.streams,
+            )
+            if (!verification.isAvailable) return true
 
-        val latestRecentEpisode = recentEpisodes.firstOrNull() ?: return false
-        val season = latestRecentEpisode.season ?: return false
-        val episode = latestRecentEpisode.episode ?: return false
-        val notificationId = "series:${meta.id}:S${season}E${episode}"
-        if (notificationId in seenIds) return false
+            val thumbnail = latestRecentEpisode.thumbnail?.takeIf { it.isNotBlank() }
+                ?: meta.background?.takeIf { it.isNotBlank() }
+                ?: candidate.banner?.takeIf { it.isNotBlank() }
+                ?: meta.poster?.takeIf { it.isNotBlank() }
+                ?: candidate.poster
 
-        // Verify HD/4K stream availability right now
-        val videoId = buildPlaybackVideoId(
-            parentMetaId = meta.id,
-            seasonNumber = season,
-            episodeNumber = episode,
-            fallbackVideoId = latestRecentEpisode.id,
-        )
-        val verification = verifyCleanHdStreamAvailable(
-            type = "series",
-            videoId = videoId,
-            embeddedStreams = latestRecentEpisode.streams,
-        )
-        if (!verification.isAvailable) return true
+            val episodeCode = "S${season}E${episode}"
+            val headerLabel = "New Episode • $episodeCode"
+            val notification = NewArrivalNotification(
+                id = notificationId,
+                metaId = meta.id,
+                metaType = "series",
+                title = meta.name.ifBlank { candidate.name },
+                headerLabel = headerLabel,
+                subtitle = latestRecentEpisode.title.takeIf { it.isNotBlank() && !it.equals("Episode $episode", ignoreCase = true) },
+                thumbnailUrl = thumbnail,
+                posterUrl = meta.poster ?: candidate.poster,
+                seasonNumber = season,
+                episodeNumber = episode,
+                is4K = verification.has4K,
+                detectedAt = EpisodeReleaseDatePlatform.nowEpochMs(),
+            )
+            recordVerifiedArrival(notification)
+            return true
+        } else {
+            // User is NOT currently watching this series.
+            // ONLY announce if this is a BRAND NEW TV SHOW IN GENERAL that has landed in the last few days
+            // (Season 1 premiere episode aired within the recent window, or initial release within window).
+            val premiereEpisode = meta.videos.firstOrNull { (it.season ?: 0) == 1 && (it.episode ?: 0) == 1 }
+            val premiereReleasedMs = premiereEpisode?.released?.let { parseEpisodeReleaseEpochMs(it) }
+                ?: parseEpisodeReleaseEpochMs(meta.releaseInfo)
 
-        val thumbnail = latestRecentEpisode.thumbnail?.takeIf { it.isNotBlank() }
-            ?: meta.background?.takeIf { it.isNotBlank() }
-            ?: candidate.banner?.takeIf { it.isNotBlank() }
-            ?: meta.poster?.takeIf { it.isNotBlank() }
-            ?: candidate.poster
+            if (premiereReleasedMs == null || premiereReleasedMs !in recentCutoffMs..nowEpochMs) {
+                // Not a brand new show that premiered in the last few days -> skip
+                return false
+            }
 
-        val episodeCode = "S${season}E${episode}"
-        val headerLabel = "New Episode • $episodeCode"
-        val notification = NewArrivalNotification(
-            id = notificationId,
-            metaId = meta.id,
-            metaType = "series",
-            title = meta.name.ifBlank { candidate.name },
-            headerLabel = headerLabel,
-            subtitle = latestRecentEpisode.title.takeIf { it.isNotBlank() && !it.equals("Episode $episode", ignoreCase = true) },
-            thumbnailUrl = thumbnail,
-            posterUrl = meta.poster ?: candidate.poster,
-            seasonNumber = season,
-            episodeNumber = episode,
-            is4K = verification.has4K,
-            detectedAt = EpisodeReleaseDatePlatform.nowEpochMs(),
-        )
-        recordVerifiedArrival(notification)
-        return true
+            val notificationId = "series_new:${meta.id}"
+            if (notificationId in seenIds) return false
+
+            val videoId = buildPlaybackVideoId(
+                parentMetaId = meta.id,
+                seasonNumber = 1,
+                episodeNumber = 1,
+                fallbackVideoId = premiereEpisode?.id,
+            )
+            val verification = verifyCleanHdStreamAvailable(
+                type = "series",
+                videoId = videoId,
+                embeddedStreams = premiereEpisode?.streams.orEmpty(),
+            )
+            if (!verification.isAvailable) return true
+
+            val thumbnail = premiereEpisode?.thumbnail?.takeIf { it.isNotBlank() }
+                ?: meta.background?.takeIf { it.isNotBlank() }
+                ?: candidate.banner?.takeIf { it.isNotBlank() }
+                ?: meta.poster?.takeIf { it.isNotBlank() }
+                ?: candidate.poster
+
+            val notification = NewArrivalNotification(
+                id = notificationId,
+                metaId = meta.id,
+                metaType = "series",
+                title = meta.name.ifBlank { candidate.name },
+                headerLabel = "New Series",
+                subtitle = meta.releaseInfo ?: meta.genres.take(2).joinToString(" • "),
+                thumbnailUrl = thumbnail,
+                posterUrl = meta.poster ?: candidate.poster,
+                seasonNumber = 1,
+                episodeNumber = 1,
+                is4K = verification.has4K,
+                detectedAt = EpisodeReleaseDatePlatform.nowEpochMs(),
+            )
+            recordVerifiedArrival(notification)
+            return true
+        }
     }
 
     private suspend fun evaluateMovieCandidate(candidate: CandidateMedia): Boolean {

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -180,7 +181,7 @@ fun PinEntryDialog(
     ) {
         Surface(
             modifier = Modifier
-                .width(284.dp)
+                .width(336.dp)
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event ->
@@ -211,9 +212,9 @@ fun PinEntryDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -249,18 +250,31 @@ fun PinEntryDialog(
                     )
                 }
 
-                // Sleek recessed pill for PIN status dots
-                Row(
+                // Sleek recessed pill for PIN status dots or loading indicator
+                Box(
                     modifier = Modifier
+                        .height(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(Color.White.copy(alpha = 0.04f))
                         .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 20.dp, vertical = 9.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    repeat(4) { index ->
-                        PinDot(filled = index < pin.length, hasError = error != null)
+                    if (isVerifying) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = tokens.colors.accent,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            repeat(4) { index ->
+                                PinDot(filled = index < pin.length, hasError = error != null)
+                            }
+                        }
                     }
                 }
 
@@ -367,12 +381,12 @@ private fun PinKeypad(
     )
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         keys.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             ) {
                 row.forEach { keyLabel ->
                     val keyId = when (keyLabel) {
@@ -405,8 +419,8 @@ private fun PinKeypad(
 
                     Box(
                         modifier = Modifier
-                            .width(76.dp)
-                            .height(38.dp)
+                            .width(88.dp)
+                            .height(48.dp)
                             .clip(keyShape)
                             .background(keyBg, keyShape)
                             .border(1.dp, keyBorder, keyShape)
@@ -433,13 +447,13 @@ private fun PinKeypad(
                                     imageVector = Icons.AutoMirrored.Rounded.Backspace,
                                     contentDescription = "Delete",
                                     tint = if (isFocused) Color.White else tokens.colors.textSecondary,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                             "Cancel" -> {
                                 Text(
                                     text = "Cancel",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isFocused) Color.White else tokens.colors.textMuted,
                                 )
@@ -447,7 +461,7 @@ private fun PinKeypad(
                             else -> {
                                 Text(
                                     text = keyLabel,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
                                     color = if (isFocused) Color.White else tokens.colors.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                 )

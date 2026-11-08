@@ -395,6 +395,7 @@ private fun CatalogPosterTile(
                         zoomImageUrl = item.poster,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
+                        focusId = remember(item.id) { "poster_catalog_${item.id}" },
                     )
                     .clip(RoundedCornerShape(cornerRadiusDp.dp))
                     .background(MaterialTheme.colorScheme.surface)
