@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.audio.ControllerSoundSettings
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogButtonStyle
@@ -73,6 +74,10 @@ internal fun LazyListScope.advancedSettingsContent(
             title = stringResource(Res.string.settings_advanced_section_startup),
             isTablet = isTablet,
         ) {
+            val appSoundsEnabled by remember {
+                ControllerSoundSettings.ensureLoaded()
+                ControllerSoundSettings.enabled
+            }.collectAsStateWithLifecycle()
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_advanced_remember_last_profile),
@@ -80,6 +85,14 @@ internal fun LazyListScope.advancedSettingsContent(
                     checked = rememberLastProfileEnabled,
                     isTablet = isTablet,
                     onCheckedChange = ProfileRepository::setRememberLastProfileEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = "App Sounds",
+                    description = "Play controller and UI navigation sound effects",
+                    checked = appSoundsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = ControllerSoundSettings::setEnabled,
                 )
             }
         }

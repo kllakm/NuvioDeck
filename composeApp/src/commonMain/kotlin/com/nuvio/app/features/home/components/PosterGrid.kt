@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.LocalControllerGroupKey
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioAsyncImage
@@ -43,40 +45,48 @@ import com.nuvio.app.isDesktop
 internal fun posterGridColumnCountForWidth(screenWidth: Dp): Int =
     com.nuvio.app.core.ui.posterGridColumnCountForWidth(screenWidth)
 
+private var nextPosterGridRowId = 1L
+
 @Composable
 internal fun PosterGridRow(
     items: List<MetaPreview>,
     columns: Int,
     modifier: Modifier = Modifier,
+    rowGroupKey: String? = null,
     watchedKeys: Set<String> = emptySet(),
     fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
+    val effectiveRowGroupKey = remember(rowGroupKey) {
+        rowGroupKey ?: "poster_grid_row_${nextPosterGridRowId++}"
+    }
 
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        items.forEach { item ->
-            PosterGridTile(
-                item = item,
-                cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                hideLabels = posterCardStyle.hideLabelsEnabled,
-                modifier = Modifier.weight(1f),
-                isWatched = WatchingState.isPosterWatched(
-                    watchedKeys = watchedKeys,
+    CompositionLocalProvider(LocalControllerGroupKey provides effectiveRowGroupKey) {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            items.forEach { item ->
+                PosterGridTile(
                     item = item,
-                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                ),
-                onClick = onPosterClick?.let { { it(item) } },
-                onLongClick = onPosterLongClick?.let { { it(item) } },
-            )
-        }
-        repeat(columns - items.size) {
-            Spacer(modifier = Modifier.weight(1f))
+                    cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+                    hideLabels = posterCardStyle.hideLabelsEnabled,
+                    modifier = Modifier.weight(1f),
+                    isWatched = WatchingState.isPosterWatched(
+                        watchedKeys = watchedKeys,
+                        item = item,
+                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                    ),
+                    onClick = onPosterClick?.let { { it(item) } },
+                    onLongClick = onPosterLongClick?.let { { it(item) } },
+                )
+            }
+            repeat(columns - items.size) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -131,19 +141,19 @@ private fun PosterGridTile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(item.posterShape.posterGridAspectRatio())
-                    .clip(RoundedCornerShape(cornerRadiusDp.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .nuvioCardDepth(
-                        shape = RoundedCornerShape(cornerRadiusDp.dp),
-                        surface = NuvioCardDepthSurface.Posters,
-                    )
                     .posterCardClickable(
                         onClick = onClick,
                         onLongClick = onLongClick,
                         zoomImageUrl = item.poster,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
-                    ),
+                    )
+                    .nuvioCardDepth(
+                        shape = RoundedCornerShape(cornerRadiusDp.dp),
+                        surface = NuvioCardDepthSurface.Posters,
+                    )
+                    .clip(RoundedCornerShape(cornerRadiusDp.dp))
+                    .background(MaterialTheme.colorScheme.surface),
             ) {
                 if (item.poster != null) {
                     val platformContext = coil3.compose.LocalPlatformContext.current

@@ -221,11 +221,13 @@ fun NuvioScreenHeader(
                 horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FullscreenActionButton(
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp,
-                    contentColor = tokens.colors.textPrimary,
-                )
+                if (!com.nuvio.app.isDesktop || onBack != null) {
+                    FullscreenActionButton(
+                        buttonSize = 48.dp,
+                        iconSize = 24.dp,
+                        contentColor = tokens.colors.textPrimary,
+                    )
+                }
                 actions()
             }
         }

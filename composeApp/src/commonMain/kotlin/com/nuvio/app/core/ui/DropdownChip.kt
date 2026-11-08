@@ -63,13 +63,13 @@ fun NuvioDropdownChip(
     val coroutineScope = rememberCoroutineScope()
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
         Row(
             modifier = Modifier
                 .controllerFocusable(
                     enabled = enabled,
                     shape = tokens.shapes.compactCard,
-                    scaleOnFocus = 1.03f,
+                    scaleOnFocus = 1.02f,
                     onSelect = { if (enabled) isSheetVisible = true },
                     selectLabel = title,
                 )

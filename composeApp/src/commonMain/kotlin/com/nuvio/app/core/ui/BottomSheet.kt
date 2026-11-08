@@ -121,13 +121,13 @@ fun NuvioBottomSheetActionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = NuvioTokens.Space.s8)
+            .padding(horizontal = NuvioTokens.Space.s12, vertical = NuvioTokens.Space.s2)
             .heightIn(min = NuvioTokens.Space.s56)
             .controllerFocusable(
                 zone = ControllerFocusZone.Overlay,
                 groupKey = "bottom_sheet_actions",
                 shape = tokens.shapes.compactCard,
-                scaleOnFocus = 1.01f,
+                scaleOnFocus = 1.0f,
                 onSelect = onClick,
                 selectLabel = title,
             )

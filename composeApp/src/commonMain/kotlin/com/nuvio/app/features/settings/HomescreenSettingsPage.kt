@@ -20,9 +20,12 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -34,13 +37,16 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
+import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_retry
 import nuvio.composeapp.generated.resources.action_reset
@@ -118,6 +124,90 @@ internal fun LazyListScope.homescreenSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHideUnreleasedContent,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                val homescreenState by HomeCatalogSettingsRepository.uiState.collectAsState()
+                val rowItemLimit = homescreenState.rowItemLimit.coerceIn(
+                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+                    HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+                )
+                val tokens = MaterialTheme.nuvio
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .controllerFocusable(
+                            id = "settings_homescreen_row_item_limit",
+                            cornerRadius = 12.dp,
+                            selectLabel = "Row Poster Limit",
+                            onMoveLeft = {
+                                if (rowItemLimit > HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT) {
+                                    HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit - 1)
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                            onMoveRight = {
+                                if (rowItemLimit < HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
+                                    HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit + 1)
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                            onSelect = {
+                                val next = if (rowItemLimit >= HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
+                                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT
+                                } else {
+                                    (rowItemLimit + 5).coerceAtMost(HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT)
+                                }
+                                HomeCatalogSettingsRepository.setRowItemLimit(next)
+                            },
+                        )
+                        .padding(
+                            horizontal = if (isTablet) 18.dp else 16.dp,
+                            vertical = if (isTablet) 14.dp else 12.dp,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = "Row Poster Limit",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                color = tokens.colors.textPrimary,
+                            )
+                            Text(
+                                text = "Maximum posters shown per catalog row before the See All card (10–30)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = tokens.colors.textSecondary,
+                            )
+                        }
+                        Text(
+                            text = "$rowItemLimit posters",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                    Slider(
+                        value = rowItemLimit.toFloat(),
+                        onValueChange = { HomeCatalogSettingsRepository.setRowItemLimit(it.roundToInt()) },
+                        valueRange = HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT.toFloat()..HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT.toFloat(),
+                        steps = (HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT - HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT - 1),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                        ),
+                    )
+                }
             }
         }
     }

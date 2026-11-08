@@ -315,7 +315,7 @@ fun LibraryScreen(
             topPadding = if (topChromePadding != null) 0.dp else null,
             listState = listState,
         ) {
-            stickyHeader {
+            item(key = "library_header_section") {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -830,7 +830,7 @@ private fun CloudLibraryToolbar(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 NuvioDropdownChip(

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.controllerFocusable
 
 @Composable
@@ -25,13 +26,15 @@ fun Chip(
     Surface(
         selected = selected,
         onClick = onClick,
-        modifier = modifier.controllerFocusable(
-            enabled = enabled,
-            shape = chipShape,
-            scaleOnFocus = 1.03f,
-            onSelect = onClick,
-            selectLabel = label,
-        ),
+        modifier = modifier
+            .padding(horizontal = 3.dp, vertical = 3.dp)
+            .controllerFocusable(
+                enabled = enabled,
+                shape = chipShape,
+                scaleOnFocus = 1.02f,
+                onSelect = onClick,
+                selectLabel = label,
+            ),
         enabled = enabled,
         shape = chipShape,
         color = if (selected) tokens.colors.overlaySelected else Color.Transparent,

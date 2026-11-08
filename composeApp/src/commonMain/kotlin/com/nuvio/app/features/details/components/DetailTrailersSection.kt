@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.ProvideControllerRowLazyListState
 import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.Menu
@@ -169,27 +170,29 @@ fun DetailTrailersSection(
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val sizing = trailerSectionSizing(maxWidth.value, userCornerRadius)
             val rowState = rememberLazyListState()
-            LazyRow(
-                state = rowState,
-                modifier = Modifier
-                    .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-                    .fillMaxWidth()
-                    .nuvioDesktopDragScroll(rowState),
-                contentPadding = PaddingValues(horizontal = horizontalScrollPadding, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(sizing.cardSpacing),
-            ) {
-                itemsIndexed(
-                    items = selectedTrailers,
-                    key = { index, trailer -> "${trailer.type}-${trailer.id}-${trailer.seasonNumber ?: 0}#$index" },
-                ) { _, trailer ->
-                    TrailerCard(
-                        trailer = trailer,
-                        cardWidth = sizing.cardWidth,
-                        cornerRadius = sizing.cardRadius,
-                        titleFontSize = sizing.titleFontSize,
-                        metaFontSize = sizing.metaFontSize,
-                        onClick = { onTrailerClick(trailer) },
-                    )
+            ProvideControllerRowLazyListState(rowState) {
+                LazyRow(
+                    state = rowState,
+                    modifier = Modifier
+                        .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                        .fillMaxWidth()
+                        .nuvioDesktopDragScroll(rowState),
+                    contentPadding = PaddingValues(horizontal = horizontalScrollPadding, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(sizing.cardSpacing),
+                ) {
+                    itemsIndexed(
+                        items = selectedTrailers,
+                        key = { index, trailer -> "${trailer.type}-${trailer.id}-${trailer.seasonNumber ?: 0}#$index" },
+                    ) { _, trailer ->
+                        TrailerCard(
+                            trailer = trailer,
+                            cardWidth = sizing.cardWidth,
+                            cornerRadius = sizing.cardRadius,
+                            titleFontSize = sizing.titleFontSize,
+                            metaFontSize = sizing.metaFontSize,
+                            onClick = { onTrailerClick(trailer) },
+                        )
+                    }
                 }
             }
         }

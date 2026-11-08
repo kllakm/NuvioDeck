@@ -52,7 +52,8 @@ object WindowsVirtualKeyboardManager {
     fun showKeyboard(fromAutoFocus: Boolean = false) {
         if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return
         val now = System.currentTimeMillis()
-        if (now - lastShownAtMs < SHOW_DEBOUNCE_MS) return
+        val debounceMs = if (fromAutoFocus) SHOW_DEBOUNCE_MS else 120L
+        if (now - lastShownAtMs < debounceMs) return
         if (fromAutoFocus && (now - lastClosedAtMs < AUTO_FOCUS_COOLDOWN_AFTER_HIDE_MS)) return
 
         lastShownAtMs = now
@@ -89,6 +90,14 @@ object WindowsVirtualKeyboardManager {
                 runCatching {
                     ProcessBuilder("explorer.exe", TABTIP_PATH).start()
                 }
+            }
+            try {
+                Thread.sleep(130)
+            } catch (_: InterruptedException) {
+                return@Thread
+            }
+            if (PlatformVirtualKeyboard.isKeyboardActive) {
+                restoreInputFocus(WindowsControllerService.appWindow)
             }
         }.apply {
             isDaemon = true

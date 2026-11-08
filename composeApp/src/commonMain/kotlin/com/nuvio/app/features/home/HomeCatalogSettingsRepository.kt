@@ -44,6 +44,7 @@ data class HomeCatalogSettingsUiState(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
+    val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
     val signature: String
@@ -53,6 +54,8 @@ data class HomeCatalogSettingsUiState(
             append(showCatalogType)
             append('|')
             append(hideUnreleasedContent)
+            append('|')
+            append(rowItemLimit)
             append('|')
             append(
                 items.joinToString(separator = "|") { item ->
@@ -73,6 +76,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val heroEnabled: Boolean,
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
+    val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
     val preferences: Map<String, HomeCatalogPreference>,
 )
 
@@ -90,11 +94,15 @@ private data class StoredHomeCatalogSettingsPayload(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
+    val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
 )
 
 object HomeCatalogSettingsRepository {
     const val HERO_SOURCE_SELECTION_LIMIT = 2
+    const val DEFAULT_ROW_ITEM_LIMIT = 15
+    const val MIN_ROW_ITEM_LIMIT = 10
+    const val MAX_ROW_ITEM_LIMIT = 30
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -108,6 +116,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true,
         showCatalogType = true,
         hideUnreleasedContent = false,
+        rowItemLimit = DEFAULT_ROW_ITEM_LIMIT,
         preferences = emptyMap(),
     )
     private val snapshotRef = atomic(emptySnapshot)
@@ -127,6 +136,7 @@ object HomeCatalogSettingsRepository {
     private var heroEnabled = true
     private var showCatalogType = true
     private var hideUnreleasedContent = false
+    private var rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
 
     fun onProfileChanged() {
         hasLoaded = false
@@ -134,6 +144,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
+        rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
         definitions = emptyList()
         collectionDefinitions = emptyList()
         snapshotRef.value = emptySnapshot
@@ -153,6 +164,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
+        rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
         snapshotRef.value = emptySnapshot
         lastPersistedPayload = null
         _uiState.value = HomeCatalogSettingsUiState()
@@ -248,6 +260,16 @@ object HomeCatalogSettingsRepository {
         HomeCatalogSettingsSyncService.triggerPush()
     }
 
+    fun setRowItemLimit(limit: Int) {
+        ensureLoaded()
+        val clamped = limit.coerceIn(MIN_ROW_ITEM_LIMIT, MAX_ROW_ITEM_LIMIT)
+        if (rowItemLimit == clamped) return
+        rowItemLimit = clamped
+        publish()
+        persist()
+        HomeRepository.applyCurrentSettings()
+    }
+
     fun setHeroSourceEnabled(key: String, enabled: Boolean) {
         updatePreference(key, pushRemote = false) { preference ->
             if (!enabled) {
@@ -277,6 +299,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
+        rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
         preferences = emptyMap()
         normalizePreferences()
         publish()
@@ -329,6 +352,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = parsedPayload.heroEnabled
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
+            rowItemLimit = parsedPayload.rowItemLimit.coerceIn(MIN_ROW_ITEM_LIMIT, MAX_ROW_ITEM_LIMIT)
             preferences = parsedPayload.items.associateBy { it.key }
             publish()
             return
@@ -395,6 +419,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
+            rowItemLimit = rowItemLimit,
             preferences = preferences.mapValues { (_, value) ->
                 HomeCatalogPreference(
                     customTitle = value.customTitle,
@@ -441,6 +466,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
+            rowItemLimit = rowItemLimit,
             items = items,
         )
         if (_uiState.value != nextState) _uiState.value = nextState
@@ -452,6 +478,7 @@ object HomeCatalogSettingsRepository {
                 heroEnabled = heroEnabled,
                 showCatalogType = showCatalogType,
                 hideUnreleasedContent = hideUnreleasedContent,
+                rowItemLimit = rowItemLimit,
                 items = preferences.values.sortedBy { it.order },
             ),
         )

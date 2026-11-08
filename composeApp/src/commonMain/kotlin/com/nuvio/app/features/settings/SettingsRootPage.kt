@@ -5,6 +5,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.audio.ControllerSoundSettings
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -95,6 +99,18 @@ internal fun LazyListScope.settingsRootContent(
                         )
                     }
                     SettingsCategory.System -> {
+                        val appSoundsEnabled by remember {
+                            ControllerSoundSettings.ensureLoaded()
+                            ControllerSoundSettings.enabled
+                        }.collectAsStateWithLifecycle()
+                        SettingsSwitchRow(
+                            title = "App Sounds",
+                            description = "Play controller and UI navigation sound effects",
+                            checked = appSoundsEnabled,
+                            isTablet = isTablet,
+                            onCheckedChange = ControllerSoundSettings::setEnabled,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
                         if (showNotificationsEntry) {
                             SettingsPageRow(
                                 page = SettingsPage.Notifications,

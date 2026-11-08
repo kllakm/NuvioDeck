@@ -663,7 +663,7 @@ private fun DesktopHomeHeroFrame(
                 )
             }
 
-            if (isFullscreenActionSupported) {
+            if (!isDesktop && isFullscreenActionSupported) {
                 FullscreenActionButton(
                     modifier = Modifier
                         .align(Alignment.TopEnd)

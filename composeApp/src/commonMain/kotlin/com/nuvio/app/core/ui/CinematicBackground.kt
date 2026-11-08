@@ -1,16 +1,8 @@
 package com.nuvio.app.core.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -25,29 +17,10 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
-import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.sin
 
 /**
- * Procedural static stardust / atmospheric dust mote.
- */
-private data class DustMote(
-    val relX: Float,
-    val relY: Float,
-    val radiusDp: Float,
-    val baseAlpha: Float,
-    val speedX: Float,
-    val speedY: Float,
-    val twinkleSpeed: Float,
-    val phase: Float,
-    val color: Color,
-    val hasGlow: Boolean,
-)
-
-/**
- * Creates a high-frequency micro-dither noise tile (256x256) using a triangular distribution
+ * Creates a high-frequency micro-dither noise tile (64x64) using a triangular distribution
  * rendered at 1:1 native physical device pixels to mathematically eliminate color banding across
  * 8-bit, 10-bit, 1080p, 1440p, and 4K High-DPI panels without visible grain.
  */
@@ -61,10 +34,10 @@ private val cachedDitherBrush: ShaderBrush by lazy {
         for (x in 0 until size) {
             val noise = rnd.nextFloat() - rnd.nextFloat()
             if (noise > 0f) {
-                paint.color = Color.White.copy(alpha = noise * 0.015f)
+                paint.color = Color.White.copy(alpha = noise * 0.012f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
             } else if (noise < 0f) {
-                paint.color = Color.Black.copy(alpha = (-noise) * 0.015f)
+                paint.color = Color.Black.copy(alpha = (-noise) * 0.012f)
                 canvas.drawRect(Rect(x.toFloat(), y.toFloat(), x + 1f, y + 1f), paint)
             }
         }
@@ -78,15 +51,11 @@ private val cachedDitherBrush: ShaderBrush by lazy {
 }
 
 /**
- * Ultra-smooth, dark cinematic background for boot/loading, login, and profile selection pages.
+ * Refined, subtle studio backdrop for boot/loading, login, and profile selection pages.
  *
- * Implements:
- * 1. Deep saturated organic gradient: velvet indigo-navy top-left (#090A10), soft glowing deep
- *    violet/amethyst core (#1C1430 to #3E1F5C), and rich dark plum/aubergine/crimson shadows (#2B0C20 to #0F050A).
- * 2. Strict banding prevention via a high-frequency triangular dither/film-grain noise layer.
- * 3. Multi-tiered atmospheric depth: breathing volumetric nebula blooms and subtle floating stardust motes.
- * 4. Deep perimeter and bottom vignetting to guarantee foreground text, input fields, and profile cards maintain
- *    maximum legibility and high contrast.
+ * Uses a deep obsidian-slate studio base with a soft, understated radial ambient wash
+ * tinted by the active profile's accent color, smooth perimeter vignetting, and 1:1 native
+ * pixel anti-banding dither (no stars or distracting particles).
  */
 @Composable
 fun CinematicBackground(
@@ -97,60 +66,6 @@ fun CinematicBackground(
     val density = LocalDensity.current
     val ditherBrush = cachedDitherBrush
 
-    // Deterministic atmospheric particles matching the celestial nebula depth
-    val dustMotes = remember {
-        val colors = listOf(
-            Color(0xFFE2D4F8), // Soft lilac
-            Color(0xFFFCD4E5), // Pale rose / crimson
-            Color(0xFFF0F2FA), // Starlight white
-            Color(0xFFD8C7F0), // Violet dust
-        )
-        val rnd = kotlin.random.Random(42)
-        List(38) { i ->
-            DustMote(
-                relX = rnd.nextFloat(),
-                relY = 0.06f + rnd.nextFloat() * 0.76f, // concentrate around upper and middle nebula zone
-                radiusDp = 0.75f + rnd.nextFloat() * 1.45f,
-                baseAlpha = 0.12f + rnd.nextFloat() * 0.38f,
-                speedX = 0.4f + rnd.nextFloat() * 0.6f,
-                speedY = 0.3f + rnd.nextFloat() * 0.7f,
-                twinkleSpeed = 0.6f + rnd.nextFloat() * 1.2f,
-                phase = rnd.nextFloat() * 6.2831855f,
-                color = colors[i % colors.size],
-                hasGlow = rnd.nextFloat() > 0.65f,
-            )
-        }
-    }
-
-    // Motion loops only active if particles/animation are explicitly enabled
-    val pulsePhase = if (showParticles) {
-        val infiniteTransition = rememberInfiniteTransition(label = "cinematic_nebula_transition")
-        val pulse by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 6.2831855f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 20000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-            label = "cinematic_pulse_phase",
-        )
-        pulse
-    } else 0f
-
-    val driftPhase = if (showParticles) {
-        val infiniteTransition = rememberInfiniteTransition(label = "cinematic_drift_transition")
-        val drift by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 6.2831855f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 32000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-            label = "cinematic_drift_phase",
-        )
-        drift
-    } else 0f
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -159,102 +74,73 @@ fun CinematicBackground(
                 val height = size.height
                 val maxDim = max(width, height)
 
-                // 1. Deep space base
-                drawRect(color = Color(0xFF070407), size = size)
-
-                // 2. Center warm dark wine/crimson glow (Netflix-inspired cinematic ambiance)
-                val glowCenter = Offset(
-                    x = width * (0.50f + 0.015f * sin(pulsePhase)),
-                    y = height * (0.38f + 0.012f * cos(pulsePhase)),
-                )
-                val glowRadius = maxDim * (1.18f + 0.03f * sin(pulsePhase))
-                val coreAlpha = 0.52f + 0.03f * sin(pulsePhase)
-                val coreColor = if (accentColor != null) {
-                    Color(
-                        red = (0x3A / 255f * 0.65f + accentColor.red * 0.35f),
-                        green = (0x12 / 255f * 0.65f + accentColor.green * 0.35f),
-                        blue = (0x1A / 255f * 0.65f + accentColor.blue * 0.35f),
-                    )
-                } else {
-                    Color(0xFF38121A)
-                }
-
+                // 1. Clean, deep obsidian-charcoal base vertical gradient
                 drawRect(
-                    brush = Brush.radialGradient(
+                    brush = Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.00f to coreColor.copy(alpha = coreAlpha),
-                            0.10f to coreColor.copy(alpha = coreAlpha * 0.92f),
-                            0.20f to coreColor.copy(alpha = coreAlpha * 0.78f),
-                            0.32f to Color(0xFF2A0D16).copy(alpha = 0.42f),
-                            0.44f to Color(0xFF200911).copy(alpha = 0.33f),
-                            0.56f to Color(0xFF17060C).copy(alpha = 0.25f),
-                            0.68f to Color(0xFF100409).copy(alpha = 0.17f),
-                            0.80f to Color(0xFF0A0306).copy(alpha = 0.10f),
-                            0.90f to Color(0xFF060203).copy(alpha = 0.04f),
-                            1.00f to Color.Transparent,
+                            0.00f to Color(0xFF0A0C12),
+                            0.45f to Color(0xFF08090E),
+                            1.00f to Color(0xFF050609),
                         ),
-                        center = glowCenter,
-                        radius = glowRadius,
                     ),
                     size = size,
                 )
 
-                // 3. Gentle perimeter and vertical vignetting for contrast
+                // 2. Subtle, professional ambient light wash tinted with the profile accent color
+                val effectiveAccent = accentColor ?: Color(0xFF3B4866)
+                val ambientTint = Color(
+                    red = (0x14 / 255f * 0.55f + effectiveAccent.red * 0.45f).coerceIn(0f, 1f),
+                    green = (0x18 / 255f * 0.55f + effectiveAccent.green * 0.45f).coerceIn(0f, 1f),
+                    blue = (0x24 / 255f * 0.55f + effectiveAccent.blue * 0.45f).coerceIn(0f, 1f),
+                )
+
+                // Soft upper-center studio key light
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colorStops = arrayOf(
+                            0.00f to ambientTint.copy(alpha = 0.34f),
+                            0.18f to ambientTint.copy(alpha = 0.27f),
+                            0.38f to ambientTint.copy(alpha = 0.17f),
+                            0.58f to ambientTint.copy(alpha = 0.09f),
+                            0.78f to ambientTint.copy(alpha = 0.03f),
+                            1.00f to Color.Transparent,
+                        ),
+                        center = Offset(width * 0.50f, height * 0.34f),
+                        radius = maxDim * 0.95f,
+                    ),
+                    size = size,
+                )
+
+                // Subtle top-edge horizon wash for refined depth
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.00f to effectiveAccent.copy(alpha = 0.09f),
+                            0.28f to effectiveAccent.copy(alpha = 0.03f),
+                            0.60f to Color.Transparent,
+                        ),
+                        startY = 0f,
+                        endY = height * 0.65f,
+                    ),
+                    size = size,
+                )
+
+                // 3. Smooth studio perimeter & bottom vignette for high foreground contrast
                 drawRect(
                     brush = Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.00f to Color.Transparent,
-                            0.50f to Color(0xFF050204).copy(alpha = 0.25f),
-                            0.80f to Color(0xFF030102).copy(alpha = 0.65f),
-                            1.00f to Color(0xFF020102).copy(alpha = 0.90f),
+                            0.55f to Color(0xFF040508).copy(alpha = 0.22f),
+                            0.85f to Color(0xFF030406).copy(alpha = 0.55f),
+                            1.00f to Color(0xFF020305).copy(alpha = 0.82f),
                         ),
                         startY = height * 0.45f,
                         endY = height,
                     ),
                     size = size,
                 )
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Transparent,
-                            0.65f to Color.Transparent,
-                            0.85f to Color(0xFF040203).copy(alpha = 0.35f),
-                            1.00f to Color(0xFF020102).copy(alpha = 0.70f),
-                        ),
-                        center = Offset(width * 0.5f, height * 0.5f),
-                        radius = maxDim * 0.85f,
-                    ),
-                    size = size,
-                )
 
-                // 7. Subtle floating stardust / atmospheric particles
-                if (showParticles) {
-                    for (mote in dustMotes) {
-                        val driftX = sin(pulsePhase * mote.speedX + mote.phase) * (density.density * 5f)
-                        val driftY = cos(driftPhase * mote.speedY + mote.phase) * (density.density * 7f)
-                        val cx = mote.relX * width + driftX
-                        val cy = mote.relY * height + driftY
-
-                        val twinkle = 0.75f + 0.25f * sin(pulsePhase * mote.twinkleSpeed + mote.phase)
-                        val alpha = (mote.baseAlpha * twinkle).coerceIn(0f, 1f)
-                        val radiusPx = mote.radiusDp * density.density
-
-                        if (mote.hasGlow) {
-                            drawCircle(
-                                color = mote.color.copy(alpha = alpha * 0.28f),
-                                radius = radiusPx * 2.8f,
-                                center = Offset(cx, cy),
-                            )
-                        }
-                        drawCircle(
-                            color = mote.color.copy(alpha = alpha),
-                            radius = radiusPx,
-                            center = Offset(cx, cy),
-                        )
-                    }
-                }
-
-                // 8. High-DPI native 1:1 physical pixel anti-banding dither layer
+                // 4. High-DPI native 1:1 physical pixel anti-banding dither layer
                 val invScale = (1f / density.density).coerceIn(0.2f, 1f)
                 withTransform({
                     scale(invScale, invScale, Offset.Zero)
@@ -270,4 +156,3 @@ fun CinematicBackground(
             },
     )
 }
-

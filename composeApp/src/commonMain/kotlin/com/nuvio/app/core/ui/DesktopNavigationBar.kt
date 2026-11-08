@@ -29,7 +29,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.NuvioDeckTopNavigationBar
 import com.nuvio.app.core.ui.jelly.JellyNavigationBar
+import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.settings.NavBarStyle
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
@@ -46,81 +49,27 @@ internal fun DesktopNavigationBar(
     profileSwitcherOpen: Boolean = false,
     windowWidth: Dp? = null,
     glowEnabled: Boolean = true,
+    onProfileSelected: ((NuvioProfile) -> Unit)? = null,
+    onAddProfileRequested: (() -> Unit)? = null,
+    onNotificationClick: ((MetaPreview) -> Unit)? = null,
+    onDropdownOpenChanged: ((Boolean) -> Unit)? = null,
 ) {
-    if (items.isEmpty()) return
-    val interactionSource = remember { MutableInteractionSource() }
-    val rawHovered by interactionSource.collectIsHoveredAsState()
-    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
-    val isControllerNavExpanded by ControllerFocusEngine.isNavigationZoneExpanded.collectAsState()
-    val isHovered = (!isControllerActive && rawHovered) || isControllerNavExpanded
-    val isHomeSelected = items.first().selected
-    val isSettingsSelected = items.last().selected
-    val scrollOffset = scrollState?.totalScrollOffset ?: 0f
-    val isScrolledAwayFromTop = scrollOffset > if (isSettingsSelected) 70f else 35f
-    val isFrosted = isHovered || profileSwitcherOpen ||
-        ((isHomeSelected || isSettingsSelected) && isScrolledAwayFromTop)
-    val labelFraction by animateFloatAsState(
-        targetValue = desktopNavigationLabelFraction(navBarStyle, isHomeSelected, isHeroEnabled, isHovered, profileSwitcherOpen, isScrolledAwayFromTop),
-        animationSpec = tween(320, easing = FastOutSlowInEasing),
-        label = "desktop_nav_labels",
+    NuvioDeckTopNavigationBar(
+        items = items,
+        modifier = modifier,
+        scrollState = scrollState,
+        hazeState = hazeState,
+        contentPadding = contentPadding,
+        navBarStyle = navBarStyle,
+        isHeroEnabled = isHeroEnabled,
+        profileSwitcherOpen = profileSwitcherOpen,
+        windowWidth = windowWidth,
+        glowEnabled = glowEnabled,
+        onProfileSelected = onProfileSelected,
+        onAddProfileRequested = onAddProfileRequested,
+        onNotificationClick = onNotificationClick,
+        onDropdownOpenChanged = onDropdownOpenChanged,
     )
-    val surfaceColor by animateColorAsState(
-        targetValue = if (isFrosted) Color(0xFF1C1C1E).copy(alpha = 0.30f) else Color(0xFF0F0F11).copy(alpha = 0.20f),
-        animationSpec = tween(320, easing = FastOutSlowInEasing),
-        label = "desktop_nav_surface",
-    )
-    val sheenAlpha by animateFloatAsState(
-        targetValue = if (isFrosted) 1f else 0f,
-        animationSpec = tween(320, easing = FastOutSlowInEasing),
-        label = "desktop_nav_sheen",
-    )
-    val glowStrength by animateFloatAsState(
-        targetValue = if (glowEnabled) 1f else 0f,
-        animationSpec = tween(420, easing = NuvioTokens.Motion.standard),
-        label = "desktop_nav_glow",
-    )
-    BoxWithConstraints(
-        modifier = modifier.fillMaxWidth().padding(contentPadding).padding(horizontal = 16.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        val viewportWidth = windowWidth ?: maxWidth
-        val iconSize = when {
-            viewportWidth < 800.dp -> 26.dp
-            viewportWidth > 1600.dp -> 30.dp
-            else -> 28.dp
-        }
-        val trackWidth = ((iconSize + 20.dp + 64.dp * labelFraction) * items.size + 8.dp).coerceAtMost(maxWidth)
-        JellyNavigationBar(
-            items = items,
-            labelFraction = labelFraction,
-            glowStrength = glowStrength,
-            horizontalLabels = true,
-            iconSize = iconSize,
-            modifier = Modifier.width(trackWidth).height(iconSize + 20.dp).hoverable(interactionSource),
-        ) {
-            Box(
-                modifier = Modifier.matchParentSize()
-                    .clip(RoundedCornerShape(50))
-                    .then(
-                        if (isFrosted && hazeState != null) {
-                            Modifier.hazeEffect(state = hazeState) { blurRadius = 14.dp }
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .background(surfaceColor)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.14f * sheenAlpha),
-                                Color.White.copy(alpha = 0.03f * sheenAlpha),
-                                Color.Transparent,
-                            ),
-                        ),
-                    ),
-            )
-        }
-    }
 }
 
 internal fun desktopNavigationLabelFraction(

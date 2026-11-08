@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -53,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -151,6 +155,17 @@ fun <T> NuvioShelfSection(
                     } else {
                         itemContent(entry)
                     }
+                }
+            }
+            if (onViewAllClick != null) {
+                item(
+                    key = "shelf_see_all_card_$title",
+                    contentType = "see_all",
+                ) {
+                    NuvioSeeAllPosterCard(
+                        title = title,
+                        onClick = onViewAllClick,
+                    )
                 }
             }
         }
@@ -425,18 +440,100 @@ private fun NuvioShelfSectionHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val viewAllPlaceholderModifier = if (onViewAllClick == null) {
-                Modifier
-                    .alpha(0f)
-                    .clearAndSetSemantics { }
-            } else {
-                Modifier
+        }
+    }
+}
+
+@Composable
+private fun NuvioSeeAllPosterCard(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val tokens = MaterialTheme.nuvio
+    val effectiveBasePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
+    val shape = if (posterCardStyle.catalogLandscapeModeEnabled) {
+        NuvioPosterShape.Landscape
+    } else {
+        NuvioPosterShape.Poster
+    }
+    val cardWidth = shape.cardWidth(basePosterWidthDp = effectiveBasePosterWidthDp)
+    val cardShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+    val viewAllText = stringResource(Res.string.home_view_all)
+    val cardId = remember(title, onClick) { "see_all_card_${title}_${onClick.hashCode()}" }
+
+    Column(
+        modifier = Modifier
+            .desktopPosterHoverScale()
+            .then(modifier)
+            .width(cardWidth),
+        verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(shape.aspectRatio)
+                .controllerFocusable(
+                    id = cardId,
+                    shape = cardShape,
+                    cornerRadius = posterCardStyle.cornerRadiusDp.dp,
+                    focusScale = 1.07f,
+                    selectLabel = viewAllText,
+                    onSelect = onClick,
+                )
+                .clickable(onClick = onClick)
+                .clip(cardShape)
+                .background(tokens.colors.surface.copy(alpha = 0.48f))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.14f),
+                    shape = cardShape,
+                )
+                .nuvioCardDepth(
+                    shape = cardShape,
+                    surface = NuvioCardDepthSurface.Posters,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.12f),
+                            shape = CircleShape,
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.22f),
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = viewAllText,
+                        tint = tokens.colors.textPrimary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Text(
+                    text = viewAllText,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = tokens.colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            NuvioViewAllPill(
-                onClick = onViewAllClick,
-                size = viewAllPillSize,
-                modifier = viewAllPlaceholderModifier,
-            )
+        }
+        if (!posterCardStyle.hideLabelsEnabled) {
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

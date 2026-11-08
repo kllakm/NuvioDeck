@@ -14,6 +14,7 @@ import com.nuvio.app.navigation.CatalogRoute
 import com.nuvio.app.navigation.DetailRoute
 import com.nuvio.app.navigation.EntityBrowseRoute
 import com.nuvio.app.navigation.FolderDetailRoute
+import com.nuvio.app.navigation.PersonDetailRoute
 import com.nuvio.app.navigation.PlayerRoute
 import com.nuvio.app.navigation.StreamRoute
 import com.nuvio.app.navigation.TabsRoute
@@ -31,10 +32,18 @@ fun ControllerNavigationHost(
     onViewAction: (() -> Boolean)? = null,
     onMenuAction: (() -> Boolean)? = null,
 ) {
-    val routeName = currentRoute?.let { it::class.simpleName } ?: ""
+    val routeIdentity = when (currentRoute) {
+        is DetailRoute -> "DetailRoute:${currentRoute.type}:${currentRoute.id}"
+        is CatalogRoute -> "CatalogRoute:${currentRoute.launchId}"
+        is PersonDetailRoute -> "PersonDetailRoute:${currentRoute.personId}"
+        is EntityBrowseRoute -> "EntityBrowseRoute:${currentRoute.entityId}"
+        is FolderDetailRoute -> "FolderDetailRoute:${currentRoute.collectionId}:${currentRoute.folderId}"
+        null -> ""
+        else -> currentRoute::class.simpleName ?: ""
+    }
 
     LaunchedEffect(currentRoute, selectedTab, isModalOverlayOpen) {
-        ControllerFocusEngine.onRouteOrTabChanged("$routeName:$selectedTab")
+        ControllerFocusEngine.onRouteOrTabChanged("$routeIdentity:$selectedTab")
         val context = when {
             isModalOverlayOpen -> ControllerScreenContext(
                 screenType = ControllerScreenType.ModalOverlay,

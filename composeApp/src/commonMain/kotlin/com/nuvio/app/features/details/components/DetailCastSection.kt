@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import com.nuvio.app.controller.ProvideControllerRowLazyListState
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioCardDepth
@@ -67,34 +68,36 @@ fun DetailCastSection(
             val sizing = castSectionSizing(maxWidth.value)
             val rowState = rememberLazyListState()
 
-            LazyRow(
-                state = rowState,
-                modifier = Modifier
-                    .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-                    .fillMaxWidth()
-                    .nuvioDesktopDragScroll(rowState),
-                contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
-                horizontalArrangement = Arrangement.spacedBy(sizing.avatarGap),
-            ) {
-                itemsIndexed(
-                    items = cast,
-                    key = { index, person -> "${person.name}-${person.role.orEmpty()}-${person.photo.orEmpty()}-$index" },
-                ) { index, person ->
-                    val sharedTransitionKey = person.tmdbId
-                        ?.takeIf { it > 0 }
-                        ?.let { castAvatarSharedTransitionKey(it, occurrenceIndex = index) }
-                    CastItem(
-                        person = person,
-                        sharedTransitionKey = sharedTransitionKey,
-                        sizing = sizing,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        onClick = if (onCastClick != null && person.tmdbId != null && person.tmdbId > 0) {
-                            { onCastClick(person, sharedTransitionKey) }
-                        } else {
-                            null
-                        },
-                    )
+            ProvideControllerRowLazyListState(rowState) {
+                LazyRow(
+                    state = rowState,
+                    modifier = Modifier
+                        .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                        .fillMaxWidth()
+                        .nuvioDesktopDragScroll(rowState),
+                    contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+                    horizontalArrangement = Arrangement.spacedBy(sizing.avatarGap),
+                ) {
+                    itemsIndexed(
+                        items = cast,
+                        key = { index, person -> "${person.name}-${person.role.orEmpty()}-${person.photo.orEmpty()}-$index" },
+                    ) { index, person ->
+                        val sharedTransitionKey = person.tmdbId
+                            ?.takeIf { it > 0 }
+                            ?.let { castAvatarSharedTransitionKey(it, occurrenceIndex = index) }
+                        CastItem(
+                            person = person,
+                            sharedTransitionKey = sharedTransitionKey,
+                            sizing = sizing,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            onClick = if (onCastClick != null && person.tmdbId != null && person.tmdbId > 0) {
+                                { onCastClick(person, sharedTransitionKey) }
+                            } else {
+                                null
+                            },
+                        )
+                    }
                 }
             }
         }

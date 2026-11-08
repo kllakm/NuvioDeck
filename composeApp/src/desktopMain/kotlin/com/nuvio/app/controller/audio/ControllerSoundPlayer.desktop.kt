@@ -81,6 +81,7 @@ actual object ControllerSoundPlayer {
     }
 
     actual fun playNavigate() {
+        if (!ControllerSoundSettings.isEnabled()) return
         if (!ControllerManager.isControllerActive.value) return
         val now = System.currentTimeMillis()
         if (now - lastNavigateTime < NAVIGATE_DEBOUNCE_MS) return
@@ -90,11 +91,13 @@ actual object ControllerSoundPlayer {
     }
 
     actual fun playSelect() {
+        if (!ControllerSoundSettings.isEnabled()) return
         if (!ControllerManager.isControllerActive.value) return
         selectClip?.let { play(it) }
     }
 
     actual fun playBack() {
+        if (!ControllerSoundSettings.isEnabled()) return
         if (!ControllerManager.isControllerActive.value) return
         backClip?.let { play(it) }
     }

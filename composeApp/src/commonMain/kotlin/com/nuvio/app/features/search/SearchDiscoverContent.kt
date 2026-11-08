@@ -13,11 +13,13 @@ import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.LocalControllerGroupKey
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
@@ -102,6 +104,7 @@ internal fun LazyListScope.discoverContent(
                     items = state.items.subList(firstIndex, minOf(firstIndex + columns, state.items.size)),
                     columns = columns,
                     modifier = Modifier.padding(horizontal = 16.dp),
+                    rowGroupKey = "discover_grid_row_$rowIndex",
                     watchedKeys = watchedKeys,
                     fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     onPosterClick = onPosterClick,
@@ -137,44 +140,48 @@ private fun DiscoverFilterRow(
     onGenreSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        NuvioDropdownChip(
-            title = stringResource(Res.string.discover_select_type),
-            label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
-            selectedKey = state.selectedType,
-            options = state.typeOptions.map { NuvioDropdownOption(key = it, label = it.displayTypeLabel()) },
-            enabled = state.typeOptions.isNotEmpty(),
-            onSelected = { onTypeSelected(it.key) },
-        )
-        NuvioDropdownChip(
-            title = stringResource(Res.string.discover_select_catalog),
-            label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
-            selectedKey = state.selectedCatalogKey,
-            options = state.catalogOptions.map { option -> NuvioDropdownOption(key = option.key, label = option.catalogName) },
-            enabled = state.catalogOptions.isNotEmpty(),
-            onSelected = { onCatalogSelected(it.key) },
-        )
+    CompositionLocalProvider(LocalControllerGroupKey provides "discover_filters") {
+        Row(
+            modifier = modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NuvioDropdownChip(
+                title = stringResource(Res.string.discover_select_type),
+                label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
+                selectedKey = state.selectedType,
+                options = state.typeOptions.map { NuvioDropdownOption(key = it, label = it.displayTypeLabel()) },
+                enabled = state.typeOptions.isNotEmpty(),
+                onSelected = { onTypeSelected(it.key) },
+            )
+            NuvioDropdownChip(
+                title = stringResource(Res.string.discover_select_catalog),
+                label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
+                selectedKey = state.selectedCatalogKey,
+                options = state.catalogOptions.map { option -> NuvioDropdownOption(key = option.key, label = option.catalogName) },
+                enabled = state.catalogOptions.isNotEmpty(),
+                onSelected = { onCatalogSelected(it.key) },
+            )
 
-        val selectedCatalog = state.selectedCatalog
-        val genreOptions = buildList {
-            if (selectedCatalog?.genreRequired != true) {
-                add(NuvioDropdownOption(key = "", label = stringResource(Res.string.discover_all_genres)))
+            val selectedCatalog = state.selectedCatalog
+            val genreOptions = buildList {
+                if (selectedCatalog?.genreRequired != true) {
+                    add(NuvioDropdownOption(key = "", label = stringResource(Res.string.discover_all_genres)))
+                }
+                addAll(state.genreOptions.map { genre -> NuvioDropdownOption(key = genre, label = genre) })
             }
-            addAll(state.genreOptions.map { genre -> NuvioDropdownOption(key = genre, label = genre) })
+            NuvioDropdownChip(
+                title = stringResource(Res.string.discover_select_genre),
+                label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),
+                selectedKey = state.selectedGenre ?: "",
+                options = genreOptions,
+                enabled = genreOptions.size > 1 || selectedCatalog?.genreRequired == true,
+                onSelected = { option ->
+                    onGenreSelected(option.key.ifBlank { null })
+                },
+            )
         }
-        NuvioDropdownChip(
-            title = stringResource(Res.string.discover_select_genre),
-            label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),
-            selectedKey = state.selectedGenre ?: "",
-            options = genreOptions,
-            enabled = genreOptions.size > 1 || selectedCatalog?.genreRequired == true,
-            onSelected = { option ->
-                onGenreSelected(option.key.ifBlank { null })
-            },
-        )
     }
 }
 

@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui.jelly
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.constrainHeight
@@ -40,8 +42,10 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.ControllerFocusZone
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.FloatingNavigationItem
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.gradientMask
@@ -72,19 +76,38 @@ internal fun JellyTabRow(
         modifier = modifier.padding(4.dp).clearAndSetSemantics {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        items.forEach { item ->
+        items.forEachIndexed { index, item ->
+            val isControllerFocused = isControllerNodeFocused("top_nav_${item.label}_$index")
+            val itemColor = if (isControllerFocused || (horizontalLabels && active)) {
+                tokens.colors.textPrimary
+            } else if (active) {
+                tokens.colors.accent
+            } else {
+                tokens.colors.textMuted
+            }
+            val itemIconTint = if (active || isControllerFocused) Color.White else itemColor
+            val focusBgColor = if (isControllerFocused) {
+                tokens.colors.accent.copy(alpha = 0.28f)
+            } else {
+                Color.Transparent
+            }
             Box(
-                Modifier.weight(1f).fillMaxHeight().graphicsLayer {
-                    val scale = if (active) motion.frame.contentScale else 1f
-                    scaleX = scale
-                    scaleY = scale
-                },
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(focusBgColor, RoundedCornerShape(50))
+                    .graphicsLayer {
+                        val scale = if (active) motion.frame.contentScale else 1f
+                        scaleX = scale
+                        scaleY = scale
+                    },
                 contentAlignment = Alignment.Center,
             ) {
-                JellyTabContent(item.label, labelFraction, compactSize, horizontalLabels, iconSize, color, active) {
+                JellyTabContent(item.label, labelFraction, compactSize, horizontalLabels, iconSize, itemColor, active || isControllerFocused) {
                     when {
-                        item.icon != null -> Icon(item.icon, null, iconModifier, tint = iconTint)
-                        item.drawable != null -> Icon(painterResource(item.drawable), null, iconModifier, tint = iconTint)
+                        item.icon != null -> Icon(item.icon, null, iconModifier, tint = itemIconTint)
+                        item.drawable != null -> Icon(painterResource(item.drawable), null, iconModifier, tint = itemIconTint)
                     }
                 }
             }
@@ -116,11 +139,30 @@ internal fun JellyTabTargets(
                         id = "top_nav_${item.label}_$index",
                         zone = ControllerFocusZone.Navigation,
                         groupKey = "top_nav",
+                        isDefaultFocus = item.selected,
                         shape = RoundedCornerShape(50),
                         scaleOnFocus = 1f,
                         hideFocusRing = true,
                         onSelect = onClick,
                         selectLabel = item.label,
+                        onMoveLeft = {
+                            if (index > 0) {
+                                val prev = items[index - 1]
+                                ControllerFocusEngine.requestFocus("top_nav_${prev.label}_${index - 1}", triggerScroll = false)
+                            }
+                            true
+                        },
+                        onMoveRight = {
+                            if (index < items.lastIndex) {
+                                val next = items[index + 1]
+                                ControllerFocusEngine.requestFocus("top_nav_${next.label}_${index + 1}", triggerScroll = false)
+                            } else {
+                                if (!ControllerFocusEngine.requestFocus("top_nav_fullscreen", triggerScroll = false)) {
+                                    ControllerFocusEngine.requestFocus("top_nav_notifications", triggerScroll = false)
+                                }
+                            }
+                            true
+                        },
                     )
                     .selectable(
                         selected = item.selected,

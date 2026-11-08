@@ -1414,20 +1414,20 @@ internal fun MainAppContent(
                 },
                 onShoulderLeft = if (currentRoute is TabsRoute) {
                     {
-                        val tabs = AppScreenTab.entries
-                        val currentIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
-                        val prevIndex = (currentIndex - 1 + tabs.size) % tabs.size
-                        activateTab(tabs[prevIndex])
-                        true
+                        com.nuvio.app.controller.TopBarTabOrderController.cycleTabOrder(
+                            step = -1,
+                            selectedTab = selectedTab,
+                            activateTab = { activateTab(it) },
+                        )
                     }
                 } else null,
                 onShoulderRight = if (currentRoute is TabsRoute) {
                     {
-                        val tabs = AppScreenTab.entries
-                        val currentIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
-                        val nextIndex = (currentIndex + 1) % tabs.size
-                        activateTab(tabs[nextIndex])
-                        true
+                        com.nuvio.app.controller.TopBarTabOrderController.cycleTabOrder(
+                            step = 1,
+                            selectedTab = selectedTab,
+                            activateTab = { activateTab(it) },
+                        )
                     }
                 } else null,
                 onTertiaryAction = if (currentRoute is TabsRoute) {

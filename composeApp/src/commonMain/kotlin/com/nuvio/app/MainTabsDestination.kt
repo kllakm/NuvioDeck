@@ -64,6 +64,7 @@ import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.compose_nav_settings
 import nuvio.composeapp.generated.resources.sidebar_library
 import nuvio.composeapp.generated.resources.sidebar_search
+import nuvio.composeapp.generated.resources.sidebar_settings
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -96,11 +97,8 @@ internal fun MainTabsDestination(
         } else {
             liquidGlassNativeTabBarSupported && liquidGlassNativeTabBarEnabled && initialHomeReady
         }
-        val useDesktopSidebar = isDesktop &&
-            isTabletLayout &&
-            !useNativeBottomTabs &&
-            desktopNavigationLayout == DesktopNavigationLayout.Sidebar
-        val useDesktopTopBar = isDesktop && !useNativeBottomTabs && !useDesktopSidebar
+        val useDesktopSidebar = false
+        val useDesktopTopBar = isDesktop && !useNativeBottomTabs
         val useFloatingTopBar = !isDesktop && isTabletLayout && !useNativeBottomTabs
         val topChromePadding = if (useFloatingTopBar || useDesktopTopBar) {
             val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -170,18 +168,23 @@ internal fun MainTabsDestination(
             FloatingNavigationItem(
                 selected = selectedTab == AppScreenTab.Settings,
                 onClick = { onTabSelected(AppScreenTab.Settings) },
+                drawable = if (isDesktop) Res.drawable.sidebar_settings else null,
                 label = stringResource(if (isDesktop) Res.string.compose_nav_settings else Res.string.compose_nav_profile),
-                content = { onClick ->
-                    ProfileSwitcherTab(
-                        selected = selectedTab == AppScreenTab.Settings,
-                        onClick = onClick,
-                        onProfileSelected = onProfileSelected,
-                        onAddProfileRequested = onAddProfileRequested,
-                        hazeState = navBarHazeState,
-                        onPopupStateChanged = { isTopProfileSwitcherOpen = it },
-                        avatarSize = if (isDesktop && screenWidth < 800.dp) 26 else if (isDesktop && screenWidth > 1600.dp) 30 else 28,
-                        popupBelowAnchor = isDesktop || isTabletLayout,
-                    )
+                content = if (isDesktop) {
+                    null
+                } else {
+                    { onClick ->
+                        ProfileSwitcherTab(
+                            selected = selectedTab == AppScreenTab.Settings,
+                            onClick = onClick,
+                            onProfileSelected = onProfileSelected,
+                            onAddProfileRequested = onAddProfileRequested,
+                            hazeState = navBarHazeState,
+                            onPopupStateChanged = { isTopProfileSwitcherOpen = it },
+                            avatarSize = if (isDesktop && screenWidth < 800.dp) 26 else if (isDesktop && screenWidth > 1600.dp) 30 else 28,
+                            popupBelowAnchor = isDesktop || isTabletLayout,
+                        )
+                    }
                 },
             ),
         )
@@ -322,6 +325,10 @@ internal fun MainTabsDestination(
                         profileSwitcherOpen = isTopProfileSwitcherOpen,
                         windowWidth = screenWidth,
                         glowEnabled = navBarGlowEnabled,
+                        onProfileSelected = onProfileSelected,
+                        onAddProfileRequested = onAddProfileRequested,
+                        onNotificationClick = { preview -> tabActions.onPosterClick?.invoke(preview) },
+                        onDropdownOpenChanged = { isTopProfileSwitcherOpen = it },
                     )
                 }
 

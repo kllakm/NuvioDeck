@@ -738,56 +738,55 @@ private fun SeasonPosterButton(
 ) {
     val seasonFocusId = remember(season) { "season_poster_$season" }
     Column(
-        modifier = Modifier
-            .width(sizing.seasonPosterWidth)
-            .controllerFocusable(
-                id = seasonFocusId,
-                groupKey = "detail_seasons_row",
-                shape = RoundedCornerShape(sizing.seasonPosterRadius),
-                focusScale = 1.05f,
-                selectLabel = "Select Season",
-                secondaryActionLabel = if (onLongClick != null) "Season Options" else null,
-                onSecondaryAction = onLongClick,
-                onSelect = onClick,
-                onMoveRight = if (index < totalSeasons - 1) {
-                    {
-                        val nextSeason = seasons[index + 1]
-                        val nextFocusId = "season_poster_$nextSeason"
-                        ControllerFocusEngine.navigateLazyRowIndex(
-                            lazyListState = seasonListState,
-                            targetIndex = index + 1,
-                            totalItems = totalSeasons,
-                            isMovingRight = true,
-                            coroutineScope = coroutineScope,
-                            targetFocusId = nextFocusId,
-                        )
-                    }
-                } else null,
-                onMoveLeft = if (index > 0) {
-                    {
-                        val prevSeason = seasons[index - 1]
-                        val prevFocusId = "season_poster_$prevSeason"
-                        ControllerFocusEngine.navigateLazyRowIndex(
-                            lazyListState = seasonListState,
-                            targetIndex = index - 1,
-                            totalItems = totalSeasons,
-                            isMovingRight = false,
-                            coroutineScope = coroutineScope,
-                            targetFocusId = prevFocusId,
-                        )
-                    }
-                } else null,
-            )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            ),
+        modifier = Modifier.width(sizing.seasonPosterWidth),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(sizing.seasonPosterHeight)
+                .controllerFocusable(
+                    id = seasonFocusId,
+                    groupKey = "detail_seasons_row",
+                    shape = RoundedCornerShape(sizing.seasonPosterRadius),
+                    focusScale = 1.05f,
+                    selectLabel = "Select Season",
+                    secondaryActionLabel = if (onLongClick != null) "Season Options" else null,
+                    onSecondaryAction = onLongClick,
+                    onSelect = onClick,
+                    onMoveRight = if (index < totalSeasons - 1) {
+                        {
+                            val nextSeason = seasons[index + 1]
+                            val nextFocusId = "season_poster_$nextSeason"
+                            ControllerFocusEngine.navigateLazyRowIndex(
+                                lazyListState = seasonListState,
+                                targetIndex = index + 1,
+                                totalItems = totalSeasons,
+                                isMovingRight = true,
+                                coroutineScope = coroutineScope,
+                                targetFocusId = nextFocusId,
+                            )
+                        }
+                    } else null,
+                    onMoveLeft = if (index > 0) {
+                        {
+                            val prevSeason = seasons[index - 1]
+                            val prevFocusId = "season_poster_$prevSeason"
+                            ControllerFocusEngine.navigateLazyRowIndex(
+                                lazyListState = seasonListState,
+                                targetIndex = index - 1,
+                                totalItems = totalSeasons,
+                                isMovingRight = false,
+                                coroutineScope = coroutineScope,
+                                targetFocusId = prevFocusId,
+                            )
+                        }
+                    } else null,
+                )
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                )
                 .clip(RoundedCornerShape(sizing.seasonPosterRadius))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 .border(

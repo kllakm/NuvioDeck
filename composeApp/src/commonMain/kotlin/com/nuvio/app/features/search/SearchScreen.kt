@@ -29,20 +29,24 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.controller.controllerFocusable
+import kotlinx.coroutines.launch
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.ui.NuvioInputField
@@ -103,7 +107,43 @@ fun SearchScreen(
     scrollToTopRequests: Flow<Unit> = emptyFlow(),
 ) {
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
     var isSearchFocused by remember { mutableStateOf(false) }
+    val controllerFocusedNodeId by com.nuvio.app.controller.ControllerFocusEngine.focusedNodeId.collectAsStateWithLifecycle()
+
+    fun focusSearchInputAndOpenKeyboard(fromAutoFocus: Boolean) {
+        com.nuvio.app.controller.ControllerFocusEngine.focusNodeById("search_input_field", triggerScroll = false)
+        coroutineScope.launch {
+            if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0) {
+                runCatching { listState.scrollToItem(0) }
+            }
+            withFrameNanos { }
+            com.nuvio.app.controller.ControllerFocusEngine.focusNodeById("search_input_field", triggerScroll = false)
+            if (!fromAutoFocus && isSearchFocused) {
+                runCatching { focusManager.clearFocus(force = true) }
+                withFrameNanos { }
+            }
+            runCatching { focusRequester.requestFocus() }
+            withFrameNanos { }
+            if (!isSearchFocused) {
+                runCatching { focusRequester.requestFocus() }
+                delay(16)
+            }
+            com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = fromAutoFocus)
+        }
+    }
+
+    LaunchedEffect(controllerFocusedNodeId) {
+        if (
+            controllerFocusedNodeId != null &&
+            controllerFocusedNodeId != "search_input_field" &&
+            isSearchFocused
+        ) {
+            runCatching { focusRequester.freeFocus() }
+            runCatching { focusManager.clearFocus() }
+        }
+    }
 
     androidx.compose.runtime.DisposableEffect(focusRequester) {
         com.nuvio.app.controller.PlatformVirtualKeyboard.registerInputFocusRestorer {
@@ -124,9 +164,7 @@ fun SearchScreen(
 
     ScreenActivityEffect(searchFocusRequestCount) { screenActive ->
         if (screenActive && searchFocusRequestCount > 0) {
-            focusRequester.requestFocus()
-            com.nuvio.app.controller.ControllerFocusEngine.focusNodeById("search_input_field")
-            com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = false)
+            focusSearchInputAndOpenKeyboard(fromAutoFocus = false)
         }
     }
 
@@ -276,7 +314,7 @@ fun SearchScreen(
             listState = listState,
             modifier = Modifier.fillMaxSize(),
         ) {
-        stickyHeader {
+        item(key = "search_header_section") {
             Box(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
@@ -305,26 +343,37 @@ fun SearchScreen(
                                 .focusRequester(focusRequester)
                                 .controllerFocusable(
                                     id = "search_input_field",
+                                    isDefaultFocus = true,
                                     isTextInput = true,
                                     shape = RoundedCornerShape(16.dp),
                                     onFocused = {
-                                        focusRequester.requestFocus()
-                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = true)
+                                        focusSearchInputAndOpenKeyboard(fromAutoFocus = true)
                                     },
                                     onSelect = {
-                                        focusRequester.requestFocus()
-                                        com.nuvio.app.controller.PlatformVirtualKeyboard.show(fromAutoFocus = false)
+                                        focusSearchInputAndOpenKeyboard(fromAutoFocus = false)
                                     },
                                     selectLabel = "Type with Keyboard",
-                                    onSecondaryAction = if (query.isNotEmpty()) { { query = "" } } else null,
+                                    onSecondaryAction = if (query.isNotEmpty()) {
+                                        {
+                                            query = ""
+                                            SearchRepository.clear()
+                                        }
+                                    } else {
+                                        null
+                                    },
                                     secondaryActionLabel = "Clear",
                                 )
                                 .onFocusChanged {
                                     isSearchFocused = it.isFocused
                                 },
-                            trailingContent = if (query.isNotBlank()) {
+                            trailingContent = if (query.isNotEmpty()) {
                                 {
-                                    IconButton(onClick = { query = "" }) {
+                                    IconButton(
+                                        onClick = {
+                                            query = ""
+                                            SearchRepository.clear()
+                                        },
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
                                             contentDescription = stringResource(Res.string.compose_search_clear),
@@ -343,7 +392,7 @@ fun SearchScreen(
         }
 
         if (query.isBlank()) {
-            if (isSearchFocused && recentSearches.isNotEmpty()) {
+            if (recentSearches.isNotEmpty()) {
                 item(key = "recent_searches") {
                     SearchRecentSection(
                         recentSearches = recentSearches,
@@ -352,6 +401,7 @@ fun SearchScreen(
                             com.nuvio.app.controller.PlatformVirtualKeyboard.hide()
                         },
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
+                        onClearAll = SearchHistoryRepository::clearAll,
                     )
                 }
             }
@@ -516,6 +566,7 @@ private fun SearchRecentSection(
     recentSearches: List<String>,
     onSearchPress: (String) -> Unit,
     onRemoveSearch: (String) -> Unit,
+    onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -524,17 +575,40 @@ private fun SearchRecentSection(
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = stringResource(Res.string.compose_search_recent_searches),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.compose_search_recent_searches),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = stringResource(Res.string.compose_search_clear),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable(onClick = onClearAll)
+                    .controllerFocusable(
+                        id = "recent_searches_clear_all",
+                        groupKey = "recent_searches_header",
+                        shape = RoundedCornerShape(10.dp),
+                        onSelect = onClearAll,
+                        selectLabel = "Clear All",
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
-        recentSearches.forEach { recentQuery ->
+        recentSearches.forEachIndexed { index, recentQuery ->
             SearchRecentRow(
+                index = index,
                 query = recentQuery,
                 onSearchPress = { onSearchPress(recentQuery) },
                 onRemovePress = { onRemoveSearch(recentQuery) },
+                onClearAll = onClearAll,
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
@@ -543,40 +617,62 @@ private fun SearchRecentSection(
 
 @Composable
 private fun SearchRecentRow(
+    index: Int,
     query: String,
     onSearchPress: () -> Unit,
     onRemovePress: () -> Unit,
+    onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val rowGroupKey = "recent_search_row_$index"
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onSearchPress)
-            .controllerFocusable(
-                shape = RoundedCornerShape(16.dp),
-                onSelect = onSearchPress,
-                selectLabel = "Search",
-                onSecondaryAction = onRemovePress,
-                secondaryActionLabel = "Remove",
-            )
-            .padding(vertical = 2.dp)
-            .background(
-                color = MaterialTheme.colorScheme.background,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .padding(start = 2.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = query,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        IconButton(onClick = onRemovePress) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onSearchPress)
+                .controllerFocusable(
+                    id = "recent_search_$index",
+                    groupKey = rowGroupKey,
+                    shape = RoundedCornerShape(16.dp),
+                    onSelect = onSearchPress,
+                    selectLabel = "Search",
+                    onSecondaryAction = onRemovePress,
+                    secondaryActionLabel = "Remove",
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.background,
+                    shape = RoundedCornerShape(16.dp),
+                )
+                .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = query,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(
+            onClick = onRemovePress,
+            modifier = Modifier.controllerFocusable(
+                id = "recent_search_remove_$index",
+                groupKey = rowGroupKey,
+                shape = RoundedCornerShape(50),
+                onSelect = onRemovePress,
+                selectLabel = "Remove",
+                onSecondaryAction = onClearAll,
+                secondaryActionLabel = "Clear All",
+            ),
+        ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(Res.string.compose_search_remove_recent_search),

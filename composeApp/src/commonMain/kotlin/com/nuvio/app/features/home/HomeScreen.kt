@@ -940,13 +940,12 @@ fun HomeScreen(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val homeSectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value)
         val posterCardStyle = rememberPosterCardStyleUiState()
+        val rowItemLimit = homeSettingsUiState.rowItemLimit.coerceIn(
+            HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+            HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+        )
         val homeCatalogPreviewLimit = if (isDesktop) {
-            homeCatalogPreviewLimitForWidth(
-                maxWidthDp = maxWidth.value,
-                sectionPadding = homeSectionPadding,
-                basePosterWidthDp = posterCardStyle.widthDp,
-                useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
-            )
+            rowItemLimit
         } else {
             HOME_CATALOG_PREVIEW_LIMIT
         }
@@ -1202,16 +1201,10 @@ fun HomeScreen(
                                 item(key = keyedSettingsItem.lazyKey, contentType = "catalog") {
                                     HomeCatalogRowSection(
                                         section = section,
-                                        entries = if (isDesktop) {
-                                            // The row is lazy, so desktop can expose the fetched catalog without
-                                            // composing every poster up front. Mobile keeps its compact preview.
-                                            section.items
-                                        } else {
-                                            section.items.take(homeCatalogPreviewLimit)
-                                        },
+                                        entries = section.items.take(homeCatalogPreviewLimit),
                                         modifier = Modifier.padding(bottom = 12.dp),
                                         sectionPadding = homeSectionPadding,
-                                        onViewAllClick = if (section.canOpenCatalog(homeCatalogPreviewLimit)) {
+                                        onViewAllClick = if (section.items.size > homeCatalogPreviewLimit || section.canOpenCatalog(homeCatalogPreviewLimit)) {
                                             onCatalogClick?.let { { it(section) } }
                                         } else {
                                             null
