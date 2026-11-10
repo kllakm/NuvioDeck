@@ -727,11 +727,15 @@ internal class NativePlayerController(
         return runCatching {
             val isLoading = NativePlayerBridge.isLoading(current)
             val isEnded = NativePlayerBridge.isEnded(current)
+            val durationMs = NativePlayerBridge.durationMs(current)
+            if (durationMs > 0L && com.nuvio.app.controller.DebridStreamGuard.isErrorSlate(durationMs)) {
+                log.w { "NativePlayerController: detected debrid error slate (duration=${durationMs}ms)" }
+            }
             PlayerPlaybackSnapshot(
                 isLoading = isLoading,
                 isPlaying = !NativePlayerBridge.isPaused(current) && !isLoading && !isEnded,
                 isEnded = isEnded,
-                durationMs = NativePlayerBridge.durationMs(current),
+                durationMs = durationMs,
                 positionMs = NativePlayerBridge.positionMs(current),
                 bufferedPositionMs = NativePlayerBridge.bufferedPositionMs(current),
                 playbackSpeed = NativePlayerBridge.speed(current),

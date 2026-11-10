@@ -379,26 +379,36 @@ private fun SeriesSeasonSelector(
     onLongPress: ((Int) -> Unit)?,
 ) {
     if (seasons.size <= 1) return
+    var seasonViewMode by remember {
+        mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
+    }
     RegisterControllerHandler(
         onBumperLeft = {
             val idx = seasons.indexOf(currentSeason)
             if (idx > 0) {
-                onSelect(seasons[idx - 1])
+                val nextSeason = seasons[idx - 1]
+                onSelect(nextSeason)
+                val targetFocusId = if (seasonViewMode == SeasonViewMode.Posters) "season_poster_$nextSeason" else "season_text_chip_$nextSeason"
+                if (ControllerFocusEngine.focusedNodeId.value?.contains("season") == true) {
+                    ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)
+                }
                 true
             } else false
         },
         onBumperRight = {
             val idx = seasons.indexOf(currentSeason)
             if (idx >= 0 && idx < seasons.lastIndex) {
-                onSelect(seasons[idx + 1])
+                val nextSeason = seasons[idx + 1]
+                onSelect(nextSeason)
+                val targetFocusId = if (seasonViewMode == SeasonViewMode.Posters) "season_poster_$nextSeason" else "season_text_chip_$nextSeason"
+                if (ControllerFocusEngine.focusedNodeId.value?.contains("season") == true) {
+                    ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)
+                }
                 true
             } else false
         },
     )
 
-    var seasonViewMode by remember {
-        mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
-    }
     val hasSeasonPosters = seasons.any { season ->
         resolveSeasonPoster(
             season = season,
@@ -459,6 +469,7 @@ private fun SeriesSeasonSelector(
                     )
                     SeasonViewMode.Text -> SeasonTextChipScrollRow(
                         seasons = seasons,
+                        groupedEpisodes = groupedEpisodes,
                         currentSeason = currentSeason,
                         sizing = sizing,
                         horizontalScrollPadding = horizontalScrollPadding,
@@ -470,6 +481,7 @@ private fun SeriesSeasonSelector(
         } else {
             SeasonTextChipScrollRow(
                 seasons = seasons,
+                groupedEpisodes = groupedEpisodes,
                 currentSeason = currentSeason,
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
@@ -524,6 +536,7 @@ private fun SeasonViewModeToggle(
 @Composable
 private fun SeasonTextChipScrollRow(
     seasons: List<Int>,
+    groupedEpisodes: Map<Int, List<MetaVideo>>,
     currentSeason: Int,
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
@@ -543,6 +556,23 @@ private fun SeasonTextChipScrollRow(
                 seasonListState.scrollToItem(currentIndex)
                 hasPositionedSeasonRow = true
             }
+            if (ControllerFocusEngine.focusedNodeId.value?.contains("season") == true) {
+                val targetFocusId = "season_text_chip_$currentSeason"
+                if (!ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)) {
+                    delay(50L)
+                    ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)
+                }
+            }
+        }
+    }
+
+    val currentSeasonEpisodes = groupedEpisodes[currentSeason].orEmpty()
+    val firstEpisode = currentSeasonEpisodes.firstOrNull()
+    val onMoveDownToEpisode: (() -> Boolean)? = firstEpisode?.let { ep ->
+        {
+            val horizontalId = "episode_card_${ep.id}"
+            val listId = "episode_${ep.id}"
+            ControllerFocusEngine.requestFocus(horizontalId) || ControllerFocusEngine.requestFocus(listId)
         }
     }
 
@@ -577,6 +607,7 @@ private fun SeasonTextChipScrollRow(
                             selectLabel = "Select Season",
                             onSecondaryAction = onSecondaryClick,
                             secondaryActionLabel = "Season Options",
+                            onMoveDown = onMoveDownToEpisode,
                             onMoveRight = if (index < seasons.size - 1) {
                                 {
                                     val nextSeason = seasons[index + 1]
@@ -666,6 +697,23 @@ private fun SeasonPosterScrollRow(
                 seasonListState.scrollToItem(currentIndex)
                 hasPositionedSeasonRow = true
             }
+            if (ControllerFocusEngine.focusedNodeId.value?.contains("season") == true) {
+                val targetFocusId = "season_poster_$currentSeason"
+                if (!ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)) {
+                    delay(50L)
+                    ControllerFocusEngine.requestFocus(targetFocusId, triggerScroll = false)
+                }
+            }
+        }
+    }
+
+    val currentSeasonEpisodes = groupedEpisodes[currentSeason].orEmpty()
+    val firstEpisode = currentSeasonEpisodes.firstOrNull()
+    val onMoveDownToEpisode: (() -> Boolean)? = firstEpisode?.let { ep ->
+        {
+            val horizontalId = "episode_card_${ep.id}"
+            val listId = "episode_${ep.id}"
+            ControllerFocusEngine.requestFocus(horizontalId) || ControllerFocusEngine.requestFocus(listId)
         }
     }
 
@@ -705,6 +753,7 @@ private fun SeasonPosterScrollRow(
                     sizing = sizing,
                     onClick = { onSelect(season) },
                     onLongClick = onLongPress?.let { handler -> { handler(season) } },
+                    onMoveDown = onMoveDownToEpisode,
                 )
             }
         }
@@ -735,6 +784,7 @@ private fun SeasonPosterButton(
     sizing: SeriesContentSizing,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
+    onMoveDown: (() -> Boolean)? = null,
 ) {
     val seasonFocusId = remember(season) { "season_poster_$season" }
     Column(
@@ -754,6 +804,7 @@ private fun SeasonPosterButton(
                     secondaryActionLabel = if (onLongClick != null) "Season Options" else null,
                     onSecondaryAction = onLongClick,
                     onSelect = onClick,
+                    onMoveDown = onMoveDown,
                     onMoveRight = if (index < totalSeasons - 1) {
                         {
                             val nextSeason = seasons[index + 1]

@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.LocalControllerGroupKey
+import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.RegisterControllerVerticalScroll
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.gestures.stopScroll
@@ -387,6 +388,18 @@ fun SettingsScreen(
         PlatformBackHandler(
             enabled = screenActive && previousPage != null && (rootActionsEnabled || onExternalBack != null),
             onBack = ::navigateBack,
+        )
+
+        RegisterControllerHandler(
+            key = "settings_screen_controller_handler",
+            onBack = {
+                if (page != SettingsPage.Root && previousPage != null) {
+                    navigateBack()
+                    true
+                } else {
+                    false
+                }
+            },
         )
 
         if (isSelectedTab || page == SettingsPage.Root) {

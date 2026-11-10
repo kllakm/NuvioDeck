@@ -148,6 +148,7 @@ private fun DiscoverFilterRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             NuvioDropdownChip(
+                id = "discover_filter_type",
                 title = stringResource(Res.string.discover_select_type),
                 label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
                 selectedKey = state.selectedType,
@@ -156,6 +157,7 @@ private fun DiscoverFilterRow(
                 onSelected = { onTypeSelected(it.key) },
             )
             NuvioDropdownChip(
+                id = "discover_filter_catalog",
                 title = stringResource(Res.string.discover_select_catalog),
                 label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
                 selectedKey = state.selectedCatalogKey,
@@ -172,6 +174,7 @@ private fun DiscoverFilterRow(
                 addAll(state.genreOptions.map { genre -> NuvioDropdownOption(key = genre, label = genre) })
             }
             NuvioDropdownChip(
+                id = "discover_filter_genre",
                 title = stringResource(Res.string.discover_select_genre),
                 label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),
                 selectedKey = state.selectedGenre ?: "",

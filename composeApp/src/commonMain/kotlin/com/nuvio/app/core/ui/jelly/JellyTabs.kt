@@ -87,7 +87,9 @@ internal fun JellyTabRow(
             }
             val itemIconTint = if (active || isControllerFocused) Color.White else itemColor
             val focusBgColor = if (isControllerFocused) {
-                tokens.colors.accent.copy(alpha = 0.28f)
+                tokens.colors.accent.copy(alpha = 0.32f)
+            } else if (horizontalLabels && item.selected) {
+                tokens.colors.accent.copy(alpha = 0.16f)
             } else {
                 Color.Transparent
             }

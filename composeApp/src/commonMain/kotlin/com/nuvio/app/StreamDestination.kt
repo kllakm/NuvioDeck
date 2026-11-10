@@ -246,6 +246,19 @@ internal fun StreamDestination(
             stream = stream,
         )
 
+        val currentStreamsState = StreamsRepository.uiState.value
+        val candidates = currentStreamsState.autoPlayCandidates.ifEmpty {
+            currentStreamsState.groups.flatMap { it.streams }
+        }
+        val expectedRuntimeMinutes = launch.pauseDescription?.let { com.nuvio.app.controller.DebridStreamGuard.parseRuntimeMinutes(it) }
+        com.nuvio.app.controller.DebridStreamGuard.initPlaybackSession(
+            stream = stream,
+            candidates = candidates,
+            contentType = launch.type,
+            seasonNumber = launch.seasonNumber,
+            metadataRuntimeMinutes = expectedRuntimeMinutes,
+        )
+
         autoPlayNavigationStarted = replaceStreamRoute
         val launchId = PlayerLaunchStore.put(playerLaunch)
         StreamsRepository.cancelLoading()
@@ -563,6 +576,18 @@ internal fun StreamDestination(
             StreamsRepository.cancelLoading()
             return@LaunchedEffect
         }
+        val autoPlayCandidates = streamsUiState.autoPlayCandidates.ifEmpty {
+            streamsUiState.groups.flatMap { it.streams }
+        }
+        val expectedRuntimeMinutesAutoPlay = launch.pauseDescription?.let { com.nuvio.app.controller.DebridStreamGuard.parseRuntimeMinutes(it) }
+        com.nuvio.app.controller.DebridStreamGuard.initPlaybackSession(
+            stream = stream,
+            candidates = autoPlayCandidates,
+            contentType = launch.type,
+            seasonNumber = launch.seasonNumber,
+            metadataRuntimeMinutes = expectedRuntimeMinutesAutoPlay,
+        )
+
         StreamsRepository.consumeAutoPlay()
         StreamsRepository.cancelLoading()
         autoPlayNavigationStarted = true

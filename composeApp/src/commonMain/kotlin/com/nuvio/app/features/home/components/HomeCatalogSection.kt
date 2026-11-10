@@ -79,6 +79,7 @@ private fun HomeCatalogRowSectionContent(
         onViewAllClick = onViewAllClick,
         onTitleClick = onViewAllClick?.takeIf { isDesktop },
         viewAllPillSize = NuvioViewAllPillSize.Compact,
+        groupKey = section.key,
         key = { item -> item.stableKey() },
     ) { item ->
         HomePosterCard(

@@ -30,6 +30,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.stopScroll
@@ -93,6 +94,7 @@ fun <T> NuvioShelfSection(
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
     viewAllPillSize: NuvioViewAllPillSize = NuvioViewAllPillSize.Default,
+    groupKey: String? = null,
     key: ((T) -> Any)? = null,
     animatePlacement: Boolean = false,
     state: LazyListState = rememberLazyListState(),
@@ -102,10 +104,14 @@ fun <T> NuvioShelfSection(
     val duplicateSafeEntries = remember(entries, key) {
         key?.let { entries.withDuplicateSafeLazyKeys(it) }
     }
+    val effectiveGroupKey = remember(groupKey, title) {
+        groupKey ?: if (title.isNotBlank()) "shelf_${title.replace(" ", "_").lowercase()}" else null
+    }
 
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()
     }
+    com.nuvio.app.controller.ProvideControllerGroupKey(effectiveGroupKey) {
     com.nuvio.app.controller.ProvideControllerRowLazyListState(state) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -134,26 +140,36 @@ fun <T> NuvioShelfSection(
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             if (duplicateSafeEntries != null) {
-                items(
+                itemsIndexed(
                     items = duplicateSafeEntries,
-                    key = { entry -> entry.lazyKey },
-                    contentType = { "poster" },
-                ) { keyedEntry ->
-                    if (animatePlacement) {
-                        Box(modifier = Modifier.animateItem()) { itemContent(keyedEntry.value) }
-                    } else {
-                        itemContent(keyedEntry.value)
+                    key = { _, entry -> entry.lazyKey },
+                    contentType = { _, _ -> "poster" },
+                ) { index, keyedEntry ->
+                    com.nuvio.app.controller.ProvideControllerRowItemInfo(
+                        index = index,
+                        totalCount = duplicateSafeEntries.size,
+                    ) {
+                        if (animatePlacement) {
+                            Box(modifier = Modifier.animateItem()) { itemContent(keyedEntry.value) }
+                        } else {
+                            itemContent(keyedEntry.value)
+                        }
                     }
                 }
             } else {
-                items(
+                itemsIndexed(
                     items = entries,
-                    contentType = { "poster" },
-                ) { entry ->
-                    if (animatePlacement) {
-                        Box(modifier = Modifier.animateItem()) { itemContent(entry) }
-                    } else {
-                        itemContent(entry)
+                    contentType = { _, _ -> "poster" },
+                ) { index, entry ->
+                    com.nuvio.app.controller.ProvideControllerRowItemInfo(
+                        index = index,
+                        totalCount = entries.size,
+                    ) {
+                        if (animatePlacement) {
+                            Box(modifier = Modifier.animateItem()) { itemContent(entry) }
+                        } else {
+                            itemContent(entry)
+                        }
                     }
                 }
             }
@@ -169,6 +185,7 @@ fun <T> NuvioShelfSection(
                 }
             }
         }
+    }
     }
     }
 }
@@ -270,6 +287,7 @@ fun NuvioPosterCard(
     isWatched: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    focusId: String? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val tokens = MaterialTheme.nuvio
@@ -299,7 +317,7 @@ fun NuvioPosterCard(
                     zoomImageUrl = imageUrl,
                     zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
                     hoverScaleEnabled = false,
-                    focusId = remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" },
+                    focusId = focusId ?: remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" },
                 )
                 .clip(cardShape)
                 .background(tokens.colors.surface)

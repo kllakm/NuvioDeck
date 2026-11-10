@@ -56,6 +56,7 @@ fun NuvioDropdownChip(
     enabled: Boolean = true,
     onSelected: (NuvioDropdownOption) -> Unit,
     modifier: Modifier = Modifier,
+    id: String? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     var isSheetVisible by remember { mutableStateOf(false) }
@@ -67,6 +68,7 @@ fun NuvioDropdownChip(
         Row(
             modifier = Modifier
                 .controllerFocusable(
+                    id = id.orEmpty(),
                     enabled = enabled,
                     shape = tokens.shapes.compactCard,
                     scaleOnFocus = 1.02f,

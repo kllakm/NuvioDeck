@@ -136,6 +136,7 @@ object TopBarTabOrderController {
     internal var openProfileAction: (() -> Unit)? = null
     internal var closeDropdownsAction: (() -> Unit)? = null
     internal var activateTabAction: ((AppScreenTab) -> Unit)? = null
+    internal var focusTabAction: ((Int) -> Unit)? = null
 
     /**
      * Cycles through the 7 top bar items in visual left-to-right order:
@@ -155,16 +156,25 @@ object TopBarTabOrderController {
             isProfileOpen || focusedId == TOP_NAV_PROFILE_ID || focusedId?.startsWith("top_profile_") == true -> tabs.size + 2
             isNotificationOpen || focusedId == TOP_NAV_NOTIFICATIONS_ID || focusedId?.startsWith("notification_") == true || focusedId?.startsWith("top_notification") == true -> tabs.size + 1
             focusedId == TOP_NAV_FULLSCREEN_ID -> tabs.size
-            else -> tabs.indexOf(selectedTab).coerceIn(0, tabs.lastIndex)
+            else -> {
+                val tabIdx = (0 until tabs.size).firstOrNull { idx ->
+                    focusedId?.startsWith("top_nav_") == true && focusedId.endsWith("_$idx")
+                }
+                tabIdx ?: tabs.indexOf(selectedTab).coerceIn(0, tabs.lastIndex)
+            }
         }
 
-        val nextSlot = (currentSlot + step + totalSlots) % totalSlots
+        var nextSlot = (currentSlot + step + totalSlots) % totalSlots
+        if (!isFullscreenActionSupported && nextSlot == tabs.size) {
+            nextSlot = (nextSlot + step + totalSlots) % totalSlots
+        }
         ControllerFocusEngine.setTopBarVisibleByScroll(true)
 
         return when (nextSlot) {
             in 0 until tabs.size -> {
                 closeDropdownsAction?.invoke()
                 activateTab(tabs[nextSlot])
+                focusTabAction?.invoke(nextSlot)
                 true
             }
             tabs.size -> {
@@ -366,6 +376,21 @@ internal fun NuvioDeckTopNavigationBar(
     val lastTabFocusId = remember(items) {
         val lastIdx = items.lastIndex
         "top_nav_${items[lastIdx].label}_$lastIdx"
+    }
+
+    TopBarTabOrderController.focusTabAction = { index ->
+        ControllerFocusEngine.setTopBarVisibleByScroll(true)
+        isNotificationDropdownOpen = false
+        isProfileDropdownOpen = false
+        ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+        val targetItem = items.getOrNull(index)
+        val focusId = if (targetItem != null) "top_nav_${targetItem.label}_$index" else lastTabFocusId
+        ControllerFocusEngine.requestFocus(focusId, triggerScroll = false)
+        scope.launch {
+            delay(20)
+            ControllerFocusEngine.clearFocusInZone(ControllerFocusZone.Overlay)
+            ControllerFocusEngine.requestFocus(focusId, triggerScroll = false)
+        }
     }
 
     fun closeNotificationDropdown(restoreFocus: Boolean) {
@@ -829,12 +854,16 @@ private fun NotificationCenterDropdownPanel(
             true
         },
         onBumperLeft = {
-            onDismiss()
-            TopBarTabOrderController.focusFullscreenAction?.invoke()
+            TopBarTabOrderController.closeDropdownsAction?.invoke()
+            if (isFullscreenActionSupported) {
+                TopBarTabOrderController.focusFullscreenAction?.invoke()
+            } else {
+                TopBarTabOrderController.focusTabAction?.invoke(AppScreenTab.entries.lastIndex)
+            }
             true
         },
         onBumperRight = {
-            onDismiss()
+            TopBarTabOrderController.closeDropdownsAction?.invoke()
             TopBarTabOrderController.focusProfileAction?.invoke()
             true
         },
@@ -987,12 +1016,19 @@ private fun NotificationCenterDropdownPanel(
                         val rowBgColor = when {
                             isFocused -> tokens.colors.accent.copy(alpha = 0.28f)
                             isHovered -> Color.White.copy(alpha = 0.09f)
+                            item.isTrackedRelease && !item.isRead -> tokens.colors.accent.copy(alpha = 0.14f)
+                            item.isTrackedRelease -> tokens.colors.accent.copy(alpha = 0.06f)
                             else -> Color(0xFF191B24)
                         }
-                        val rowBorderColor = if (isFocused) {
-                            tokens.colors.accent.copy(alpha = 0.75f)
-                        } else {
-                            Color.White.copy(alpha = 0.05f)
+                        val rowBorderColor = when {
+                            isFocused -> tokens.colors.accent.copy(alpha = 0.75f)
+                            item.isTrackedRelease -> tokens.colors.accent.copy(alpha = 0.35f)
+                            else -> Color.White.copy(alpha = 0.05f)
+                        }
+
+                        val handleSelect = {
+                            NewArrivalsManager.markItemAsRead(item.id)
+                            onNotificationSelected(item)
                         }
 
                         Row(
@@ -1010,7 +1046,7 @@ private fun NotificationCenterDropdownPanel(
                                     shape = RoundedCornerShape(12.dp),
                                     scaleOnFocus = 1f,
                                     hideFocusRing = true,
-                                    onSelect = { onNotificationSelected(item) },
+                                    onSelect = handleSelect,
                                     selectLabel = "View Details",
                                     onMoveUp = {
                                         if (index > 0) {
@@ -1035,11 +1071,22 @@ private fun NotificationCenterDropdownPanel(
                                     onMoveLeft = { true },
                                     onMoveRight = { true },
                                 )
-                                .clickable { onNotificationSelected(item) }
-                                .padding(10.dp),
+                                .clickable(onClick = handleSelect)
+                                .padding(horizontal = 8.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            // 3dp solid accent bar along left edge for tracked releases
+                            if (item.isTrackedRelease) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(56.dp)
+                                        .clip(RoundedCornerShape(1.5.dp))
+                                        .background(tokens.colors.accent),
+                                )
+                            }
+
                             // 16:9 Landscape Thumbnail
                             Box(
                                 modifier = Modifier
@@ -1082,22 +1129,46 @@ private fun NotificationCenterDropdownPanel(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
-                                Text(
-                                    text = item.headerLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isFocused) Color.White else tokens.colors.accent,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = tokens.colors.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                if (item.isTrackedRelease) {
+                                    Text(
+                                        text = "\uD83D\uDD14 TRACKED RELEASE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (isFocused) Color.White else tokens.colors.accent,
+                                        maxLines = 1,
+                                    )
+                                } else {
+                                    Text(
+                                        text = item.headerLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isFocused) Color.White else tokens.colors.accent,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = item.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = tokens.colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    if (!item.isRead) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(7.dp)
+                                                .clip(CircleShape)
+                                                .background(tokens.colors.accent),
+                                        )
+                                    }
+                                }
                                 if (!item.subtitle.isNullOrBlank()) {
                                     Text(
                                         text = item.subtitle,
@@ -1150,7 +1221,7 @@ private fun StandaloneProfileSwitcherDropdownPanel(
             if (pinTargetProfile != null) {
                 pinTargetProfile = null
             }
-            onDismiss()
+            TopBarTabOrderController.closeDropdownsAction?.invoke()
             TopBarTabOrderController.focusNotificationsAction?.invoke()
             true
         },
@@ -1158,8 +1229,9 @@ private fun StandaloneProfileSwitcherDropdownPanel(
             if (pinTargetProfile != null) {
                 pinTargetProfile = null
             }
-            onDismiss()
+            TopBarTabOrderController.closeDropdownsAction?.invoke()
             TopBarTabOrderController.activateTabAction?.invoke(AppScreenTab.Home)
+            TopBarTabOrderController.focusTabAction?.invoke(0)
             true
         },
     )

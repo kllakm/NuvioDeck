@@ -88,6 +88,9 @@ object StreamAutoPlaySelector {
             StreamAutoPlaySource.ENABLED_PLUGINS_ONLY -> streams.filter { it.addonName !in installedAddonNames }
         }
         val candidateStreams = sourceScopedStreams.filter { stream ->
+            if (com.nuvio.app.controller.CamStreamFilter.isCamOrFake(stream)) {
+                return@filter false
+            }
             val isAddonStream = stream.addonName in installedAddonNames
             if (stream.serverTarget != null) {
                 true

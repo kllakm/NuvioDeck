@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -49,6 +53,7 @@ import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.secondaryClick
 import com.nuvio.app.core.ui.backdropControlColor
 import nuvio.composeapp.generated.resources.Res
@@ -77,6 +82,10 @@ fun DetailActionButtons(
     modifier: Modifier = Modifier,
     playLabel: String = stringResource(Res.string.action_play),
     playEnabled: Boolean = true,
+    isNotifyMode: Boolean = false,
+    isTrackingActive: Boolean = false,
+    isCheckingStreams: Boolean = false,
+    onNotifyClick: (() -> Unit)? = null,
     pinnedAction: DetailSecondaryAction? = null,
     secondaryActions: List<DetailSecondaryAction> = emptyList(),
     actionsMenuLabel: String = stringResource(Res.string.details_actions_menu_label),
@@ -85,6 +94,7 @@ fun DetailActionButtons(
     onPlayLongClick: (() -> Unit)? = null,
 ) {
     val playPainter = appIconPainter(AppIconResource.PlayerPlay)
+    val tokens = MaterialTheme.nuvio
     val buttonHeight = if (isTablet) 56.dp else 52.dp
     val iconButtonSize = buttonHeight
     val playShape = RoundedCornerShape(40.dp)
@@ -96,6 +106,17 @@ fun DetailActionButtons(
         label = "detail_action_menu_progress",
     )
     val hasSecondaryActions = secondaryActions.isNotEmpty()
+
+    val effectiveLabel = when {
+        isCheckingStreams -> "Checking..."
+        isNotifyMode && isTrackingActive -> "Tracking"
+        isNotifyMode -> "Notify"
+        else -> playLabel
+    }
+    val effectiveActionClick = if (isNotifyMode) (onNotifyClick ?: onPlayClick) else onPlayClick
+    val effectiveSecondaryAction = if (isNotifyMode || isCheckingStreams) null else onPlayLongClick
+    val effectiveSecondaryLabel = if (isNotifyMode || isCheckingStreams) null else "Select Stream"
+    val effectiveEnabled = if (isCheckingStreams) false else if (isNotifyMode) true else playEnabled
 
     Box(
         modifier = modifier
@@ -112,16 +133,24 @@ fun DetailActionButtons(
         ) {
             val isPlayFocused = isControllerNodeFocused("detail_action_play")
             val playButtonBg = when {
+                isPlayFocused && isNotifyMode && isTrackingActive -> tokens.colors.accent.copy(alpha = 0.35f)
                 isPlayFocused -> Color(0xFF0D0E15)
-                playEnabled -> MaterialTheme.colorScheme.onBackground
+                isNotifyMode && isTrackingActive -> tokens.colors.accent.copy(alpha = 0.22f)
+                effectiveEnabled -> MaterialTheme.colorScheme.onBackground
                 else -> MaterialTheme.colorScheme.surfaceVariant
             }
             val playButtonFg = when {
                 isPlayFocused -> Color.White
-                playEnabled -> MaterialTheme.colorScheme.background
+                isNotifyMode && isTrackingActive -> Color.White
+                effectiveEnabled -> MaterialTheme.colorScheme.background
                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             }
-            val playBorder = if (isPlayFocused) BorderStroke(2.dp, Color.White) else null
+            val playBorder = when {
+                isPlayFocused && isNotifyMode && isTrackingActive -> BorderStroke(2.dp, tokens.colors.accent)
+                isPlayFocused -> BorderStroke(2.dp, Color.White)
+                isNotifyMode && isTrackingActive -> BorderStroke(1.5.dp, tokens.colors.accent)
+                else -> null
+            }
 
             Surface(
                 modifier = Modifier
@@ -137,44 +166,66 @@ fun DetailActionButtons(
                         .fillMaxWidth()
                         .controllerFocusable(
                             id = "detail_action_play",
-                            enabled = playEnabled,
+                            enabled = effectiveEnabled,
                             shape = playShape,
                             useHaloFocusRing = true,
                             focusScale = 1.0f,
-                            onSelect = onPlayClick,
-                            selectLabel = playLabel,
-                            onSecondaryAction = onPlayLongClick,
-                            secondaryActionLabel = "Select Stream",
+                            onSelect = effectiveActionClick,
+                            selectLabel = effectiveLabel,
+                            onSecondaryAction = effectiveSecondaryAction,
+                            secondaryActionLabel = effectiveSecondaryLabel,
                         )
                         .combinedClickable(
-                            enabled = playEnabled,
+                            enabled = effectiveEnabled,
                             onClick = {
-                                onPlayClick()
+                                effectiveActionClick()
                             },
-                            onLongClick = onPlayLongClick,
+                            onLongClick = effectiveSecondaryAction,
                             role = Role.Button,
                         )
-                        .secondaryClick(onPlayLongClick)
+                        .secondaryClick(effectiveSecondaryAction)
                         .height(buttonHeight),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = playPainter,
-                        contentDescription = null,
-                        modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = playLabel,
-                        style = if (isTablet) {
-                            MaterialTheme.typography.titleMedium
+                    if (isCheckingStreams) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
+                            color = playButtonFg,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        if (isNotifyMode) {
+                            val bellIcon = if (isTrackingActive) {
+                                Icons.Rounded.NotificationsActive
+                            } else {
+                                Icons.Rounded.NotificationsNone
+                            }
+                            Icon(
+                                imageVector = bellIcon,
+                                contentDescription = null,
+                                tint = if (isTrackingActive) tokens.colors.accent else playButtonFg,
+                                modifier = Modifier.size(if (isTablet) 22.dp else 20.dp),
+                            )
                         } else {
-                            MaterialTheme.typography.titleSmall
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                            Icon(
+                                painter = playPainter,
+                                contentDescription = null,
+                                modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = effectiveLabel,
+                            style = if (isTablet) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.titleSmall
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 
@@ -289,6 +340,10 @@ fun DetailActions(
     isWatched: Boolean,
     isTablet: Boolean,
     shuffleEnabled: Boolean,
+    isNotifyMode: Boolean = false,
+    isTrackingActive: Boolean = false,
+    isCheckingStreams: Boolean = false,
+    onNotifyClick: (() -> Unit)? = null,
     onPlayClick: () -> Unit,
     onPlayLongClick: (() -> Unit)?,
     onShuffleClick: (() -> Unit)?,
@@ -307,6 +362,10 @@ fun DetailActions(
     DetailActionButtons(
         playLabel = if (playEnabled) playLabel else stringResource(Res.string.playback_unavailable),
         playEnabled = playEnabled,
+        isNotifyMode = isNotifyMode,
+        isTrackingActive = isTrackingActive,
+        isCheckingStreams = isCheckingStreams,
+        onNotifyClick = onNotifyClick,
         pinnedAction = shuffleAction?.takeIf { shuffleEnabled },
         secondaryActions = buildList {
             if (!shuffleEnabled) shuffleAction?.let(::add)

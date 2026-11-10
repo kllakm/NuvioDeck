@@ -212,6 +212,10 @@ fun DesktopDetailHero(
     heroTrailerReady: Boolean,
     heroTrailerMuted: Boolean,
     onHeroTrailerMuteToggle: () -> Unit,
+    isNotifyMode: Boolean = false,
+    isTrackingActive: Boolean = false,
+    isCheckingStreams: Boolean = false,
+    onNotifyClick: (() -> Unit)? = null,
     onPlayClick: () -> Unit,
     onPlayLongClick: (() -> Unit)?,
     onShuffleClick: (() -> Unit)?,
@@ -323,6 +327,10 @@ fun DesktopDetailHero(
                 modifier = Modifier.widthIn(max = 520.dp),
                 playLabel = if (isPrimaryPlayEnabled) playButtonLabel else stringResource(Res.string.playback_unavailable),
                 playEnabled = isPrimaryPlayEnabled,
+                isNotifyMode = isNotifyMode,
+                isTrackingActive = isTrackingActive,
+                isCheckingStreams = isCheckingStreams,
+                onNotifyClick = onNotifyClick,
                 pinnedAction = shuffleAction?.takeIf { shuffleEnabled },
                 secondaryActions = buildList {
                     if (!shuffleEnabled) shuffleAction?.let(::add)

@@ -54,6 +54,8 @@ data class NewArrivalNotification(
     val episodeNumber: Int? = null,
     val is4K: Boolean = false,
     val detectedAt: Long,
+    val isTrackedRelease: Boolean = false,
+    val isRead: Boolean = false,
 ) {
     fun toMetaPreview(): MetaPreview = MetaPreview(
         id = metaId,
@@ -89,10 +91,7 @@ object NewArrivalsManager {
         encodeDefaults = true
     }
 
-    private val camOrScreenerRegex = Regex(
-        """\b(CAM|HDCAM|CAMRIP|TS|HDTS|TELESYNC|PDVD|TELECINE|HDTC|SCR|SCREENER|DVDSCR|BDSCR|WORKPRINT)\b""",
-        RegexOption.IGNORE_CASE,
-    )
+    private val camOrScreenerRegex = CamStreamFilter.CAM_OR_FAKE_STREAM_REGEX
     private val uhd4kRegex = Regex(
         """\b(2160p|4K|UHD)\b""",
         RegexOption.IGNORE_CASE,
@@ -123,6 +122,8 @@ object NewArrivalsManager {
         if (initialized) return
         initialized = true
 
+        ReleaseWatchlistRepository.ensureStarted()
+
         scope.launch {
             ProfileRepository.state
                 .map { it.activeProfile?.profileIndex ?: 1 }
@@ -151,8 +152,56 @@ object NewArrivalsManager {
         val now = EpisodeReleaseDatePlatform.nowEpochMs()
         val latestDetected = _notifications.value.maxOfOrNull { it.detectedAt } ?: 0L
         lastOpenedAtMs = maxOf(now, latestDetected)
+        _notifications.value = _notifications.value.map { it.copy(isRead = true) }
         updateUnreadState()
         saveToDisk()
+    }
+
+    fun markItemAsRead(id: String) {
+        loadFromDiskIfNeeded(force = false)
+        _notifications.value = _notifications.value.map { item ->
+            if (item.id == id) item.copy(isRead = true) else item
+        }
+        updateUnreadState()
+        saveToDisk()
+    }
+
+    fun insertTrackedReleaseNotification(
+        metaId: String,
+        metaType: String,
+        title: String,
+        subtitle: String? = null,
+        thumbnailUrl: String? = null,
+        posterUrl: String? = null,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null,
+        is4K: Boolean = false,
+    ) {
+        loadFromDiskIfNeeded(force = false)
+        val notificationId = "tracked:${metaId}:${seasonNumber ?: 0}:${episodeNumber ?: 0}"
+        val notification = NewArrivalNotification(
+            id = notificationId,
+            metaId = metaId,
+            metaType = metaType,
+            title = title,
+            headerLabel = "TRACKED RELEASE",
+            subtitle = subtitle,
+            thumbnailUrl = thumbnailUrl,
+            posterUrl = posterUrl,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
+            is4K = is4K,
+            detectedAt = EpisodeReleaseDatePlatform.nowEpochMs(),
+            isTrackedRelease = true,
+            isRead = false,
+        )
+        seenIds.add(notificationId)
+        val filtered = _notifications.value.filterNot { it.id == notificationId }
+        val updated = (listOf(notification) + filtered).take(MAX_NOTIFICATIONS)
+        _notifications.value = updated
+        updateUnreadState()
+        saveToDisk()
+        log.i { "Added top-priority tracked release notification: $title" }
     }
 
     fun formatRelativeTimestamp(
@@ -224,7 +273,7 @@ object NewArrivalsManager {
     }
 
     private fun updateUnreadState() {
-        val count = _notifications.value.count { it.detectedAt > lastOpenedAtMs }
+        val count = _notifications.value.count { !it.isRead && (it.detectedAt > lastOpenedAtMs || it.isTrackedRelease) }
         _unreadCount.value = count
         _hasUnread.value = count > 0
     }
@@ -633,15 +682,26 @@ object NewArrivalsManager {
         return null
     }
 
-    private data class StreamVerificationResult(
+    internal data class StreamVerificationResult(
         val isAvailable: Boolean,
         val has4K: Boolean,
     )
 
-    private suspend fun verifyCleanHdStreamAvailable(
+    internal suspend fun probeHasAnyStreams(
         type: String,
         videoId: String,
-        embeddedStreams: List<StreamItem>,
+    ): Boolean {
+        return verifyCleanHdStreamAvailable(
+            type = type,
+            videoId = videoId,
+            embeddedStreams = emptyList(),
+        ).isAvailable
+    }
+
+    internal suspend fun verifyCleanHdStreamAvailable(
+        type: String,
+        videoId: String,
+        embeddedStreams: List<StreamItem> = emptyList(),
     ): StreamVerificationResult {
         val embeddedEval = evaluateCleanHdStreams(embeddedStreams)
         if (embeddedEval.isAvailable) return embeddedEval

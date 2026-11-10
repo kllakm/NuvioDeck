@@ -659,6 +659,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                         shouldPlay = false
                         controlsVisible = !playerControlsLocked
                     }
+                    if (com.nuvio.app.controller.DebridStreamGuard.checkAndRecover(runtime, snapshot.durationMs, surfaceSource?.sourceUrl, activeSourceFilename, onRequestBack = { runtime.requestBack() })) {
+                        return@PlatformPlayerSurface
+                    }
                 },
                 onError = { message ->
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {

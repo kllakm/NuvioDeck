@@ -1,6 +1,7 @@
 package com.nuvio.app.features.home.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioPosterCard
@@ -8,6 +9,7 @@ import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.PosterShape
 
 @Composable
@@ -19,7 +21,13 @@ fun HomePosterCard(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     showLandscapeOverlay: Boolean = true,
+    focusId: String? = null,
 ) {
+    val ambientGroupKey = com.nuvio.app.controller.LocalControllerGroupKey.current
+    val effectiveFocusId = focusId ?: remember(ambientGroupKey, item.id, item.type) {
+        if (!ambientGroupKey.isNullOrEmpty()) "poster_${ambientGroupKey}_${item.stableKey()}"
+        else "poster_shelf_${item.stableKey()}"
+    }
     val posterCardStyle = rememberPosterCardStyleUiState()
     val isLandscapeMode = useLandscapeBackdropMode || posterCardStyle.catalogLandscapeModeEnabled
     val effectiveLandscapePoster = if (posterCardStyle.alwaysShowLandscapeClearlogo) null else item.landscapePoster
@@ -53,6 +61,7 @@ fun HomePosterCard(
             isWatched = isWatched,
             onClick = onClick,
             onLongClick = onLongClick,
+            focusId = effectiveFocusId,
         )
     }
 }

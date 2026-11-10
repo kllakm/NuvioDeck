@@ -110,11 +110,8 @@ internal class ControllerFocusNode(
 ) {
     val isVisibleAndValid: Boolean
         get() = enabled && (
-            (boundsInRoot.height > 2f && (
-                boundsInRoot.width > 2f ||
-                (rowLazyListState != null && unclippedBoundsInRoot.width > 2f && boundsInRoot.width >= 0f)
-            )) ||
-            (zone == ControllerFocusZone.Navigation && unclippedBoundsInRoot.height > 2f && unclippedBoundsInRoot.width > 2f)
+            (boundsInRoot.height > 2f && boundsInRoot.width > 2f) ||
+            (unclippedBoundsInRoot.width > 2f && unclippedBoundsInRoot.height > 2f)
         )
 
     fun toSnapshot(): ControllerFocusNodeSnapshot = ControllerFocusNodeSnapshot(
@@ -147,8 +144,23 @@ data class ControllerGlobalHandlers(
 val LocalControllerVerticalListState = compositionLocalOf<LazyListState?> { null }
 val LocalControllerVerticalScrollState = compositionLocalOf<ScrollState?> { null }
 val LocalControllerRowLazyListState = compositionLocalOf<LazyListState?> { null }
+val LocalControllerRowItemIndex = compositionLocalOf { -1 }
+val LocalControllerRowTotalCount = compositionLocalOf { -1 }
 val LocalControllerGroupKey = compositionLocalOf<String?> { null }
 val LocalControllerFocusZone = compositionLocalOf { ControllerFocusZone.Content }
+
+@Composable
+fun ProvideControllerRowItemInfo(
+    index: Int,
+    totalCount: Int = -1,
+    content: @Composable () -> Unit,
+) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalControllerRowItemIndex provides index,
+        LocalControllerRowTotalCount provides totalCount,
+        content = content,
+    )
+}
 
 @Composable
 fun ProvideControllerRowLazyListState(
@@ -157,6 +169,17 @@ fun ProvideControllerRowLazyListState(
 ) {
     androidx.compose.runtime.CompositionLocalProvider(
         LocalControllerRowLazyListState provides state,
+        content = content,
+    )
+}
+
+@Composable
+fun ProvideControllerGroupKey(
+    groupKey: String?,
+    content: @Composable () -> Unit,
+) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalControllerGroupKey provides groupKey,
         content = content,
     )
 }
@@ -434,6 +457,13 @@ object ControllerFocusEngine {
                         .minByOrNull { it.boundsInRoot.top }
                     val target = if (hasUserNavigatedOnCurrentRoute && rememberedNode != null) {
                         rememberedNode
+                    } else if (hasUserNavigatedOnCurrentRoute) {
+                        rememberedNode
+                            ?: contentNodes.filter { !it.isTextInput }.minWithOrNull(
+                                compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
+                                    .thenBy { it.boundsInRoot.left },
+                            )
+                            ?: contentNodes.firstOrNull { it.isDefaultFocus }
                     } else {
                         contentNodes.firstOrNull { it.isDefaultFocus }
                             ?: rememberedNode
@@ -571,7 +601,18 @@ object ControllerFocusEngine {
                 compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
                     .thenBy { it.boundsInRoot.left },
             )
-            val chosen = defaultNode ?: remembered ?: settingsSidebarTopNode ?: topLeftNode
+            val chosen = if (hasUserNavigatedOnCurrentRoute) {
+                remembered
+                    ?: contentNodes.filter { !it.isTextInput }.minWithOrNull(
+                        compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 32f).toInt() }
+                            .thenBy { it.boundsInRoot.left },
+                    )
+                    ?: defaultNode
+                    ?: settingsSidebarTopNode
+                    ?: topLeftNode
+            } else {
+                defaultNode ?: remembered ?: settingsSidebarTopNode ?: topLeftNode
+            }
             if (chosen != null) {
                 focusNodeInternal(chosen, triggerScroll = false)
                 return true
@@ -989,6 +1030,13 @@ object ControllerFocusEngine {
         val candidates = row.nodes.filter { !it.id.startsWith("view_all_pill_") }
         if (candidates.isEmpty()) return null
 
+        // When navigating down from a text input (e.g. Search Box) or top bar, always target index 0 (leftmost card)
+        if (current.isTextInput || current.id == "search_input_field" || current.zone == ControllerFocusZone.Navigation) {
+            return candidates.firstOrNull { it.rowItemIndex == 0 }
+                ?: candidates.minByOrNull { if (it.unclippedBoundsInRoot.width > 2f) it.unclippedBoundsInRoot.left else it.boundsInRoot.left }
+                ?: candidates.first()
+        }
+
         if (!row.groupKey.isNullOrEmpty()) {
             val rememberedId = lastFocusedByGroup[row.groupKey]
             if (rememberedId != null) {
@@ -1071,9 +1119,14 @@ object ControllerFocusEngine {
                 rowCardBottom = node.boundsInRoot.bottom
             }
 
+            val isSeasonRow = node.groupKey == "detail_seasons_row" ||
+                node.groupKey == "detail_seasons_text_row" ||
+                node.id.startsWith("season_poster_") ||
+                node.id.startsWith("season_text_chip_")
+
             val isShelfRow = node.rowLazyListState != null || targetRow?.rowLazyListState != null ||
                 (!node.groupKey.isNullOrEmpty() && node.groupKey?.startsWith("shelf_") == true) ||
-                node.id.startsWith("view_all_pill_")
+                node.id.startsWith("view_all_pill_") || isSeasonRow
 
             val headerClearance = if (isShelfRow) 52f * scaleFactor else 0f
 
@@ -1105,8 +1158,9 @@ object ControllerFocusEngine {
             // Visual vertical center of the active row including title header and poster card
             val visualRowCenterY = (visualTop + visualBottom) / 2f
 
-            // Viewport vertical center (offset slightly to account for top bar chrome)
-            val viewportCenterY = vh * 0.52f
+            // Viewport vertical center (offset slightly to account for top bar chrome).
+            // For seasons selection, center it around 38% down the screen so that the episode row below is fully revealed.
+            val viewportCenterY = if (isSeasonRow) vh * 0.38f else vh * 0.52f
 
             var delta = visualRowCenterY - viewportCenterY
 
@@ -1123,7 +1177,7 @@ object ControllerFocusEngine {
             // If non-shelf vertical content is already fully visible inside viewport safe margins, do not scroll
             val topChromeSafeMargin = 85f * scaleFactor
             val bottomSafeMargin = vh - (40f * scaleFactor)
-            if (!isShelfRow && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
+            if (!isShelfRow && !isSeasonRow && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
                 delta = 0f
             }
 
@@ -1694,7 +1748,8 @@ object ControllerFocusEngine {
                         (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_")))
                 }
                 if (contentNodes.isNotEmpty()) {
-                    val target = contentNodes.minByOrNull { it.boundsInRoot.top }
+                    val target = contentNodes.filter { it.boundsInRoot.top >= 0f }.minByOrNull { it.boundsInRoot.top }
+                        ?: contentNodes.minByOrNull { it.boundsInRoot.top }
                         ?: contentNodes.first()
                     focusNodeInternal(target, triggerScroll = true, direction = direction)
                     return true
@@ -1950,7 +2005,23 @@ object ControllerFocusEngine {
         val fromCenter = from.center
 
         if (direction == ControllerDirection.Left || direction == ControllerDirection.Right) {
-            // 1. First look for candidates in the same groupKey or vertically overlapping row
+            // First check if current and candidate belong to the same sequential row item index
+            if (current.rowItemIndex >= 0) {
+                val targetIndex = if (direction == ControllerDirection.Right) current.rowItemIndex + 1 else current.rowItemIndex - 1
+                val exactIndexMatch = candidates.firstOrNull { candidate ->
+                    candidate.rowItemIndex == targetIndex &&
+                        (
+                            (current.rowLazyListState != null && current.rowLazyListState === candidate.rowLazyListState) ||
+                            (current.groupKey != null && current.groupKey == candidate.groupKey) ||
+                            abs(candidate.boundsInRoot.center.y - fromCenter.y) < 60f
+                        )
+                }
+                if (exactIndexMatch != null) {
+                    return exactIndexMatch
+                }
+            }
+
+            // 1. Next look for candidates in the same groupKey or vertically overlapping row
             val sameRowCandidates = candidates.filter { candidate ->
                 val to = if (candidate.rowLazyListState != null && candidate.unclippedBoundsInRoot.width > 2f) {
                     candidate.unclippedBoundsInRoot
@@ -2238,6 +2309,8 @@ fun Modifier.controllerFocusable(
     val ambientZone = LocalControllerFocusZone.current
     val ambientGroupKey = LocalControllerGroupKey.current
     val ambientRowState = LocalControllerRowLazyListState.current
+    val ambientRowItemIndex = LocalControllerRowItemIndex.current
+    val ambientRowTotalCount = LocalControllerRowTotalCount.current
     val effectiveZone = zone ?: ambientZone
     val effectiveGroupKey = groupKey ?: ambientGroupKey
 
@@ -2279,6 +2352,8 @@ fun Modifier.controllerFocusable(
     node.onMoveLeft = latestMoveLeft
     node.onMoveRight = latestMoveRight
     node.rowLazyListState = ambientRowState
+    node.rowItemIndex = ambientRowItemIndex
+    node.rowTotalCount = ambientRowTotalCount
     node.coroutineScope = coroutineScope
     node.onFocusedWithOption = { _ ->
         latestOnFocused?.invoke()

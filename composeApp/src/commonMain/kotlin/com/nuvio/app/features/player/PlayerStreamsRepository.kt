@@ -334,10 +334,12 @@ object PlayerStreamsRepository {
             }
 
             fun presentStreamGroup(group: AddonStreamGroup): AddonStreamGroup {
+                val cleanStreams = com.nuvio.app.controller.CamStreamFilter.filterCamStreams(group.streams)
+                val filteredGroup = if (cleanStreams.size != group.streams.size) group.copy(streams = cleanStreams) else group
                 val badgeGroup = StreamBadgePresentation.apply(
-                    groups = listOf(group),
+                    groups = listOf(filteredGroup),
                     rules = streamBadgeRules,
-                ).firstOrNull() ?: group
+                ).firstOrNull() ?: filteredGroup
                 return DebridStreamPresentation.apply(
                     groups = listOf(badgeGroup),
                     settings = debridSettings,

@@ -942,6 +942,39 @@ fun MetaDetailsScreen(
                             }
                         }
                     }
+                val isTrackedTitle by com.nuvio.app.controller.ReleaseWatchlistRepository.isTrackedFlow(meta.id).collectAsStateWithLifecycle(false)
+                val isTrackedEpisode by com.nuvio.app.controller.ReleaseWatchlistRepository.isTrackedFlow(meta.id, seriesAction?.videoId).collectAsStateWithLifecycle(false)
+                val isTrackingActive = isTrackedTitle || isTrackedEpisode
+
+                var streamAvailableByProbe by remember(meta.id, primaryVideoId) { mutableStateOf<Boolean?>(null) }
+                LaunchedEffect(meta.id, primaryVideoId, isTrackingActive) {
+                    if (isTrackingActive) {
+                        streamAvailableByProbe = false
+                        return@LaunchedEffect
+                    }
+                    if (meta.type == "series" && meta.videos.isNotEmpty() && seriesAction == null) {
+                        streamAvailableByProbe = false
+                        return@LaunchedEffect
+                    }
+                    if (!isPrimaryPlayEnabled && !shufflePoolEmpty) {
+                        streamAvailableByProbe = false
+                        return@LaunchedEffect
+                    }
+                    val hasCleanStream = com.nuvio.app.controller.NewArrivalsManager.probeHasAnyStreams(
+                        type = meta.type,
+                        videoId = primaryVideoId,
+                    )
+                    streamAvailableByProbe = hasCleanStream
+                }
+
+                val isCheckingStreams = streamAvailableByProbe == null && !isTrackingActive && (isPrimaryPlayEnabled || shufflePoolEmpty)
+                val isNotifyMode = isTrackingActive || (streamAvailableByProbe == false) || (!isPrimaryPlayEnabled && !shufflePoolEmpty)
+                val onNotifyClick: () -> Unit = {
+                    com.nuvio.app.controller.ReleaseWatchlistRepository.toggleTracking(
+                        meta = meta,
+                        episode = seriesAction?.let { action -> meta.videos.firstOrNull { it.id == action.videoId } },
+                    )
+                }
                 val onEpisodePlayClick: (MetaVideo) -> Unit = { video ->
                     val season = video.season
                     val episode = video.episode
@@ -1328,6 +1361,10 @@ fun MetaDetailsScreen(
                                             onHeroTrailerMuteToggle = {
                                                 HeroTrailerAudioState.toggleMuted()
                                             },
+                                            isNotifyMode = isNotifyMode,
+                                            isTrackingActive = isTrackingActive,
+                                            isCheckingStreams = isCheckingStreams,
+                                            onNotifyClick = onNotifyClick,
                                             onPlayClick = onPrimaryPlayClick,
                                             onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
                                             onShuffleClick = if (showShuffleButton) ({
@@ -1354,6 +1391,10 @@ fun MetaDetailsScreen(
                                         isPrimaryPlayEnabled = isPrimaryPlayEnabled,
                                         isSaved = isSaved,
                                         isWatched = isWatched,
+                                        isNotifyMode = isNotifyMode,
+                                        isTrackingActive = isTrackingActive,
+                                        isCheckingStreams = isCheckingStreams,
+                                        onNotifyClick = onNotifyClick,
                                         onPrimaryPlayClick = onPrimaryPlayClick,
                                         onShuffleClick = if (showShuffleButton) ({
                                             if (shuffleSettings.enabled) saveShuffle(shuffleSettings.copy(enabled = false)) else showShuffle = true
@@ -1458,6 +1499,10 @@ fun MetaDetailsScreen(
                                                             isWatched = isWatched,
                                                             isTablet = true,
                                                             shuffleEnabled = shuffleSettings.enabled,
+                                                            isNotifyMode = isNotifyMode,
+                                                            isTrackingActive = isTrackingActive,
+                                                            isCheckingStreams = isCheckingStreams,
+                                                            onNotifyClick = onNotifyClick,
                                                             onPlayClick = onPrimaryPlayClick,
                                                             onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
                                                             onShuffleClick = onShuffleClick,
@@ -1526,6 +1571,10 @@ fun MetaDetailsScreen(
                                         isPrimaryPlayEnabled = isPrimaryPlayEnabled,
                                         isSaved = isSaved,
                                         isWatched = isWatched,
+                                        isNotifyMode = isNotifyMode,
+                                        isTrackingActive = isTrackingActive,
+                                        isCheckingStreams = isCheckingStreams,
+                                        onNotifyClick = onNotifyClick,
                                         onShuffleClick = if (showShuffleButton) ({
                                             if (shuffleSettings.enabled) saveShuffle(shuffleSettings.copy(enabled = false)) else showShuffle = true
                                         }) else null,
@@ -2254,6 +2303,10 @@ private fun LazyListScope.configuredMetaSectionItems(
     isPrimaryPlayEnabled: Boolean,
     isSaved: Boolean,
     isWatched: Boolean,
+    isNotifyMode: Boolean = false,
+    isTrackingActive: Boolean = false,
+    isCheckingStreams: Boolean = false,
+    onNotifyClick: (() -> Unit)? = null,
     onPrimaryPlayClick: () -> Unit,
     onShuffleClick: (() -> Unit)?,
     shuffleEnabled: Boolean,
@@ -2339,6 +2392,10 @@ private fun LazyListScope.configuredMetaSectionItems(
                     isPrimaryPlayEnabled = isPrimaryPlayEnabled,
                     isSaved = isSaved,
                     isWatched = isWatched,
+                    isNotifyMode = isNotifyMode,
+                    isTrackingActive = isTrackingActive,
+                    isCheckingStreams = isCheckingStreams,
+                    onNotifyClick = onNotifyClick,
                     onPrimaryPlayClick = onPrimaryPlayClick,
                     onShuffleClick = onShuffleClick,
                     shuffleEnabled = shuffleEnabled,
@@ -2568,6 +2625,10 @@ private fun ConfiguredMetaSections(
     isPrimaryPlayEnabled: Boolean,
     isSaved: Boolean,
     isWatched: Boolean,
+    isNotifyMode: Boolean = false,
+    isTrackingActive: Boolean = false,
+    isCheckingStreams: Boolean = false,
+    onNotifyClick: (() -> Unit)? = null,
     onPrimaryPlayClick: () -> Unit,
     onShuffleClick: (() -> Unit)?,
     shuffleEnabled: Boolean,
@@ -2638,6 +2699,10 @@ private fun ConfiguredMetaSections(
                     isWatched = isWatched,
                     isTablet = isTablet,
                     shuffleEnabled = shuffleEnabled,
+                    isNotifyMode = isNotifyMode,
+                    isTrackingActive = isTrackingActive,
+                    isCheckingStreams = isCheckingStreams,
+                    onNotifyClick = onNotifyClick,
                     onPlayClick = onPrimaryPlayClick,
                     onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
                     onShuffleClick = onShuffleClick,

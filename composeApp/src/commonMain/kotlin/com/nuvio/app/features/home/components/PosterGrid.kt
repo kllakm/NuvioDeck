@@ -38,6 +38,7 @@ import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.isDesktop
@@ -69,20 +70,25 @@ internal fun PosterGridRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            items.forEach { item ->
-                PosterGridTile(
-                    item = item,
-                    cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                    hideLabels = posterCardStyle.hideLabelsEnabled,
-                    modifier = Modifier.weight(1f),
-                    isWatched = WatchingState.isPosterWatched(
-                        watchedKeys = watchedKeys,
+            items.forEachIndexed { index, item ->
+                com.nuvio.app.controller.ProvideControllerRowItemInfo(
+                    index = index,
+                    totalCount = items.size,
+                ) {
+                    PosterGridTile(
                         item = item,
-                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                    ),
-                    onClick = onPosterClick?.let { { it(item) } },
-                    onLongClick = onPosterLongClick?.let { { it(item) } },
-                )
+                        cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+                        hideLabels = posterCardStyle.hideLabelsEnabled,
+                        modifier = Modifier.weight(1f),
+                        isWatched = WatchingState.isPosterWatched(
+                            watchedKeys = watchedKeys,
+                            item = item,
+                            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                        ),
+                        onClick = onPosterClick?.let { { it(item) } },
+                        onLongClick = onPosterLongClick?.let { { it(item) } },
+                    )
+                }
             }
             repeat(columns - items.size) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -123,6 +129,7 @@ private fun PosterGridTile(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val ambientGroupKey = LocalControllerGroupKey.current
     HomePosterHoverPreview(
         item = item,
         isWatched = isWatched,
@@ -147,7 +154,10 @@ private fun PosterGridTile(
                         zoomImageUrl = item.poster,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
-                        focusId = remember(item.id) { "poster_grid_${item.id}" },
+                        focusId = remember(ambientGroupKey, item.id, item.type) {
+                            if (!ambientGroupKey.isNullOrEmpty()) "poster_grid_${ambientGroupKey}_${item.stableKey()}"
+                            else "poster_grid_${item.stableKey()}"
+                        },
                     )
                     .nuvioCardDepth(
                         shape = RoundedCornerShape(cornerRadiusDp.dp),

@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.controller.CamStreamFilter
 import com.nuvio.app.core.ui.Slider
 import com.nuvio.app.core.build.AppFeaturePolicy
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +69,15 @@ internal fun PlaybackStreamSettings(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                val camFilterEnabled by CamStreamFilter.enabledFlow.collectAsStateWithLifecycle()
+                SettingsSwitchRow(
+                    title = "Filter CAM & Telesync Releases",
+                    description = "Hide disguised CAM, Telesync, screener, and line-dubbed releases from stream lists and auto-play",
+                    checked = camFilterEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = { CamStreamFilter.setEnabled(it) },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_reuse_last_link),
                     description = stringResource(Res.string.settings_playback_reuse_last_link_description),

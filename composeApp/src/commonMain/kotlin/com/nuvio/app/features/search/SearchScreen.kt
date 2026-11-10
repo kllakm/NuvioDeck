@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.ControllerFocusEngine
 import com.nuvio.app.controller.controllerFocusable
 import kotlinx.coroutines.launch
 import com.nuvio.app.core.network.NetworkCondition
@@ -62,6 +63,7 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.firstEnabledManifestError
 import com.nuvio.app.features.addons.hasPendingEnabledManifests
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
@@ -353,6 +355,27 @@ fun SearchScreen(
                                         focusSearchInputAndOpenKeyboard(fromAutoFocus = false)
                                     },
                                     selectLabel = "Type with Keyboard",
+                                    onMoveDown = {
+                                        runCatching { focusManager.clearFocus(force = true) }
+                                        com.nuvio.app.controller.PlatformVirtualKeyboard.hide()
+                                        if (query.isBlank()) {
+                                            if (recentSearches.isNotEmpty()) {
+                                                ControllerFocusEngine.requestFocus("recent_search_0")
+                                            } else {
+                                                ControllerFocusEngine.requestFocus("discover_filter_type")
+                                            }
+                                        } else {
+                                            val firstSection = uiState.sections.firstOrNull()
+                                            val firstSectionItem = firstSection?.items?.firstOrNull()
+                                            if (firstSection != null && firstSectionItem != null) {
+                                                val sectionKey = firstSection.key
+                                                ControllerFocusEngine.requestFocus("poster_${sectionKey}_${firstSectionItem.stableKey()}") ||
+                                                    ControllerFocusEngine.requestFocus("poster_shelf_${firstSectionItem.stableKey()}") ||
+                                                    ControllerFocusEngine.requestFocus("poster_${firstSectionItem.id}") ||
+                                                    ControllerFocusEngine.requestFocus("poster_${firstSectionItem.name.hashCode()}_${firstSectionItem.poster?.hashCode() ?: 0}")
+                                            } else false
+                                        }
+                                    },
                                     onSecondaryAction = if (query.isNotEmpty()) {
                                         {
                                             query = ""
