@@ -176,6 +176,11 @@ internal enum class SettingsPage(
         category = SettingsCategory.Look,
         parentPage = Layout,
     ),
+    Collections(
+        titleRes = Res.string.collections_header,
+        category = SettingsCategory.Look,
+        parentPage = Layout,
+    ),
     Streams(
         titleRes = Res.string.compose_settings_page_streams,
         category = SettingsCategory.Look,
@@ -285,6 +290,7 @@ internal val SettingsPage.icon: ImageVector
         SettingsPage.Appearance -> Icons.Default.Palette
         SettingsPage.Layout -> Icons.Default.GridView
         SettingsPage.HoverPreview -> Icons.Default.Style
+        SettingsPage.Collections -> Icons.Default.Layers
         SettingsPage.About -> Icons.Default.Info
         SettingsPage.Streams -> Icons.AutoMirrored.Filled.ViewList
         SettingsPage.Advanced -> Icons.Default.Build

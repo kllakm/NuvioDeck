@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -468,7 +469,14 @@ internal fun TrackingProviderCard(
                         enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 48.dp),
+                            .heightIn(min = 48.dp)
+                            .controllerFocusable(
+                                enabled = !isLoading,
+                                shape = RoundedCornerShape(24.dp),
+                                focusScale = 1.0f,
+                                onSelect = onCancelAuthorization,
+                                selectLabel = stringResource(Res.string.action_cancel),
+                            ),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.44f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color.White,
@@ -530,7 +538,13 @@ internal fun TrackingProviderCard(
                     if (hasWebsiteAction) {
                         TextButton(
                             onClick = { openUrl(websiteUrl) },
-                            modifier = if (footerActionCount > 1) Modifier.weight(0.95f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(0.95f) else Modifier)
+                                .controllerFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusScale = 1.0f,
+                                    onSelect = { openUrl(websiteUrl) },
+                                    selectLabel = websiteLabel.orEmpty(),
+                                ),
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                         ) {
@@ -545,7 +559,14 @@ internal fun TrackingProviderCard(
                     if (hasDisconnectAction) {
                         TextButton(
                             onClick = { showDisconnectDialog = true },
-                            modifier = if (footerActionCount > 1) Modifier.weight(1.05f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(1.05f) else Modifier)
+                                .controllerFocusable(
+                                    enabled = !isLoading && !isSyncing,
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusScale = 1.0f,
+                                    onSelect = { showDisconnectDialog = true },
+                                    selectLabel = disconnectLabel,
+                                ),
                             enabled = !isLoading && !isSyncing,
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(
@@ -564,7 +585,13 @@ internal fun TrackingProviderCard(
                     if (hasInfoAction) {
                         TextButton(
                             onClick = { onInfoRequested?.invoke() },
-                            modifier = if (footerActionCount > 1) Modifier.weight(1.55f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(1.55f) else Modifier)
+                                .controllerFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusScale = 1.0f,
+                                    onSelect = { onInfoRequested?.invoke() },
+                                    selectLabel = infoLabel.orEmpty(),
+                                ),
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                         ) {
@@ -602,6 +629,12 @@ private fun TrackingApprovalCode(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                shape = RoundedCornerShape(NuvioTokens.Radius.md),
+                focusScale = 1.0f,
+                onSelect = onCopy,
+                selectLabel = "Copy Code",
+            )
             .clickable(onClick = onCopy),
         shape = RoundedCornerShape(NuvioTokens.Radius.md),
         color = Color.White.copy(alpha = 0.12f),
@@ -663,7 +696,14 @@ private fun TrackingBrandPrimaryButton(
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp),
+            .heightIn(min = 48.dp)
+            .controllerFocusable(
+                enabled = enabled,
+                shape = RoundedCornerShape(24.dp),
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = label,
+            ),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.White,
             contentColor = Color(0xFF171717),

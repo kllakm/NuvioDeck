@@ -87,6 +87,21 @@ internal fun SettingsSliderRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerSliderFocus(
+                id = "settings_slider_${title.lowercase().replace(" ", "_")}",
+                enabled = enabled,
+                label = title,
+                onDecrement = {
+                    val next = (shownValue - step).coerceIn(valueRange.first, valueRange.last)
+                    sliderValue = next.toFloat()
+                    if (next != value) onValueChange(next)
+                },
+                onIncrement = {
+                    val next = (shownValue + step).coerceIn(valueRange.first, valueRange.last)
+                    sliderValue = next.toFloat()
+                    if (next != value) onValueChange(next)
+                },
+            )
             .padding(horizontal = horizontalPadding, vertical = 10.dp)
             .alpha(if (enabled) 1f else 0.55f),
         verticalArrangement = Arrangement.spacedBy(8.dp),

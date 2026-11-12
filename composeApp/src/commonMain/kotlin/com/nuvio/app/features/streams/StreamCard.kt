@@ -14,6 +14,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Whatshot
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -191,15 +205,8 @@ internal fun StreamCard(
 
             val subtitle = stream.streamSubtitle
             if (!subtitle.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = formatStreamSubtitleMonochrome(subtitle),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                StreamSubtitleWithMonochromeIcons(subtitle = subtitle)
             }
 
             if (hasBadges && badgePlacement == StreamBadgePlacement.BOTTOM) {
@@ -366,16 +373,114 @@ private fun StreamItem.instantServiceLabel(): String? {
     return "- $providerLabel Instant"
 }
 
-private fun formatStreamSubtitleMonochrome(raw: String): String {
-    return raw
-        .replace("👤", "Seeds: ")
-        .replace("🌱", "Seeds: ")
-        .replace("💾", "Size: ")
-        .replace("📦", "Size: ")
-        .replace("⚙️", "• ")
-        .replace("⚡", "Instant ")
-        .replace("⏳", "Time: ")
-        .replace("🧲", "")
-        .replace(Regex(" {2,}"), " ")
-        .trim()
+private data class StreamMetaToken(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    val text: String,
+)
+
+private val streamEmojiMappings: List<Pair<String, androidx.compose.ui.graphics.vector.ImageVector>> = listOf(
+    "👤" to Icons.Outlined.Group,
+    "🌱" to Icons.Outlined.Group,
+    "💾" to Icons.Outlined.Inventory2,
+    "📦" to Icons.Outlined.Inventory2,
+    "⚙️" to Icons.Outlined.Dns,
+    "⚙" to Icons.Outlined.Dns,
+    "⚡" to Icons.Rounded.Bolt,
+    "⏳" to Icons.Rounded.Schedule,
+    "🧲" to Icons.Rounded.Link,
+    "🔊" to Icons.Rounded.VolumeUp,
+    "🎧" to Icons.Rounded.VolumeUp,
+    "💬" to Icons.Rounded.Subtitles,
+    "📝" to Icons.Rounded.Subtitles,
+    "🎬" to Icons.Rounded.Movie,
+    "🎥" to Icons.Rounded.Movie,
+    "📺" to Icons.Rounded.Movie,
+    "🖥️" to Icons.Rounded.Movie,
+    "🖥" to Icons.Rounded.Movie,
+    "🔥" to Icons.Rounded.Whatshot,
+)
+
+private fun parseStreamMetaLine(line: String): List<StreamMetaToken> {
+    val tokens = mutableListOf<StreamMetaToken>()
+    var idx = 0
+    var currentIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
+    val buffer = StringBuilder()
+
+    fun flushBuffer() {
+        val clean = buffer.toString().replace(Regex(" {2,}"), " ").trim()
+        if (clean.isNotEmpty() || currentIcon != null) {
+            if (clean.isNotEmpty()) {
+                tokens.add(StreamMetaToken(currentIcon, clean))
+            }
+        }
+        buffer.clear()
+        currentIcon = null
+    }
+
+    while (idx < line.length) {
+        val matched = streamEmojiMappings.firstOrNull { (emoji, _) ->
+            line.startsWith(emoji, startIndex = idx)
+        }
+        if (matched != null) {
+            flushBuffer()
+            currentIcon = matched.second
+            idx += matched.first.length
+        } else {
+            buffer.append(line[idx])
+            idx++
+        }
+    }
+    flushBuffer()
+    return tokens
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StreamSubtitleWithMonochromeIcons(subtitle: String) {
+    val mutedColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val textStyle = MaterialTheme.typography.bodySmall.copy(
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        subtitle.lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach { line ->
+                val tokens = remember(line) { parseStreamMetaLine(line) }
+                if (tokens.none { it.icon != null }) {
+                    Text(
+                        text = line,
+                        style = textStyle,
+                        color = mutedColor,
+                    )
+                } else {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        tokens.forEach { token ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                if (token.icon != null) {
+                                    Icon(
+                                        imageVector = token.icon,
+                                        contentDescription = null,
+                                        tint = mutedColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(13.dp),
+                                    )
+                                }
+                                Text(
+                                    text = token.text,
+                                    style = textStyle,
+                                    color = mutedColor,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+    }
 }

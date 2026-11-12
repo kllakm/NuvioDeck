@@ -42,6 +42,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
@@ -66,6 +67,7 @@ import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isLiquidGlassNativeTabBarSupported
 import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.collection.CollectionsSettingsPageContent
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsUiState
 import com.nuvio.app.core.ui.PosterCardStyleRepository
@@ -732,6 +734,11 @@ private fun MobileSettingsScreen(
                     isTablet = isTabletLayout,
                     uiState = posterCardStyleUiState,
                 )
+                SettingsPage.Collections -> item {
+                    CollectionsSettingsPageContent(
+                        onNavigateToEditor = { onCollectionsClick() },
+                    )
+                }
                 SettingsPage.About -> aboutSettingsContent(
                     isTablet = false,
                     onSupportersContributorsClick = onSupportersContributorsClick,
@@ -929,9 +936,32 @@ private fun TabletSettingsScreen(
         ControllerFocusEngine.requestFocus(firstSidebarNodeId, triggerScroll = false)
     }
 
+    var lastVisitedPage by remember { mutableStateOf(page) }
     LaunchedEffect(page) {
         if (page.opensInlineOnTablet) {
             selectedCategory = page.category.name
+        }
+        val pageChanged = lastVisitedPage != page
+        lastVisitedPage = page
+        if (page != SettingsPage.Root) {
+            withFrameNanos { }
+            withFrameNanos { }
+            repeat(12) {
+                delay(32)
+                if (ControllerFocusEngine.focusFirstInGroup("settings_content", excludeIds = setOf("settings_header_back"))) {
+                    return@LaunchedEffect
+                }
+            }
+            ControllerFocusEngine.focusFirstInGroup("settings_content")
+        } else if (pageChanged) {
+            withFrameNanos { }
+            withFrameNanos { }
+            repeat(10) {
+                delay(32)
+                if (ControllerFocusEngine.focusFirstInGroup("settings_content")) {
+                    return@LaunchedEffect
+                }
+            }
         }
     }
 
@@ -1000,7 +1030,7 @@ private fun TabletSettingsScreen(
                                 openInlinePage(target.page)
                             }
                         }
-                        SettingsSearchTarget.Collections -> onCollectionsClick()
+                        SettingsSearchTarget.Collections -> openInlinePage(SettingsPage.Collections)
                         SettingsSearchTarget.SwitchProfile -> onSwitchProfile?.invoke()
                         SettingsSearchTarget.CheckForUpdates -> onCheckForUpdatesClick?.invoke()
                     }
@@ -1151,7 +1181,7 @@ private fun TabletSettingsScreen(
                             onHomescreenClick = { openInlinePage(SettingsPage.Homescreen) },
                             onMetaScreenClick = { openInlinePage(SettingsPage.MetaScreen) },
                             onStreamsClick = { openInlinePage(SettingsPage.Streams) },
-                            onCollectionsClick = onCollectionsClick,
+                            onCollectionsClick = { openInlinePage(SettingsPage.Collections) },
                             onContinueWatchingClick = { openInlinePage(SettingsPage.ContinueWatching) },
                             onPosterCustomizationClick = { openInlinePage(SettingsPage.PosterCustomization) },
                             onHoverPreviewClick = { openInlinePage(SettingsPage.HoverPreview) },
@@ -1160,6 +1190,11 @@ private fun TabletSettingsScreen(
                             isTablet = true,
                             uiState = posterCardStyleUiState,
                         )
+                        SettingsPage.Collections -> item {
+                            CollectionsSettingsPageContent(
+                                onNavigateToEditor = { onCollectionsClick() },
+                            )
+                        }
                         SettingsPage.About -> aboutSettingsContent(
                             isTablet = true,
                             onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },

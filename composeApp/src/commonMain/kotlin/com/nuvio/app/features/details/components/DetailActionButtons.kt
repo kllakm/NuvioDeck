@@ -40,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -117,6 +119,12 @@ fun DetailActionButtons(
     val effectiveSecondaryAction = if (isNotifyMode || isCheckingStreams) null else onPlayLongClick
     val effectiveSecondaryLabel = if (isNotifyMode || isCheckingStreams) null else "Select Stream"
     val effectiveEnabled = if (isCheckingStreams) false else if (isNotifyMode) true else playEnabled
+    val isPlayFocusable = isCheckingStreams || effectiveEnabled
+    val playFocusRequester = remember { FocusRequester() }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        runCatching { playFocusRequester.requestFocus() }
+    }
 
     Box(
         modifier = modifier
@@ -164,13 +172,19 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(playFocusRequester)
                         .controllerFocusable(
                             id = "detail_action_play",
-                            enabled = effectiveEnabled,
+                            enabled = isPlayFocusable,
+                            isDefaultFocus = true,
                             shape = playShape,
                             useHaloFocusRing = true,
                             focusScale = 1.0f,
-                            onSelect = effectiveActionClick,
+                            onSelect = {
+                                if (!isCheckingStreams && effectiveEnabled) {
+                                    effectiveActionClick()
+                                }
+                            },
                             selectLabel = effectiveLabel,
                             onSecondaryAction = effectiveSecondaryAction,
                             secondaryActionLabel = effectiveSecondaryLabel,
@@ -303,6 +317,7 @@ fun DetailActionButtons(
                         modifier = Modifier
                             .size(iconButtonSize)
                             .controllerFocusable(
+                                id = "detail_action_more",
                                 shape = CircleShape,
                                 onSelect = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)

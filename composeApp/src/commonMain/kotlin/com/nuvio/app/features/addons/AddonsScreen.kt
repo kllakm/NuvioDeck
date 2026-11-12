@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioIconActionButton
@@ -317,6 +318,7 @@ private fun AddAddonCard(
         NuvioInputField(
             value = addonUrl,
             onValueChange = onAddonUrlChange,
+            enableControllerFocus = true,
             placeholder = stringResource(
                 if (usePersonalMediaCopy) {
                     Res.string.addons_appstore_input_placeholder
@@ -451,6 +453,13 @@ private fun InstalledAddonCard(
             Switch(
                 checked = addon.enabled,
                 onCheckedChange = onEnabledChange,
+                modifier = Modifier.controllerFocusable(
+                    id = "addon_toggle_${addon.manifestUrl}",
+                    shape = RoundedCornerShape(16.dp),
+                    focusScale = 1.0f,
+                    onSelect = { onEnabledChange(!addon.enabled) },
+                    selectLabel = "Toggle ${addon.displayTitle}",
+                ),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary,

@@ -155,7 +155,9 @@
 - **Subtle Studio Login Backdrop & Anti-Banding Display:** Clean, star-free dark obsidian-slate studio login background with a smooth `650ms` radial ambient wash tinted by the active profile's accent color, paired with a cached micro-dither brush to eliminate gradient banding on 8-bit/10-bit displays.
 - **512MB Persistent Disk Image Cache & High-Refresh VSync:** Okio-backed disk cache (`%LOCALAPPDATA%\NuvioDeck\Cache\image_cache`), hardware trilinear mipmapping (`FilterQuality.Medium`), low-pause G1GC (`-XX:+UseG1GC -XX:MaxGCPauseMillis=16`), and unlocked VSync (`-Dskiko.fps=-1 -Dskiko.vsync=true`) for 90Hz / 120Hz / 144Hz displays.
 - **Isolated Side-by-Side Installation:** Uses a dedicated `NuvioDeck` application identity, unique Windows MSI `upgradeUuid`, and isolated data directories (`%APPDATA%\NuvioDeck` and `%LOCALAPPDATA%\NuvioDeck\Cache`) so NuvioDeck and upstream NuvioDesktop can run side-by-side without conflict.
-- **Synchronized with Upstream Nuvio Desktop (`v0.1.35`):** Includes upstream Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
+- **Unified Monochrome Stream Selection (App & Player OSD):** Both the main-app stream list and the in-player OSD stream selector share matching card styling (`12dp` radius, `0.32f` accent focus fill, `0.52f` active border) with flat monochrome vector/SVG metadata icons replacing emoji markers.
+- **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, and center **Folders in Collections** rows symmetrically during both `Up` and `Down` D-Pad traversal.
+- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.25`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
 
 ---
 
@@ -167,9 +169,9 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 ## 📦 Installation & Downloads
 
-Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.24.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
+Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.25.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.24.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.25.msi`) or Standalone Executable (`NuvioDeck.exe`)
 
 ---
 
@@ -200,7 +202,7 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.24.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.25.msi`
 
 ---
 

@@ -125,9 +125,28 @@ internal fun PlaybackStreamSettings(
                     Int.MAX_VALUE -> stringResource(Res.string.settings_playback_timeout_unlimited)
                     else -> stringResource(Res.string.settings_playback_timeout_seconds, timeoutSec)
                 }
+                val timeoutIndex = STREAM_AUTO_PLAY_TIMEOUT_VALUES.indexOf(timeoutSec)
+                    .coerceAtLeast(0)
+                val maxIndex = (STREAM_AUTO_PLAY_TIMEOUT_VALUES.size - 1).toFloat()
+                var sliderValue by remember(timeoutIndex) { mutableFloatStateOf(timeoutIndex.toFloat()) }
+                var lastHapticStep by remember(timeoutIndex) { mutableStateOf(timeoutIndex.toFloat()) }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .controllerSliderFocus(
+                            id = "settings_playback_stream_timeout",
+                            label = stringResource(Res.string.settings_playback_stream_timeout),
+                            onDecrement = {
+                                val nextIdx = (sliderValue.toInt() - 1).coerceIn(0, STREAM_AUTO_PLAY_TIMEOUT_VALUES.size - 1)
+                                sliderValue = nextIdx.toFloat()
+                                PlayerSettingsRepository.setStreamAutoPlayTimeoutSeconds(STREAM_AUTO_PLAY_TIMEOUT_VALUES[nextIdx])
+                            },
+                            onIncrement = {
+                                val nextIdx = (sliderValue.toInt() + 1).coerceIn(0, STREAM_AUTO_PLAY_TIMEOUT_VALUES.size - 1)
+                                sliderValue = nextIdx.toFloat()
+                                PlayerSettingsRepository.setStreamAutoPlayTimeoutSeconds(STREAM_AUTO_PLAY_TIMEOUT_VALUES[nextIdx])
+                            },
+                        )
                         .padding(horizontal = if (isTablet) 18.dp else 16.dp, vertical = 10.dp),
                 ) {
                     Row(
@@ -148,11 +167,6 @@ internal fun PlaybackStreamSettings(
                         }
                         ValueBox(text = timeoutLabel, modifier = Modifier.wrapContentWidth())
                     }
-                    val timeoutIndex = STREAM_AUTO_PLAY_TIMEOUT_VALUES.indexOf(timeoutSec)
-                        .coerceAtLeast(0)
-                    val maxIndex = (STREAM_AUTO_PLAY_TIMEOUT_VALUES.size - 1).toFloat()
-                    var sliderValue by remember(timeoutIndex) { mutableFloatStateOf(timeoutIndex.toFloat()) }
-                    var lastHapticStep by remember(timeoutIndex) { mutableStateOf(timeoutIndex.toFloat()) }
                     Slider(
                         value = sliderValue,
                         onValueChange = {

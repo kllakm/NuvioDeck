@@ -130,6 +130,23 @@ private fun HoverPreviewDelaySlider(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerSliderFocus(
+                id = "settings_hover_preview_open_delay",
+                enabled = enabled,
+                label = stringResource(Res.string.settings_hover_preview_delay),
+                onDecrement = {
+                    val next = (snappedDelayMillis - HoverPreviewOpenDelayStepMillis)
+                        .coerceIn(MinHoverPreviewOpenDelayMillis, MaxHoverPreviewOpenDelayMillis)
+                    sliderValue = next.toFloat()
+                    PosterCardStyleRepository.setHoverPreviewOpenDelayMillis(next)
+                },
+                onIncrement = {
+                    val next = (snappedDelayMillis + HoverPreviewOpenDelayStepMillis)
+                        .coerceIn(MinHoverPreviewOpenDelayMillis, MaxHoverPreviewOpenDelayMillis)
+                    sliderValue = next.toFloat()
+                    PosterCardStyleRepository.setHoverPreviewOpenDelayMillis(next)
+                },
+            )
             .padding(horizontal = horizontalPadding, vertical = 14.dp)
             .alpha(if (enabled) 1f else 0.55f),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -198,6 +215,23 @@ private fun HoverPreviewTrailerStartSlider(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerSliderFocus(
+                id = "settings_hover_preview_trailer_start",
+                enabled = enabled,
+                label = stringResource(Res.string.settings_hover_preview_trailer_start_time),
+                onDecrement = {
+                    val next = (snappedStartSeconds - HoverPreviewTrailerStartStepSeconds)
+                        .coerceIn(MinHoverPreviewTrailerStartSeconds, MaxHoverPreviewTrailerStartSeconds)
+                    sliderValue = next.toFloat()
+                    PosterCardStyleRepository.setHoverPreviewTrailerStartSeconds(next)
+                },
+                onIncrement = {
+                    val next = (snappedStartSeconds + HoverPreviewTrailerStartStepSeconds)
+                        .coerceIn(MinHoverPreviewTrailerStartSeconds, MaxHoverPreviewTrailerStartSeconds)
+                    sliderValue = next.toFloat()
+                    PosterCardStyleRepository.setHoverPreviewTrailerStartSeconds(next)
+                },
+            )
             .padding(horizontal = horizontalPadding, vertical = 14.dp)
             .alpha(if (enabled) 1f else 0.55f),
         verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -48,6 +48,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.animateDpAsState
+import com.nuvio.app.controller.PlatformVirtualKeyboard
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogButtonStyle
@@ -64,6 +66,177 @@ import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollectionsSettingsPageContent(
+    onNavigateToEditor: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val collections by CollectionRepository.collections.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importText by remember { mutableStateOf("") }
+    var importError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
+    var showCopyError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        NuvioSurfaceCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.collections_count_summary,
+                        collections.size,
+                        collections.sumOf { it.folders.size },
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
+                        onClick = {
+                            val json = CollectionRepository.exportToJson()
+                            showCopyError = runCatching {
+                                clipboardManager.setText(AnnotatedString(json))
+                            }.isFailure
+                        },
+                        modifier = Modifier.controllerFocusable(
+                            shape = RoundedCornerShape(10.dp),
+                            focusScale = 1.0f,
+                            onSelect = {
+                                val json = CollectionRepository.exportToJson()
+                                showCopyError = runCatching {
+                                    clipboardManager.setText(AnnotatedString(json))
+                                }.isFailure
+                            },
+                            selectLabel = stringResource(Res.string.collections_copy_json),
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = stringResource(Res.string.collections_copy_json),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(
+                        onClick = { showImportDialog = true },
+                        modifier = Modifier.controllerFocusable(
+                            shape = RoundedCornerShape(10.dp),
+                            focusScale = 1.0f,
+                            onSelect = { showImportDialog = true },
+                            selectLabel = stringResource(Res.string.collections_import),
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentPaste,
+                            contentDescription = stringResource(Res.string.collections_import),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        NuvioPrimaryButton(
+            text = stringResource(Res.string.collections_new),
+            onClick = { onNavigateToEditor(null) },
+        )
+
+        if (collections.isNotEmpty()) {
+            NuvioSectionLabel(text = stringResource(Res.string.collections_your_collections))
+            CollectionReorderableList(
+                collections = collections,
+                onEdit = { onNavigateToEditor(it) },
+                onDelete = { showDeleteConfirm = it },
+            )
+        } else {
+            NuvioSurfaceCard(
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(Res.string.collections_empty_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(Res.string.collections_empty_subtitle),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    if (showImportDialog) {
+        ImportDialog(
+            importText = importText,
+            importError = importError,
+            onTextChange = {
+                importText = it
+                importError = null
+            },
+            onConfirm = {
+                val result = CollectionRepository.validateJson(importText)
+                if (result.valid) {
+                    CollectionRepository.importFromJson(importText)
+                    showImportDialog = false
+                    importText = ""
+                    importError = null
+                } else {
+                    importError = result.error
+                }
+            },
+            onDismiss = {
+                showImportDialog = false
+                importText = ""
+                importError = null
+            },
+        )
+    }
+
+    NuvioStatusModal(
+        title = stringResource(Res.string.collections_copy_json),
+        message = stringResource(Res.string.collections_copy_json_error),
+        isVisible = showCopyError,
+        onConfirm = { showCopyError = false },
+        onDismiss = { showCopyError = false },
+    )
+
+    val deleteId = showDeleteConfirm
+    val deleteCollection = deleteId?.let { id -> collections.find { it.id == id } }
+    NuvioStatusModal(
+        title = stringResource(Res.string.collections_delete_title),
+        message = stringResource(Res.string.collections_delete_message, deleteCollection?.title.orEmpty()),
+        isVisible = deleteId != null,
+        destructive = true,
+        confirmText = stringResource(Res.string.action_delete),
+        dismissText = stringResource(Res.string.action_cancel),
+        onConfirm = {
+            if (deleteId != null) {
+                CollectionRepository.removeCollection(deleteId)
+            }
+            showDeleteConfirm = null
+        },
+        onDismiss = { showDeleteConfirm = null },
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -244,8 +417,9 @@ private fun CollectionReorderableList(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 720.dp),
+            .heightIn(max = (collections.size * 220 + 200).dp),
         state = lazyListState,
+        userScrollEnabled = false,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         itemsIndexed(keyedCollections, key = { _, collection -> collection.lazyKey }) { _, keyedCollection ->
@@ -337,7 +511,15 @@ private fun CollectionListItem(
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier
+                    .size(36.dp)
+                    .controllerFocusable(
+                        id = "collection_edit_${collection.id}",
+                        shape = RoundedCornerShape(8.dp),
+                        focusScale = 1.0f,
+                        onSelect = onEdit,
+                        selectLabel = "${stringResource(Res.string.action_edit)} ${collection.title}",
+                    ),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
@@ -348,7 +530,15 @@ private fun CollectionListItem(
             }
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier
+                    .size(36.dp)
+                    .controllerFocusable(
+                        id = "collection_delete_${collection.id}",
+                        shape = RoundedCornerShape(8.dp),
+                        focusScale = 1.0f,
+                        onSelect = onDelete,
+                        selectLabel = "${stringResource(Res.string.action_delete)} ${collection.title}",
+                    ),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Delete,

@@ -43,6 +43,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -266,6 +271,7 @@ internal fun SettingsNavigationRow(
     icon: ImageVector? = null,
     iconPainter: Painter? = null,
     enabled: Boolean = true,
+    isDefaultFocus: Boolean = false,
     isTablet: Boolean,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     onClick: () -> Unit,
@@ -286,6 +292,7 @@ internal fun SettingsNavigationRow(
                 id = nodeId,
                 groupKey = "settings_content",
                 enabled = enabled,
+                isDefaultFocus = isDefaultFocus,
                 shape = tokens.shapes.compactCard,
                 focusScale = 1.0f,
                 hideFocusRing = true,
@@ -362,8 +369,10 @@ internal fun SettingsSwitchRow(
     description: String? = null,
     checked: Boolean,
     enabled: Boolean = true,
+    isDefaultFocus: Boolean = false,
     isTablet: Boolean,
     horizontalPadding: Dp = if (isTablet) 20.dp else 16.dp,
+    onMoveUp: (() -> Boolean)? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -380,9 +389,11 @@ internal fun SettingsSwitchRow(
                 id = nodeId,
                 groupKey = "settings_content",
                 enabled = enabled,
+                isDefaultFocus = isDefaultFocus,
                 shape = tokens.shapes.compactCard,
                 focusScale = 1.0f,
                 hideFocusRing = true,
+                onMoveUp = onMoveUp,
                 onSelect = { onCheckedChange(!checked) },
                 selectLabel = "Toggle",
             )
@@ -485,6 +496,7 @@ internal fun HomescreenCatalogRow(
     onEnabledChange: (Boolean) -> Unit,
     dragHandleScope: ReorderableCollectionItemScope,
     onPinnedDragAttempt: () -> Unit = {},
+    onFocused: (() -> Unit)? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
@@ -506,6 +518,7 @@ internal fun HomescreenCatalogRow(
                 hideFocusRing = true,
                 onSelect = { onEnabledChange(!item.enabled) },
                 selectLabel = "Toggle Visibility",
+                onFocused = onFocused,
                 onSecondaryAction = { onExpandedChange(!expanded) },
                 secondaryActionLabel = "Rename",
             )
@@ -641,5 +654,62 @@ internal fun HomescreenCatalogRow(
             }
         }
     }
+}
+
+@Composable
+internal fun Modifier.controllerSliderFocus(
+    id: String,
+    enabled: Boolean = true,
+    label: String,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit,
+): Modifier {
+    val tokens = MaterialTheme.nuvio
+    val isFocused = isControllerNodeFocused(id)
+    val shape = RoundedCornerShape(12.dp)
+    return this
+        .background(
+            if (isFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent,
+            shape,
+        )
+        .onPreviewKeyEvent { keyEvent ->
+            if (!enabled || keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+            when (keyEvent.key) {
+                Key.DirectionLeft -> {
+                    onDecrement()
+                    true
+                }
+                Key.DirectionRight -> {
+                    onIncrement()
+                    true
+                }
+                else -> false
+            }
+        }
+        .controllerFocusable(
+            id = id,
+            enabled = enabled,
+            shape = shape,
+            focusScale = 1.0f,
+            hideFocusRing = true,
+            onSelect = {
+                if (enabled) {
+                    onIncrement()
+                }
+            },
+            selectLabel = "$label (Left/Right to adjust)",
+            onMoveLeft = {
+                if (enabled) {
+                    onDecrement()
+                }
+                true
+            },
+            onMoveRight = {
+                if (enabled) {
+                    onIncrement()
+                }
+                true
+            },
+        )
 }
 

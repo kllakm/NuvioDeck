@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.features.home.components.ContinueWatchingStylePreview
@@ -237,6 +238,13 @@ private fun ContinueWatchingStyleOption(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .controllerFocusable(
+                id = "settings_cw_style_${style.name.lowercase()}",
+                shape = RoundedCornerShape(12.dp),
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = style.name,
+            )
             .clickable(onClick = onClick),
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)

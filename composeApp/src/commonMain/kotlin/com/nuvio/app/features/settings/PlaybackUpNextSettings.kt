@@ -110,9 +110,25 @@ internal fun PlaybackUpNextSettings(
                 when (settings.nextEpisodeThresholdMode) {
                     com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.PERCENTAGE -> {
                         val thresholdPercent = settings.nextEpisodeThresholdPercent
+                        var sliderValue by remember(thresholdPercent) { mutableFloatStateOf(thresholdPercent) }
+                        var lastHapticPercent by remember(thresholdPercent) { mutableStateOf(thresholdPercent) }
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .controllerSliderFocus(
+                                    id = "settings_playback_next_episode_percent",
+                                    label = stringResource(Res.string.settings_playback_threshold_percentage),
+                                    onDecrement = {
+                                        val next = snapToStep(sliderValue - 0.5f, 0.5f).coerceIn(97f, 100f)
+                                        sliderValue = next
+                                        PlayerSettingsRepository.setNextEpisodeThresholdPercent(next)
+                                    },
+                                    onIncrement = {
+                                        val next = snapToStep(sliderValue + 0.5f, 0.5f).coerceIn(97f, 100f)
+                                        sliderValue = next
+                                        PlayerSettingsRepository.setNextEpisodeThresholdPercent(next)
+                                    },
+                                )
                                 .padding(horizontal = if (isTablet) 18.dp else 16.dp, vertical = 10.dp),
                         ) {
                             Row(
@@ -135,8 +151,6 @@ internal fun PlaybackUpNextSettings(
                                     Res.string.settings_playback_threshold_percentage_value,
                                     formatStep(thresholdPercent)), modifier = Modifier.wrapContentWidth())
                             }
-                            var sliderValue by remember(thresholdPercent) { mutableFloatStateOf(thresholdPercent) }
-                            var lastHapticPercent by remember(thresholdPercent) { mutableStateOf(thresholdPercent) }
                             Slider(
                                 value = sliderValue,
                                 onValueChange = {
@@ -159,9 +173,25 @@ internal fun PlaybackUpNextSettings(
                     }
                     com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END -> {
                         val thresholdMinutes = settings.nextEpisodeThresholdMinutesBeforeEnd
+                        var sliderValue by remember(thresholdMinutes) { mutableFloatStateOf(thresholdMinutes) }
+                        var lastHapticMin by remember(thresholdMinutes) { mutableStateOf(thresholdMinutes) }
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .controllerSliderFocus(
+                                    id = "settings_playback_next_episode_minutes",
+                                    label = stringResource(Res.string.settings_playback_minutes_before_end),
+                                    onDecrement = {
+                                        val next = snapToStep(sliderValue - 0.5f, 0.5f).coerceIn(0f, 3.5f)
+                                        sliderValue = next
+                                        PlayerSettingsRepository.setNextEpisodeThresholdMinutesBeforeEnd(next)
+                                    },
+                                    onIncrement = {
+                                        val next = snapToStep(sliderValue + 0.5f, 0.5f).coerceIn(0f, 3.5f)
+                                        sliderValue = next
+                                        PlayerSettingsRepository.setNextEpisodeThresholdMinutesBeforeEnd(next)
+                                    },
+                                )
                                 .padding(horizontal = if (isTablet) 18.dp else 16.dp, vertical = 10.dp),
                         ) {
                             Row(
@@ -184,8 +214,6 @@ internal fun PlaybackUpNextSettings(
                                         Res.string.settings_playback_minutes_value,
                                         formatStep(thresholdMinutes)), modifier = Modifier.wrapContentWidth())
                             }
-                            var sliderValue by remember(thresholdMinutes) { mutableFloatStateOf(thresholdMinutes) }
-                            var lastHapticMin by remember(thresholdMinutes) { mutableStateOf(thresholdMinutes) }
                             Slider(
                                 value = sliderValue,
                                 onValueChange = {

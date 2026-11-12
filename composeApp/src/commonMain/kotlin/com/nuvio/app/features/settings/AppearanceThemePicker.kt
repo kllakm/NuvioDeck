@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -124,6 +125,13 @@ private fun ThemeChip(
     Column(
         modifier = modifier
             .clip(tokens.shapes.compactCard)
+            .controllerFocusable(
+                id = "settings_theme_${theme.name.lowercase()}",
+                shape = tokens.shapes.compactCard,
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = theme.name,
+            )
             .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = NuvioTokens.Space.s4, vertical = NuvioTokens.Space.s8),
         horizontalAlignment = Alignment.CenterHorizontally,

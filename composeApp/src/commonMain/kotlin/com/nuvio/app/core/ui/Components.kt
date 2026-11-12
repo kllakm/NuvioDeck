@@ -51,6 +51,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.controller.PlatformVirtualKeyboard
+import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -258,7 +260,13 @@ fun NuvioActionLabel(
         text = text,
         modifier = modifier.then(
             if (onClick != null) {
-                Modifier.clickable(onClick = onClick)
+                Modifier
+                    .controllerFocusable(
+                        focusScale = 1.0f,
+                        onSelect = onClick,
+                        selectLabel = text,
+                    )
+                    .clickable(onClick = onClick)
             } else {
                 Modifier
             }
@@ -282,6 +290,12 @@ fun NuvioIconActionButton(
             .background(
                 color = tokens.colors.background.copy(alpha = 0.001f),
                 shape = tokens.shapes.avatar,
+            )
+            .controllerFocusable(
+                shape = tokens.shapes.avatar,
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = contentDescription,
             ),
         onClick = onClick,
     ) {
@@ -337,7 +351,14 @@ fun NuvioPrimaryButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4),
+            .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)
+            .controllerFocusable(
+                enabled = enabled,
+                shape = tokens.shapes.button,
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = text,
+            ),
         enabled = enabled,
         shape = tokens.shapes.button,
         colors = ButtonDefaults.buttonColors(
@@ -368,13 +389,28 @@ fun NuvioInputField(
     placeholder: String,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.nuvio.shapes.compactCard,
+    enableControllerFocus: Boolean = false,
     trailingContent: (@Composable (() -> Unit))? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (enableControllerFocus) {
+                    Modifier.controllerFocusable(
+                        shape = shape,
+                        focusScale = 1.0f,
+                        isTextInput = true,
+                        onSelect = { PlatformVirtualKeyboard.show() },
+                        selectLabel = placeholder,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
         singleLine = true,
         shape = shape,
         placeholder = {

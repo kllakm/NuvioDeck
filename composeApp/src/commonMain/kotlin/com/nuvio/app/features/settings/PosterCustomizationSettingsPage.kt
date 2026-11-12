@@ -55,6 +55,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.PlatformVirtualKeyboard
+import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
+import com.nuvio.app.core.ui.nuvio
 import kotlin.math.roundToInt
 import com.nuvio.app.core.ui.Slider
 import com.nuvio.app.core.ui.CardDepthStyleRepository
@@ -214,7 +218,14 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                     OutlinedTextField(
                         value = editingPattern,
                         onValueChange = { editingPattern = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .controllerFocusable(
+                                isTextInput = true,
+                                focusScale = 1.0f,
+                                onSelect = { PlatformVirtualKeyboard.show() },
+                                selectLabel = stringResource(Res.string.settings_custom_poster_title),
+                            ),
                         placeholder = {
                             Text(
                                 text = stringResource(Res.string.settings_custom_poster_placeholder),
@@ -235,6 +246,12 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                                 CustomPosterUrlRepository.setPattern(editingPattern)
                             },
                             enabled = editingPattern.trim() != currentPattern,
+                            modifier = Modifier.controllerFocusable(
+                                enabled = editingPattern.trim() != currentPattern,
+                                focusScale = 1.0f,
+                                onSelect = { CustomPosterUrlRepository.setPattern(editingPattern) },
+                                selectLabel = stringResource(Res.string.settings_custom_poster_save),
+                            ),
                         ) {
                             Text(text = stringResource(Res.string.settings_custom_poster_save))
                         }
@@ -363,11 +380,26 @@ private fun CardDepthStyleControls(
                 options = coverageOptions,
                 onSelected = CardDepthStyleRepository::setEdgeCoverage,
             )
+            val fineTuneId = "settings_card_depth_fine_tune"
+            val isFineTuneFocused = isControllerNodeFocused(fineTuneId)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .clickable { showFineTune = true },
+                    .background(
+                        if (isFineTuneFocused) MaterialTheme.nuvio.colors.accent.copy(alpha = 0.32f) else Color.Transparent,
+                        RoundedCornerShape(10.dp),
+                    )
+                    .controllerFocusable(
+                        id = fineTuneId,
+                        shape = RoundedCornerShape(10.dp),
+                        focusScale = 1.0f,
+                        hideFocusRing = true,
+                        onSelect = { showFineTune = true },
+                        selectLabel = stringResource(Res.string.settings_card_depth_fine_tune),
+                    )
+                    .clickable { showFineTune = true }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -514,7 +546,22 @@ private fun CardDepthFineTuneSheet(
                     CardDepthStyleRepository.setEdgeCoverage(draftCoverage.roundToInt())
                 },
                 valueRange = 0f..100f,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .controllerSliderFocus(
+                        id = "settings_card_depth_coverage_slider",
+                        label = stringResource(Res.string.settings_card_depth_coverage_value),
+                        onDecrement = {
+                            val next = (draftCoverage - 5f).coerceIn(0f, 100f)
+                            draftCoverage = next
+                            CardDepthStyleRepository.setEdgeCoverage(next.roundToInt())
+                        },
+                        onIncrement = {
+                            val next = (draftCoverage + 5f).coerceIn(0f, 100f)
+                            draftCoverage = next
+                            CardDepthStyleRepository.setEdgeCoverage(next.roundToInt())
+                        },
+                    ),
             )
         }
     }
@@ -827,8 +874,27 @@ private fun PosterToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val toggleId = remember(title) { "settings_poster_toggle_${title.lowercase().replace(" ", "_")}" }
+    val isFocused = isControllerNodeFocused(toggleId)
+    val shape = RoundedCornerShape(10.dp)
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                if (isFocused) MaterialTheme.nuvio.colors.accent.copy(alpha = 0.32f) else Color.Transparent,
+                shape,
+            )
+            .controllerFocusable(
+                id = toggleId,
+                shape = shape,
+                focusScale = 1.0f,
+                hideFocusRing = true,
+                onSelect = { onCheckedChange(!checked) },
+                selectLabel = title,
+            )
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -971,6 +1037,13 @@ private fun PosterStyleOptionRow(
                     selected = option.value == selectedValue,
                     onClick = { onSelected(option.value) },
                     label = { Text(option.label) },
+                    modifier = Modifier.controllerFocusable(
+                        id = "settings_poster_opt_${title.lowercase().replace(" ", "_")}_${option.value}",
+                        shape = RoundedCornerShape(8.dp),
+                        focusScale = 1.0f,
+                        onSelect = { onSelected(option.value) },
+                        selectLabel = "${title}: ${option.label}",
+                    ),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,

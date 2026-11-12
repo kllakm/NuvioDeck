@@ -109,7 +109,9 @@ internal fun LazyListScope.homescreenSettingsContent(
                     title = stringResource(Res.string.settings_homescreen_show_hero),
                     description = stringResource(Res.string.settings_homescreen_show_hero_description),
                     checked = heroEnabled,
+                    isDefaultFocus = true,
                     isTablet = isTablet,
+                    onMoveUp = { true },
                     onCheckedChange = HomeCatalogSettingsRepository::setHeroEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
@@ -446,8 +448,9 @@ private fun HomescreenCatalogList(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = if (isTablet) 900.dp else 680.dp),
+                .heightIn(max = (items.size * 240 + 240).dp),
             state = lazyListState,
+            userScrollEnabled = false,
         ) {
             itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
                 ReorderableItem(

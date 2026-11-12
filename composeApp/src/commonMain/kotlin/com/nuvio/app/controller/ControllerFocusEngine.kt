@@ -525,6 +525,29 @@ object ControllerFocusEngine {
         return true
     }
 
+    fun focusFirstInGroup(
+        groupKey: String,
+        excludeIds: Set<String> = emptySet(),
+        triggerScroll: Boolean = false,
+    ): Boolean {
+        val candidates = nodes.values.filter {
+            it.zone == ControllerFocusZone.Content &&
+                it.isVisibleAndValid &&
+                it.groupKey == groupKey &&
+                it.id !in excludeIds
+        }
+        if (candidates.isEmpty()) return false
+        val target = candidates.firstOrNull { it.isDefaultFocus }
+            ?: candidates.minWithOrNull(
+                compareBy<ControllerFocusNode> { (it.boundsInRoot.top / 24f).toInt() }
+                    .thenBy { it.boundsInRoot.left },
+            )
+            ?: return false
+        hasUserNavigatedOnCurrentRoute = true
+        focusNodeInternal(target, triggerScroll = triggerScroll)
+        return true
+    }
+
     fun clearFocusInZone(zone: ControllerFocusZone) {
         val current = _focusedNodeId.value?.let { nodes[it] }
         if (current?.zone == zone) {
@@ -1175,9 +1198,10 @@ object ControllerFocusEngine {
             }
 
             // If non-shelf vertical content is already fully visible inside viewport safe margins, do not scroll
+            val isGridContent = gridState != null
             val topChromeSafeMargin = 85f * scaleFactor
             val bottomSafeMargin = vh - (40f * scaleFactor)
-            if (!isShelfRow && !isSeasonRow && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
+            if (!isShelfRow && !isSeasonRow && !isGridContent && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
                 delta = 0f
             }
 
@@ -1199,7 +1223,7 @@ object ControllerFocusEngine {
                 }
                 delta = delta.coerceAtLeast(-maxScrollUp)
 
-                if (visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
+                if (!isGridContent && visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
                     val clampedDelta = visualTop - topChromeSafeMargin
                     if (clampedDelta > delta) {
                         delta = clampedDelta
@@ -1477,6 +1501,8 @@ object ControllerFocusEngine {
             val columnNodes = nodes.values.filter {
                 it.zone == ControllerFocusZone.Content &&
                     it.isVisibleAndValid &&
+                    it.boundsInRoot.width > 2f &&
+                    it.boundsInRoot.height > 2f &&
                     (if (isCurrentSettingsSidebar) (it.groupKey == "settings_sidebar" || it.id.startsWith("settings_sidebar_"))
                      else (it.groupKey == "settings_content" || (it.id.startsWith("settings_") && !it.id.startsWith("settings_sidebar_")))) &&
                     it.id != current.id
