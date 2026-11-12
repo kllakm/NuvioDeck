@@ -428,6 +428,7 @@ button:disabled {
 
 .title {
   max-width: min(760px, 100%);
+  width: fit-content;
   font-size: var(--title);
   line-height: 1.16;
   font-weight: 700;
@@ -439,6 +440,7 @@ button:disabled {
 
 .episode {
   max-width: min(760px, 100%);
+  width: fit-content;
   margin-top: 4px;
   font-size: var(--episode);
   line-height: 1.3;
@@ -454,11 +456,11 @@ button:disabled {
   gap: 8px;
   max-width: min(760px, 100%);
   min-width: 0;
+  width: fit-content;
   max-height: 0;
   margin-top: 0;
   opacity: 0;
   overflow: hidden;
-  pointer-events: none;
   transform: translateY(6px);
   transition:
     opacity 180ms ease,
@@ -495,6 +497,7 @@ button:disabled {
   align-items: center;
   gap: 6px;
   max-width: min(760px, 100%);
+  width: fit-content;
   padding: 6px 0;
   overflow: hidden;
 }
@@ -1639,6 +1642,7 @@ button:disabled {
 
 .chapter-title {
   max-width: min(760px, 100%);
+  width: fit-content;
   padding-bottom: 6px;
   font-size: var(--meta);
   line-height: 1.3;
@@ -1893,6 +1897,7 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-shadow: 0 2px 12px rgba(0, 0, 0, .7);
+  cursor: pointer;
 }
 
 .action-pill {
@@ -2750,8 +2755,9 @@ button:disabled {
 
 .track-row.source-row {
   min-height: 68px;
-  align-items: flex-start;
+  align-items: center;
   padding: 14px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, .05);
   box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
 }
@@ -2968,14 +2974,41 @@ button:disabled {
 }
 
 .source-row .stream-subtitle {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: visible;
   overflow-wrap: anywhere;
   text-overflow: clip;
-  white-space: pre-line;
+  white-space: normal;
   -webkit-line-clamp: unset;
   -webkit-box-orient: initial;
   line-height: 1.45;
+}
+
+.stream-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.stream-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stream-meta-icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
 }
 
 .stream-badge-row {
@@ -3795,8 +3828,6 @@ svg {
 
 .player.controller-active .track-row:focus,
 .player.controller-active .track-row.focused,
-.player.controller-active .source-row:focus,
-.player.controller-active .source-row.focused,
 .player.controller-active .subtitle-language-row:focus,
 .player.controller-active .subtitle-language-row.focused,
 .player.controller-active .subtitle-option-row:focus,
@@ -3815,6 +3846,17 @@ svg {
   box-shadow: none !important;
   transform: none !important;
   background: rgba(255, 255, 255, 0.24) !important;
+  transition: background 120ms ease;
+  z-index: 10;
+}
+
+.player.controller-active .source-row:focus,
+.player.controller-active .source-row.focused {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  background: color-mix(in srgb, var(--theme-accent) 32%, transparent) !important;
   transition: background 120ms ease;
   z-index: 10;
 }
@@ -3885,7 +3927,7 @@ svg {
 }
 
 .controller-hint-toolbar.lifted {
-  bottom: 84px;
+  bottom: max(124px, calc(var(--slider-bottom) + 96px));
 }
 
 .controller-hint-item {
@@ -3928,7 +3970,8 @@ svg {
 .xbox-glyph-b,
 .xbox-glyph-x,
 .xbox-glyph-y {
-  padding-bottom: 1.5px;
+  padding-top: 1px;
+  padding-bottom: 0;
 }
 
 .xbox-glyph-a { border-color: #38D430; color: #38D430; }

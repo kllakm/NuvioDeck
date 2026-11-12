@@ -1790,6 +1790,111 @@ const sourceIndexForOffset = offset => {
   return result;
 };
 
+const STREAM_META_SVG_PATHS = {
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  storage: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  server: '<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
+  bolt: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  audio: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>',
+  subtitles: '<rect width="18" height="14" x="3" y="5" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/>',
+  movie: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M3 12h18M3 16.5h4M17 7.5h4M17 16.5h4"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+};
+
+const STREAM_EMOJI_MAP = [
+  ["👤", "users"],
+  ["🌱", "users"],
+  ["💾", "storage"],
+  ["📦", "storage"],
+  ["⚙️", "server"],
+  ["⚙", "server"],
+  ["⚡", "bolt"],
+  ["⏳", "clock"],
+  ["🧲", "link"],
+  ["🔊", "audio"],
+  ["🎧", "audio"],
+  ["💬", "subtitles"],
+  ["📝", "subtitles"],
+  ["🎬", "movie"],
+  ["🎥", "movie"],
+  ["📺", "movie"],
+  ["🖥️", "movie"],
+  ["🖥", "movie"],
+  ["🔥", "flame"],
+];
+
+const renderStreamSubtitleMonochrome = (container, rawSubtitle) => {
+  container.textContent = "";
+  const lines = String(rawSubtitle || "")
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  lines.forEach(line => {
+    const tokens = [];
+    let idx = 0;
+    let currentIcon = null;
+    let buffer = "";
+
+    const flush = () => {
+      const clean = buffer.replace(/ {2,}/g, " ").trim();
+      if (clean) {
+        tokens.push({ icon: currentIcon, text: clean });
+      }
+      buffer = "";
+      currentIcon = null;
+    };
+
+    while (idx < line.length) {
+      let matched = null;
+      for (let i = 0; i < STREAM_EMOJI_MAP.length; i++) {
+        const [emoji, iconKey] = STREAM_EMOJI_MAP[i];
+        if (line.startsWith(emoji, idx)) {
+          matched = { emoji, iconKey };
+          break;
+        }
+      }
+      if (matched) {
+        flush();
+        currentIcon = matched.iconKey;
+        idx += matched.emoji.length;
+      } else {
+        buffer += line[idx];
+        idx += 1;
+      }
+    }
+    flush();
+
+    const lineEl = document.createElement("span");
+    lineEl.className = "stream-meta-line";
+
+    if (tokens.every(t => !t.icon)) {
+      lineEl.textContent = line;
+    } else {
+      tokens.forEach(token => {
+        const itemEl = document.createElement("span");
+        itemEl.className = "stream-meta-item";
+        if (token.icon && STREAM_META_SVG_PATHS[token.icon]) {
+          const svgNS = "http://www.w3.org/2000/svg";
+          const svg = document.createElementNS(svgNS, "svg");
+          svg.setAttribute("class", "stream-meta-icon");
+          svg.setAttribute("viewBox", "0 0 24 24");
+          svg.setAttribute("aria-hidden", "true");
+          svg.innerHTML = STREAM_META_SVG_PATHS[token.icon];
+          itemEl.appendChild(svg);
+        }
+        const textSpan = document.createElement("span");
+        textSpan.textContent = token.text;
+        itemEl.appendChild(textSpan);
+        lineEl.appendChild(itemEl);
+      });
+    }
+    container.appendChild(lineEl);
+  });
+};
+
 const buildSourceRow = (item, onSelect) => {
   const row = document.createElement("button");
   row.type = "button";
@@ -1820,7 +1925,7 @@ const buildSourceRow = (item, onSelect) => {
   if (item.subtitle) {
     subtitle = document.createElement("span");
     subtitle.className = "stream-subtitle";
-    subtitle.textContent = item.subtitle;
+    renderStreamSubtitleMonochrome(subtitle, item.subtitle);
   }
 
 function formatCssColor(colorStr) {
@@ -3730,7 +3835,8 @@ window.playerUpdate = update => {
   }
   renderChrome();
   if ((audioTracksChanged && activeModal === "audio") ||
-      (subtitleTracksChanged && activeModal === "subtitles")) {
+      (subtitleTracksChanged && activeModal === "subtitles") ||
+      (nativeIsPlaying && activeModal === "chapters")) {
     renderActiveModal();
   }
 };
@@ -3824,24 +3930,11 @@ const isControlsSurfaceEvent = event => {
     return true;
   }
 
-  const titleEl = document.getElementById("title");
   const metaRow = document.querySelector(".meta-row");
-  if (titleEl && metaRow) {
-    const titleRect = titleEl.getBoundingClientRect();
-    const metaRect = metaRow.getBoundingClientRect();
-    const textTop = Math.min(titleRect.top, metaRect.top);
-    const textBottom = Math.max(titleRect.bottom, metaRect.bottom);
-    const textRight = titleRect.left + Math.max(titleEl.scrollWidth, metaRow.scrollWidth) + 16;
+  const mediaInfo = [title, episode, metaRow, playerBadges, chapterTitle];
 
-    if (
-        event.clientX >= titleRect.left &&
-        event.clientX <= textRight &&
-        event.clientY >= textTop &&
-        event.clientY <= textBottom
-    ) {
-      return true;
-    }
-  }
+  const infoClick = mediaInfo.some(info => info && info.checkVisibility() && info.contains(event.target));
+  if (infoClick) return true;
 
   const header = document.querySelector(".header");
   if (header && event.clientY <= header.getBoundingClientRect().bottom + 10) {
@@ -4739,10 +4832,7 @@ function focusTier2Element(el) {
 
 function getPlayerControllerHints() {
   if (activeModal || fontPickerOpen) {
-    const hints = [
-      { glyph: "D-Pad", label: "Navigate" },
-      { glyph: "A", label: "Select" },
-    ];
+    const hints = [];
     if (activeModal === "episodes" || activeModal === "sources" || activeModal === "subtitles") {
       hints.push({ glyph: "LB/RB", label: "Tabs / Filter" });
     }
@@ -4751,19 +4841,13 @@ function getPlayerControllerHints() {
   }
   if (!state.controlsVisible) {
     return [
-      { glyph: "D-Pad", label: "Show Controls" },
-      { glyph: "A", label: state.isPlaying ? (state.pauseLabel || "Pause") : (state.playLabel || "Play") },
       { glyph: "LB/RB", label: "-10s / +10s" },
       { glyph: "X", label: state.audioLabel || "Audio" },
       { glyph: "Y", label: state.subtitlesLabel || "Subs" },
       { glyph: "B", label: state.backLabel || "Back" },
     ];
   }
-  const currentTier = getCurrentOsdTier();
-  const dpadLabel = currentTier === 1 ? "Seek (L/R) / Tiers" : "Navigate";
   const hints = [
-    { glyph: "D-Pad", label: dpadLabel },
-    { glyph: "A", label: "Select" },
     { glyph: "LB/RB", label: "-10s / +10s" },
     { glyph: "X", label: state.audioLabel || "Audio" },
     { glyph: "Y", label: state.subtitlesLabel || "Subs" },
@@ -4792,7 +4876,7 @@ function syncControllerStateAndToolbar() {
   }
   const shouldLift = Boolean(state && state.controlsVisible && !activeModal && !playbackErrorText());
   toolbar.classList.toggle("lifted", shouldLift);
-  const hints = getPlayerControllerHints();
+  const hints = getPlayerControllerHints().filter(item => item && item.glyph !== "A" && item.glyph !== "D-Pad");
   const signature = JSON.stringify(hints);
   if (signature !== lastControllerToolbarSignature) {
     lastControllerToolbarSignature = signature;
