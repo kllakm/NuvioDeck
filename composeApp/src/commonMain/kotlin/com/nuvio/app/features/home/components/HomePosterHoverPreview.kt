@@ -73,6 +73,8 @@ import androidx.compose.ui.window.PopupProperties
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import coil3.compose.LocalPlatformContext
+import com.nuvio.app.core.ui.HoverPreviewAssetPrefetcher
 import com.nuvio.app.core.ui.NuvioAsyncImage
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.NuvioTokens
@@ -109,6 +111,7 @@ private const val HoverPreviewCloseDelayMillis = 120L
 private const val HoverPreviewEnterDurationMillis = 260
 private const val HoverPreviewExitDurationMillis = 170
 private const val HoverTrailerExtractionDebounceMillis = 1_000L
+private const val HoverPreviewPrefetchSettleDelayMillis = 260L
 private val HoverPreviewWidth = 420.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -158,6 +161,41 @@ internal fun HomePosterHoverPreview(
     val actionScope = rememberCoroutineScope()
     val libraryItem = remember(item) { item.toLibraryItem(savedAtEpochMs = 0L) }
     val trackingListsUpdateFailedMessage = stringResource(Res.string.tracking_lists_update_failed)
+    val platformContext = LocalPlatformContext.current
+
+    LaunchedEffect(
+        item.id,
+        item.banner,
+        item.logo,
+        item.poster,
+        posterCardStyle.hoverPreviewEnabled,
+    ) {
+        if (!isDesktop || !posterCardStyle.hoverPreviewEnabled) return@LaunchedEffect
+        delay(HoverPreviewPrefetchSettleDelayMillis)
+        HoverPreviewAssetPrefetcher.prefetchBackground(
+            context = platformContext,
+            bannerUrl = item.banner,
+            logoUrl = item.logo,
+            posterUrl = item.poster,
+        )
+    }
+
+    LaunchedEffect(
+        anchorHovered,
+        item.id,
+        item.banner,
+        item.logo,
+        item.poster,
+        posterCardStyle.hoverPreviewEnabled,
+    ) {
+        if (!anchorHovered || !isDesktop || !posterCardStyle.hoverPreviewEnabled) return@LaunchedEffect
+        HoverPreviewAssetPrefetcher.prefetchImmediate(
+            context = platformContext,
+            bannerUrl = item.banner,
+            logoUrl = item.logo,
+            posterUrl = item.poster,
+        )
+    }
     val density = LocalDensity.current
     val positionProvider = remember(density) {
         HomePosterPreviewPositionProvider(

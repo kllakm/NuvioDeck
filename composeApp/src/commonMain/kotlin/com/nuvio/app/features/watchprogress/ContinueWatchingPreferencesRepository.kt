@@ -15,7 +15,7 @@ private data class StoredContinueWatchingPreferences(
     val style: ContinueWatchingSectionStyle = ContinueWatchingSectionStyle.Card,
     val upNextFromFurthestEpisode: Boolean = true,
     @SerialName("use_episode_thumbnails_in_cw")
-    val useEpisodeThumbnails: Boolean = true,
+    val useEpisodeThumbnails: Boolean = false,
     @SerialName("show_unaired_next_up")
     val showUnairedNextUp: Boolean = true,
     @SerialName("blur_continue_watching_next_up")
@@ -55,7 +55,7 @@ object ContinueWatchingPreferencesRepository {
         isVisible: Boolean,
         style: ContinueWatchingSectionStyle,
         upNextFromFurthestEpisode: Boolean,
-        useEpisodeThumbnails: Boolean = true,
+        useEpisodeThumbnails: Boolean = false,
         showUnairedNextUp: Boolean = true,
         blurNextUp: Boolean = false,
         dismissedNextUpKeys: Set<String>,

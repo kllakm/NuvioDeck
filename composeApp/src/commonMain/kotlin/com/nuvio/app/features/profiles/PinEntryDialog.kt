@@ -1,16 +1,18 @@
 package com.nuvio.app.features.profiles
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Backspace
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -61,6 +64,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,8 +85,17 @@ import com.nuvio.app.core.ui.nuvio
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+
+private val PinKeypadNetflixFont: FontFamily
+    @Composable
+    get() = FontFamily(
+        Font(Res.font.netflix_sans_thin, FontWeight.Normal, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Medium, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.SemiBold, FontStyle.Normal),
+    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,9 +107,9 @@ fun PinEntryDialog(
     onForgotPin: (() -> Unit)? = null,
 ) {
     val tokens = MaterialTheme.nuvio
-    var pin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var isVerifying by remember { mutableStateOf(false) }
+    var pin by remember(profileName) { mutableStateOf("") }
+    var error by remember(profileName) { mutableStateOf<String?>(null) }
+    var isVerifying by remember(profileName) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val focusRequester = remember { FocusRequester() }
@@ -106,11 +120,12 @@ fun PinEntryDialog(
             pin += digit
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             if (pin.length == 4) {
+                val submittedPin = pin
                 isVerifying = true
                 scope.launch {
-                    val result = onVerify(pin)
+                    val result = onVerify(submittedPin)
                     if (result.unlocked) {
-                        onVerified?.invoke(pin)
+                        onVerified?.invoke(submittedPin)
                     } else {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         error = result.message ?: if (result.retryAfterSeconds > 0) {
@@ -181,7 +196,7 @@ fun PinEntryDialog(
     ) {
         Surface(
             modifier = Modifier
-                .width(336.dp)
+                .width(288.dp)
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event ->
@@ -204,144 +219,206 @@ fun PinEntryDialog(
                     }
                 },
             shape = RoundedCornerShape(18.dp),
-            color = Color(0xF711131A),
+            color = Color(0xF7111217),
             tonalElevation = 12.dp,
-            shadowElevation = 20.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+            shadowElevation = 24.dp,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Lock,
-                            contentDescription = null,
-                            tint = tokens.colors.accent,
-                            modifier = Modifier.size(12.dp),
-                        )
+            ProfilePinPadContent(
+                title = profileName,
+                subtitle = stringResource(Res.string.pin_enter),
+                pin = pin,
+                isVerifying = isVerifying,
+                error = error,
+                groupKey = "pin_keypad",
+                resolveKeyNodeId = { keyLabel ->
+                    when (keyLabel) {
+                        "Del" -> "pin_key_backspace"
+                        "Cancel" -> "pin_key_cancel"
+                        else -> "pin_key_$keyLabel"
+                    }
+                },
+                onDigit = ::submitDigit,
+                onBackspace = ::deleteDigit,
+                onCancel = onDismiss,
+                footer = if (onForgotPin != null) {
+                    {
+                        val forgotId = "pin_key_forgot"
+                        val isForgotFocused = isControllerNodeFocused(forgotId)
                         Text(
-                            text = stringResource(Res.string.pin_enter).uppercase(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                letterSpacing = 1.1.sp,
-                            ),
-                            color = tokens.colors.textMuted,
-                            fontWeight = FontWeight.Bold,
+                            text = stringResource(Res.string.pin_forgot),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isForgotFocused) Color.White else tokens.colors.accent,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isForgotFocused) tokens.colors.accent.copy(alpha = 0.28f)
+                                    else Color.Transparent,
+                                )
+                                .controllerFocusable(
+                                    id = forgotId,
+                                    zone = ControllerFocusZone.Overlay,
+                                    groupKey = "pin_keypad",
+                                    shape = RoundedCornerShape(8.dp),
+                                    scaleOnFocus = 1f,
+                                    hideFocusRing = true,
+                                    onSelect = onForgotPin,
+                                    selectLabel = stringResource(Res.string.pin_forgot),
+                                )
+                                .clickable(onClick = onForgotPin)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
-                    Text(
-                        text = profileName,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = tokens.colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                // Sleek recessed pill for PIN status dots or loading indicator
-                Box(
-                    modifier = Modifier
-                        .height(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isVerifying) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = tokens.colors.accent,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            repeat(4) { index ->
-                                PinDot(filled = index < pin.length, hasError = error != null)
-                            }
-                        }
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = error != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    Text(
-                        text = error.orEmpty(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                PinKeypad(
-                    onDigit = ::submitDigit,
-                    onBackspace = ::deleteDigit,
-                    onCancel = onDismiss,
-                )
-
-                if (onForgotPin != null) {
-                    val forgotId = "pin_key_forgot"
-                    val isForgotFocused = isControllerNodeFocused(forgotId)
-                    Text(
-                        text = stringResource(Res.string.pin_forgot),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isForgotFocused) Color.White else tokens.colors.accent,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isForgotFocused) tokens.colors.accent.copy(alpha = 0.28f)
-                                else Color.Transparent,
-                            )
-                            .controllerFocusable(
-                                id = forgotId,
-                                zone = ControllerFocusZone.Overlay,
-                                groupKey = "pin_keypad",
-                                shape = RoundedCornerShape(8.dp),
-                                scaleOnFocus = 1f,
-                                hideFocusRing = true,
-                                onSelect = onForgotPin,
-                                selectLabel = stringResource(Res.string.pin_forgot),
-                            )
-                            .clickable(onClick = onForgotPin)
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
-                }
-            }
+                } else {
+                    null
+                },
+            )
         }
     }
 }
 
 @Composable
-private fun PinDot(filled: Boolean, hasError: Boolean) {
+internal fun ProfilePinPadContent(
+    title: String,
+    subtitle: String,
+    pin: String,
+    isVerifying: Boolean,
+    error: String?,
+    groupKey: String,
+    resolveKeyNodeId: (String) -> String,
+    onDigit: (String) -> Unit,
+    onBackspace: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+    footer: (@Composable () -> Unit)? = null,
+) {
     val tokens = MaterialTheme.nuvio
-    val color = when {
-        hasError -> MaterialTheme.colorScheme.error
-        filled -> tokens.colors.accent
-        else -> Color.White.copy(alpha = 0.22f)
+    val hasError = !error.isNullOrBlank()
+    val shakeOffset = remember { Animatable(0f) }
+
+    LaunchedEffect(error) {
+        if (!error.isNullOrBlank()) {
+            val keyframes = listOf(-10f, 10f, -7f, 7f, -4f, 0f)
+            keyframes.forEach { target ->
+                shakeOffset.animateTo(target, animationSpec = tween(durationMillis = 36))
+            }
+        }
     }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Lock,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.72f),
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                color = tokens.colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                color = tokens.colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        // Fixed-width transparent dot/spinner container — width never changes when verifying
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp)
+                .graphicsLayer { translationX = shakeOffset.value },
+            contentAlignment = Alignment.Center,
+        ) {
+            AnimatedContent(
+                targetState = isVerifying,
+                transitionSpec = { fadeIn(tween(140)) togetherWith fadeOut(tween(110)) },
+                contentAlignment = Alignment.Center,
+                label = "pin_indicator_content",
+            ) { verifying ->
+                if (verifying) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        repeat(4) { index ->
+                            PinDot(
+                                filled = index < pin.length,
+                                hasError = hasError,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = hasError,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Text(
+                text = error.orEmpty(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        PinKeypad(
+            groupKey = groupKey,
+            enabled = !isVerifying,
+            resolveKeyNodeId = resolveKeyNodeId,
+            onDigit = onDigit,
+            onBackspace = onBackspace,
+            onCancel = onCancel,
+        )
+
+        footer?.invoke()
+    }
+}
+
+@Composable
+private fun PinDot(
+    filled: Boolean,
+    hasError: Boolean,
+) {
+    val dotColor by animateColorAsState(
+        targetValue = when {
+            hasError -> MaterialTheme.colorScheme.error
+            filled -> Color.White
+            else -> Color.White.copy(alpha = 0.22f)
+        },
+        animationSpec = tween(140),
+        label = "pin_dot_color",
+    )
     val dotScale = remember { Animatable(1f) }
     LaunchedEffect(filled) {
         if (filled) {
-            dotScale.snapTo(1.35f)
+            dotScale.snapTo(1.28f)
             dotScale.animateTo(
                 1f,
                 spring(
@@ -351,6 +428,7 @@ private fun PinDot(filled: Boolean, hasError: Boolean) {
             )
         }
     }
+
     Box(
         modifier = Modifier
             .graphicsLayer {
@@ -359,20 +437,21 @@ private fun PinDot(filled: Boolean, hasError: Boolean) {
             }
             .size(10.dp)
             .clip(CircleShape)
-            .then(
-                if (filled) Modifier.background(color, CircleShape)
-                else Modifier.border(1.5.dp, color, CircleShape),
-            ),
+            .background(dotColor, CircleShape),
     )
 }
 
 @Composable
 private fun PinKeypad(
+    groupKey: String,
+    enabled: Boolean,
+    resolveKeyNodeId: (String) -> String,
     onDigit: (String) -> Unit,
     onBackspace: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val keypadFont = PinKeypadNetflixFont
     val keys = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
@@ -381,54 +460,52 @@ private fun PinKeypad(
     )
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.65f),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         keys.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 row.forEach { keyLabel ->
-                    val keyId = when (keyLabel) {
-                        "Del" -> "pin_key_backspace"
-                        "Cancel" -> "pin_key_cancel"
-                        else -> "pin_key_$keyLabel"
-                    }
+                    val keyId = resolveKeyNodeId(keyLabel)
                     val isFocused = isControllerNodeFocused(keyId)
                     val hoverSource = remember { MutableInteractionSource() }
                     val isHovered by hoverSource.collectIsHoveredAsState()
+                    val isUtility = keyLabel == "Cancel" || keyLabel == "Del"
                     val onKeyClick = {
                         when (keyLabel) {
                             "Cancel" -> onCancel()
-                            "Del" -> onBackspace()
-                            else -> onDigit(keyLabel)
+                            "Del" -> if (enabled) onBackspace()
+                            else -> if (enabled) onDigit(keyLabel)
                         }
                     }
                     val keyShape = RoundedCornerShape(10.dp)
-                    val keyBg = when {
-                        isFocused -> tokens.colors.accent.copy(alpha = 0.30f)
-                        isHovered -> Color.White.copy(alpha = 0.12f)
-                        keyLabel == "Cancel" || keyLabel == "Del" -> Color.White.copy(alpha = 0.04f)
-                        else -> Color.White.copy(alpha = 0.07f)
-                    }
-                    val keyBorder = when {
-                        isFocused -> tokens.colors.accent.copy(alpha = 0.85f)
-                        isHovered -> Color.White.copy(alpha = 0.20f)
-                        else -> Color.White.copy(alpha = 0.07f)
-                    }
+                    val keyBg by animateColorAsState(
+                        targetValue = when {
+                            isFocused -> tokens.colors.accent.copy(alpha = 0.34f)
+                            isHovered -> Color.White.copy(alpha = 0.16f)
+                            isUtility -> Color.Transparent
+                            else -> Color.White.copy(alpha = 0.085f)
+                        },
+                        animationSpec = tween(130),
+                        label = "pin_key_bg",
+                    )
 
                     Box(
                         modifier = Modifier
-                            .width(88.dp)
-                            .height(48.dp)
+                            .weight(1f)
+                            .height(46.dp)
                             .clip(keyShape)
                             .background(keyBg, keyShape)
-                            .border(1.dp, keyBorder, keyShape)
                             .hoverable(hoverSource)
                             .controllerFocusable(
                                 id = keyId,
                                 zone = ControllerFocusZone.Overlay,
-                                groupKey = "pin_keypad",
+                                groupKey = groupKey,
                                 isDefaultFocus = keyLabel == "1",
                                 shape = keyShape,
                                 scaleOnFocus = 1f,
@@ -446,24 +523,26 @@ private fun PinKeypad(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.Backspace,
                                     contentDescription = "Delete",
-                                    tint = if (isFocused) Color.White else tokens.colors.textSecondary,
+                                    tint = if (isFocused || isHovered) Color.White else Color.White.copy(alpha = 0.70f),
                                     modifier = Modifier.size(18.dp),
                                 )
                             }
                             "Cancel" -> {
-                                Text(
-                                    text = "Cancel",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isFocused) Color.White else tokens.colors.textMuted,
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Cancel",
+                                    tint = if (isFocused || isHovered) Color.White else Color.White.copy(alpha = 0.56f),
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                             else -> {
                                 Text(
                                     text = keyLabel,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
-                                    color = if (isFocused) Color.White else tokens.colors.textPrimary,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = keypadFont,
+                                    fontSize = 22.sp,
+                                    lineHeight = 24.sp,
+                                    color = if (isFocused || isHovered) Color.White else Color.White.copy(alpha = 0.94f),
+                                    fontWeight = FontWeight.Normal,
                                 )
                             }
                         }

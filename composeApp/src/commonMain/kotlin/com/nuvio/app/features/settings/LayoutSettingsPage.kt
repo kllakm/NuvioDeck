@@ -152,7 +152,7 @@ internal fun LazyListScope.layoutSettingsContent(
             }
         }
     }
-    if (isDesktop || !isIos || liquidGlassNativeTabBarSupported) {
+    if (!isDesktop && (!isIos || liquidGlassNativeTabBarSupported)) {
         item {
             var showNavBarStyleSheet by remember { mutableStateOf(false) }
             var showDesktopNavigationSheet by remember { mutableStateOf(false) }

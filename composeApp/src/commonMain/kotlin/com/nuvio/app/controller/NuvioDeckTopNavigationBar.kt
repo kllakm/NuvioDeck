@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,13 +38,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +60,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -70,6 +71,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -98,6 +100,7 @@ import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.profiles.ActiveProfileMiniAvatar
 import com.nuvio.app.features.profiles.AvatarRepository
 import com.nuvio.app.features.profiles.NuvioProfile
+import com.nuvio.app.features.profiles.ProfilePinPadContent
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.settings.AppIconOption
 import com.nuvio.app.features.settings.AppIconRepository
@@ -112,6 +115,7 @@ import nuvio.composeapp.generated.resources.action_exit_fullscreen
 import nuvio.composeapp.generated.resources.action_fullscreen
 import nuvio.composeapp.generated.resources.app_brand_name
 import nuvio.composeapp.generated.resources.compose_profile_add_profile
+import nuvio.composeapp.generated.resources.pin_enter
 import nuvio.composeapp.generated.resources.pin_incorrect
 import nuvio.composeapp.generated.resources.pin_locked_try_again
 import nuvio.composeapp.generated.resources.profile_label_number
@@ -336,15 +340,23 @@ internal fun NuvioDeckTopNavigationBar(
 
     val isScrolledAwayFromTop = totalScrollOffset > if (isSettingsSelected) 70f else 35f
 
+    var measuredBarWidth by remember { mutableStateOf(windowWidth ?: 1280.dp) }
+    val effectiveViewportWidth = windowWidth ?: measuredBarWidth
+    val isNarrowViewport = effectiveViewportWidth < 620.dp
+
     val labelFraction by animateFloatAsState(
-        targetValue = desktopNavigationLabelFraction(
-            style = navBarStyle,
-            isHomeSelected = isHomeSelected,
-            isHeroEnabled = isHeroEnabled,
-            isHovered = isHovered,
-            profileSwitcherOpen = anyDropdownOpen,
-            isScrolledAwayFromTop = isScrolledAwayFromTop,
-        ),
+        targetValue = if (isNarrowViewport) {
+            0f
+        } else {
+            desktopNavigationLabelFraction(
+                style = navBarStyle,
+                isHomeSelected = isHomeSelected,
+                isHeroEnabled = isHeroEnabled,
+                isHovered = isHovered,
+                profileSwitcherOpen = anyDropdownOpen,
+                isScrolledAwayFromTop = isScrolledAwayFromTop,
+            )
+        },
         animationSpec = tween(320, easing = FastOutSlowInEasing),
         label = "desktop_nav_labels",
     )
@@ -454,22 +466,24 @@ internal fun NuvioDeckTopNavigationBar(
                     ),
                 )
                 .hoverable(interactionSource)
-                .padding(contentPadding)
-                .padding(horizontal = 28.dp, vertical = 6.dp),
+                .padding(contentPadding),
         ) {
-            val viewportWidth = windowWidth ?: maxWidth
-            val iconSize = when {
-                viewportWidth < 800.dp -> 24.dp
-                viewportWidth > 1600.dp -> 28.dp
-                else -> 26.dp
+            LaunchedEffect(maxWidth) {
+                measuredBarWidth = maxWidth
             }
+            val viewportWidth = windowWidth ?: maxWidth
+            val isCompactLayout = viewportWidth < 620.dp
+            val barHorizontalPadding = if (isCompactLayout) 20.dp else 28.dp
+            val innerAvailableWidth = (maxWidth - barHorizontalPadding * 2).coerceAtLeast(240.dp)
+            val iconSize = if (viewportWidth > 1600.dp) 28.dp else 26.dp
             val barHeight = iconSize + 20.dp
             val trackWidth = ((iconSize + 22.dp + 68.dp * labelFraction) * effectiveItems.size + 12.dp)
-                .coerceAtMost((maxWidth - 220.dp).coerceAtLeast(200.dp))
+                .coerceAtMost((innerAvailableWidth - 200.dp).coerceAtLeast(204.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = barHorizontalPadding, vertical = 6.dp)
                     .height(barHeight + 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -477,7 +491,7 @@ internal fun NuvioDeckTopNavigationBar(
                 // Far Left: Nuvio icon-only graphical mark + Main Navigation Tabs (no glass pill background)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isCompactLayout) 14.dp else 20.dp),
                 ) {
                     NuvioIconOnlyLogo(
                         modifier = Modifier
@@ -1328,7 +1342,7 @@ private fun StandaloneProfileSwitcherDropdownPanel(
 
     Surface(
         modifier = Modifier
-            .width(if (pinTargetProfile != null) 336.dp else 276.dp)
+            .width(276.dp)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
                     if (pinTargetProfile != null) {
@@ -1342,10 +1356,10 @@ private fun StandaloneProfileSwitcherDropdownPanel(
                 }
             },
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xF5111218),
+        color = Color(0xF7111217),
         tonalElevation = 12.dp,
-        shadowElevation = 18.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+        shadowElevation = 24.dp,
+        border = if (pinTargetProfile != null) null else androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
     ) {
         if (pinTargetProfile != null) {
             val target = pinTargetProfile!!
@@ -1560,20 +1574,25 @@ private fun DropdownPinEntryPad(
     onCancel: () -> Unit,
     onVerified: () -> Unit,
 ) {
-    val tokens = MaterialTheme.nuvio
     val scope = rememberCoroutineScope()
     var pin by remember(profile.profileIndex) { mutableStateOf("") }
     var error by remember(profile.profileIndex) { mutableStateOf<String?>(null) }
     var isVerifying by remember(profile.profileIndex) { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(profile.profileIndex) {
+        focusRequester.requestFocus()
+    }
 
     fun submitDigit(digit: String) {
         if (pin.length < 4 && !isVerifying) {
             error = null
             pin += digit
             if (pin.length == 4) {
+                val submittedPin = pin
                 isVerifying = true
                 scope.launch {
-                    val result = ProfileRepository.verifyPin(profile.profileIndex, pin)
+                    val result = ProfileRepository.verifyPin(profile.profileIndex, submittedPin)
                     if (result.unlocked) {
                         onVerified()
                     } else {
@@ -1597,196 +1616,43 @@ private fun DropdownPinEntryPad(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val digit = event.utf16CodePoint.takeIf { it in '0'.code..'9'.code }?.toChar()?.toString()
+                when {
+                    digit != null -> {
+                        submitDigit(digit)
+                        true
+                    }
+                    event.key == Key.Backspace || event.key == Key.Delete -> {
+                        deleteDigit()
+                        true
+                    }
+                    event.key == Key.Escape -> {
+                        onCancel()
+                        true
+                    }
+                    else -> false
+                }
+            },
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Lock,
-                    contentDescription = null,
-                    tint = tokens.colors.accent,
-                    modifier = Modifier.size(12.dp),
-                )
-                Text(
-                    text = "PROFILE PIN",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
-                        letterSpacing = 1.1.sp,
-                    ),
-                    fontWeight = FontWeight.Bold,
-                    color = tokens.colors.textMuted,
-                )
-            }
-            Text(
-                text = profile.name.ifBlank { stringResource(Res.string.profile_label_number, profile.profileIndex) },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = tokens.colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
-        // Sleek recessed pill for PIN status dots or loading indicator
-        Box(
-            modifier = Modifier
-                .height(38.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color.White.copy(alpha = 0.04f))
-                .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (isVerifying) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = tokens.colors.accent,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    repeat(4) { idx ->
-                        val filled = idx < pin.length
-                        val hasErr = !error.isNullOrBlank()
-                        val dotColor = when {
-                            hasErr -> MaterialTheme.colorScheme.error
-                            filled -> tokens.colors.accent
-                            else -> Color.White.copy(alpha = 0.22f)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .then(
-                                    if (filled) {
-                                        Modifier.background(dotColor, CircleShape)
-                                    } else {
-                                        Modifier.border(1.5.dp, dotColor, CircleShape)
-                                    },
-                                ),
-                        )
-                    }
-                }
-            }
-        }
-
-        if (!error.isNullOrBlank()) {
-            Text(
-                text = error!!,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-            )
-        }
-
-        val rows = listOf(
-            listOf("1", "2", "3"),
-            listOf("4", "5", "6"),
-            listOf("7", "8", "9"),
-            listOf("Cancel", "0", "Del"),
+        ProfilePinPadContent(
+            title = profile.name.ifBlank { stringResource(Res.string.profile_label_number, profile.profileIndex) },
+            subtitle = stringResource(Res.string.pin_enter),
+            pin = pin,
+            isVerifying = isVerifying,
+            error = error,
+            groupKey = "top_profile_pin_pad",
+            resolveKeyNodeId = { keyLabel -> "top_profile_pin_digit_$keyLabel" },
+            onDigit = ::submitDigit,
+            onBackspace = ::deleteDigit,
+            onCancel = onCancel,
         )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            rows.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                ) {
-                    row.forEach { keyLabel ->
-                        val nodeId = "top_profile_pin_digit_$keyLabel"
-                        val isFocused = isControllerNodeFocused(nodeId)
-                        val hoverSource = remember { MutableInteractionSource() }
-                        val isHovered by hoverSource.collectIsHoveredAsState()
-                        val onKeyClick = {
-                            when (keyLabel) {
-                                "Cancel" -> onCancel()
-                                "Del" -> deleteDigit()
-                                else -> submitDigit(keyLabel)
-                            }
-                        }
-                        val keyShape = RoundedCornerShape(10.dp)
-                        val keyBg = when {
-                            isFocused -> tokens.colors.accent.copy(alpha = 0.30f)
-                            isHovered -> Color.White.copy(alpha = 0.12f)
-                            keyLabel == "Cancel" || keyLabel == "Del" -> Color.White.copy(alpha = 0.04f)
-                            else -> Color.White.copy(alpha = 0.07f)
-                        }
-                        val keyBorder = when {
-                            isFocused -> tokens.colors.accent.copy(alpha = 0.85f)
-                            isHovered -> Color.White.copy(alpha = 0.20f)
-                            else -> Color.White.copy(alpha = 0.07f)
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .width(88.dp)
-                                .height(44.dp)
-                                .clip(keyShape)
-                                .background(keyBg, keyShape)
-                                .border(1.dp, keyBorder, keyShape)
-                                .hoverable(hoverSource)
-                                .controllerFocusable(
-                                    id = nodeId,
-                                    zone = ControllerFocusZone.Overlay,
-                                    groupKey = "top_profile_pin_pad",
-                                    isDefaultFocus = keyLabel == "1",
-                                    shape = keyShape,
-                                    scaleOnFocus = 1f,
-                                    hideFocusRing = true,
-                                    onSelect = onKeyClick,
-                                    selectLabel = keyLabel,
-                                    onSecondaryAction = ::deleteDigit,
-                                    secondaryActionLabel = "Delete",
-                                )
-                                .clickable(onClick = onKeyClick),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            when (keyLabel) {
-                                "Del" -> {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.Backspace,
-                                        contentDescription = "Delete",
-                                        tint = if (isFocused) Color.White else tokens.colors.textSecondary,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                                "Cancel" -> {
-                                    Text(
-                                        text = "Cancel",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isFocused) Color.White else tokens.colors.textMuted,
-                                    )
-                                }
-                                else -> {
-                                    Text(
-                                        text = keyLabel,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isFocused) Color.White else tokens.colors.textPrimary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

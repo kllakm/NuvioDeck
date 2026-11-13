@@ -408,7 +408,7 @@ internal fun settingsSearchEntries(
         pageLabel = appearancePage,
         section = stringResource(Res.string.settings_appearance_section_display),
     )
-    if (!isIos) {
+    if (!isIos && !isDesktop) {
         addRow(
             page = SettingsPage.Layout,
             key = "navigation-bar",

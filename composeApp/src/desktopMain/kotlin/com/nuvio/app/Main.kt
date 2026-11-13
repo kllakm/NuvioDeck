@@ -54,6 +54,8 @@ import javax.swing.JComponent
 
 private val NuvioDesktopNativeBackground = AwtColor(0x0D, 0x0D, 0x0D)
 private const val MacosDarkAquaAppearance = "NSAppearanceNameDarkAqua"
+private const val DesktopMinWindowWidthDp = 560
+private const val DesktopMinWindowHeightDp = 460
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main(args: Array<String>) {
@@ -110,12 +112,12 @@ fun main(args: Array<String>) {
         }
         val initialWidth = when {
             isStartingMaximizedOrFullscreen && maxScreenBounds != null -> maxScreenBounds.width.dp
-            savedGeometry != null -> savedGeometry.width.dp
+            savedGeometry != null -> savedGeometry.width.coerceAtLeast(DesktopMinWindowWidthDp.toFloat()).dp
             else -> 1280.dp
         }
         val initialHeight = when {
             isStartingMaximizedOrFullscreen && maxScreenBounds != null -> maxScreenBounds.height.dp
-            savedGeometry != null -> savedGeometry.height.dp
+            savedGeometry != null -> savedGeometry.height.coerceAtLeast(DesktopMinWindowHeightDp.toFloat()).dp
             else -> 820.dp
         }
         val windowState = rememberWindowState(
@@ -163,6 +165,7 @@ fun main(args: Array<String>) {
             }
 
             LaunchedEffect(window) {
+                window.minimumSize = java.awt.Dimension(DesktopMinWindowWidthDp, DesktopMinWindowHeightDp)
                 applyNativeDesktopWindowChrome(window)
                 installLinuxExtendedMouseButtons()
                 // Windows fullscreen is emulated natively and isn't reflected by

@@ -454,7 +454,7 @@ private fun NuvioShelfSectionHeader(
                 modifier = Modifier
                     .weight(1f)
                     .then(if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.nuvioTypeScale.titleMd,
                 color = tokens.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

@@ -189,6 +189,22 @@ private fun Any?.withDesktopImageOptions(
     return builder.build()
 }
 
+internal actual suspend fun prefetchNuvioImage(
+    context: PlatformContext,
+    url: String,
+    desktopAnimation: NuvioDesktopAnimation,
+) {
+    if (url.isBlank()) return
+    val highQualitySize = IsWindowsDesktop
+    val animated = desktopAnimation != NuvioDesktopAnimation.Off
+    val request = url.withDesktopImageOptions(
+        context = context,
+        highQualitySize = highQualitySize,
+        animated = animated,
+    ) as? ImageRequest ?: ImageRequest.Builder(context).data(url).build()
+    SingletonImageLoader.get(context).execute(request)
+}
+
 private fun Image.toScaledBitmapPainter(desktopImageScaling: NuvioDesktopImageScaling): Painter? {
     if (desktopImageScaling == NuvioDesktopImageScaling.Disabled) return null
 

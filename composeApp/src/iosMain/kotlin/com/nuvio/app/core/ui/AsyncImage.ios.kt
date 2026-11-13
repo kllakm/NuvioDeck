@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope.Companion.DefaultFilterQ
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import coil3.ImageLoader
+import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -54,3 +55,9 @@ internal actual fun NuvioAsyncImage(
         clipToBounds = clipToBounds,
     )
 }
+
+internal actual suspend fun prefetchNuvioImage(
+    context: PlatformContext,
+    url: String,
+    desktopAnimation: NuvioDesktopAnimation,
+) = Unit
