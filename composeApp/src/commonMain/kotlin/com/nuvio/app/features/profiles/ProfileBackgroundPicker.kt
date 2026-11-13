@@ -36,6 +36,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.core.ui.themePalette
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.features.membership.ProfileBackgroundCatalogItem
@@ -61,6 +62,7 @@ internal fun ProfileBackgroundPicker(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ProfileBackgroundItem(
+            id = "profile_bg_normal",
             label = stringResource(Res.string.profile_background_normal),
             isSelected = selectedBackgroundId == null && selectedBackgroundUrl == null,
             onClick = { onSelectionChange(null, null) },
@@ -81,6 +83,7 @@ internal fun ProfileBackgroundPicker(
         }
         customBackgroundUrl?.trim()?.takeIf { it.isNotBlank() }?.let { imageUrl ->
             ProfileBackgroundItem(
+                id = "profile_bg_custom",
                 label = stringResource(Res.string.profile_background_custom),
                 isSelected = selectedBackgroundId == null && selectedBackgroundUrl == imageUrl,
                 onClick = { onSelectionChange(null, imageUrl) },
@@ -102,6 +105,7 @@ internal fun ProfileBackgroundPicker(
         }
         backgrounds.forEach { background ->
             ProfileBackgroundItem(
+                id = "profile_bg_${background.id}",
                 label = background.displayName,
                 isSelected = selectedBackgroundUrl == null && selectedBackgroundId == background.id,
                 onClick = { onSelectionChange(background.id, null) },
@@ -119,6 +123,7 @@ internal fun ProfileBackgroundPicker(
 
 @Composable
 private fun ProfileBackgroundItem(
+    id: String,
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -129,6 +134,13 @@ private fun ProfileBackgroundItem(
     Column(
         modifier = Modifier
             .width(144.dp)
+            .controllerFocusable(
+                id = id,
+                shape = shape,
+                focusScale = 1.04f,
+                selectLabel = label,
+                onSelect = onClick,
+            )
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),

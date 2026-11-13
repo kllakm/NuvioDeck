@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -263,7 +265,7 @@ fun StreamsScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         val isTabletLayout = maxWidth >= 768.dp
 

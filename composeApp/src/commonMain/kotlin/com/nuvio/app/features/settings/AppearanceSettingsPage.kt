@@ -24,6 +24,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.controller.AppBackgroundManager
 import com.nuvio.app.core.ui.AppTheme
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
@@ -81,7 +83,16 @@ internal fun LazyListScope.appearanceSettingsContent(
             title = stringResource(Res.string.settings_appearance_section_display),
             isTablet = isTablet,
         ) {
+            val frostedGlassEnabled by AppBackgroundManager.glassEnabled.collectAsStateWithLifecycle()
             SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = "Frosted Glass Background",
+                    description = "Use a subtle frosted-glass ambient gradient with fine micro-grain instead of the classic flat background",
+                    checked = frostedGlassEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = AppBackgroundManager::setGlassEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_appearance_amoled_black),
                     description = stringResource(Res.string.settings_appearance_amoled_description),

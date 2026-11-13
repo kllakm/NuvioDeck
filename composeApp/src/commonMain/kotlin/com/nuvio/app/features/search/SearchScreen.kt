@@ -1,5 +1,7 @@
 package com.nuvio.app.features.search
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -321,7 +323,7 @@ fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .nuvioAppBackground(MaterialTheme.colorScheme.background, transparentInGlassMode = true)
                         .nuvioConsumePointerEvents(),
                 )
                 androidx.compose.foundation.layout.Column(

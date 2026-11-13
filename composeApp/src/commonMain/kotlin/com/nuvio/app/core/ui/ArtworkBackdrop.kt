@@ -1,5 +1,7 @@
 package com.nuvio.app.core.ui
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -82,7 +84,7 @@ internal fun ArtworkBackdrop(
     modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.Center,
 ) {
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier.fillMaxSize().nuvioAppBackground(MaterialTheme.colorScheme.background)) {
         Crossfade(
             targetState = image,
             animationSpec = tween(320, easing = FastOutSlowInEasing),

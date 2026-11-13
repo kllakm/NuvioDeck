@@ -1,5 +1,7 @@
 package com.nuvio.app
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.MutableTransitionState
@@ -1450,7 +1452,7 @@ internal fun MainAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.nuvio.colors.background)
+                    .nuvioAppBackground(MaterialTheme.nuvio.colors.background)
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
@@ -1481,7 +1483,7 @@ internal fun MainAppContent(
                             Modifier
                         },
                     )
-                    .background(MaterialTheme.nuvio.colors.background),
+                    .nuvioAppBackground(MaterialTheme.nuvio.colors.background),
             ) {
             val verticalBarPadding = LocalVerticalBarPadding.current
             val drawsUnderVerticalBar = currentRoute.drawsUnderVerticalBar(selectedTab)

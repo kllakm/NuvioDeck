@@ -1,5 +1,6 @@
 package com.nuvio.app
 import com.nuvio.app.controller.ControllerGateOverlay
+import com.nuvio.app.controller.nuvioAppBackground
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -495,7 +496,7 @@ internal fun AppGate(
                     AuthScreen(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background)
+                            .nuvioAppBackground(MaterialTheme.nuvio.colors.background)
                             .padding(LocalVerticalBarPadding.current),
                     )
                 }

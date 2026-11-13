@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -131,7 +133,7 @@ fun PersonDetailScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         when (val state = uiState) {
             is PersonDetailUiState.Loading -> PersonDetailSkeleton(
@@ -289,7 +291,7 @@ private fun PersonDetailContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         Box(
             modifier = Modifier
@@ -878,7 +880,7 @@ private fun PersonDetailSkeleton(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         Box(
             modifier = Modifier
@@ -1178,7 +1180,7 @@ private fun PersonDetailError(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

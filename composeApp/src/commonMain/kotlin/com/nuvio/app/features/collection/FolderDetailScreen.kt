@@ -1,5 +1,7 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +64,7 @@ import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.controller.controllerVerticalScrollViewport
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.posterGridColumnCountForViewport
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -152,7 +155,7 @@ fun FolderDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         if (coverImageUrl != null) {
             AsyncImage(
@@ -322,7 +325,7 @@ private fun MobileFolderDetailContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         if (coverImageUrl != null && heroHeight > 0.dp) {
             FolderCoverImage(
@@ -480,7 +483,9 @@ private fun TabbedGridContent(
                         LazyVerticalGrid(
                             columns = gridCells,
                             state = gridState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .controllerVerticalScrollViewport(lazyGridState = gridState),
                             contentPadding = PaddingValues(
                                 start = pageHorizontalPadding,
                                 end = pageHorizontalPadding,

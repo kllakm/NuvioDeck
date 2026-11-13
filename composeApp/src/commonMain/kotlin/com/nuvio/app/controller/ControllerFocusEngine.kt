@@ -220,6 +220,7 @@ object ControllerFocusEngine {
         val scrollState: ScrollState? = null,
         val lazyGridState: LazyGridState? = null,
         val scope: CoroutineScope,
+        var viewportBoundsInRoot: Rect = Rect.Zero,
     )
 
     private val registeredScrollables = mutableListOf<ControllerScrollableEntry>()
@@ -265,12 +266,41 @@ object ControllerFocusEngine {
     ) {
         if (scope != null) activeCoroutineScope = scope
         if (scope == null) return
+        val existingBounds = registeredScrollables.firstOrNull {
+            (lazyListState != null && it.lazyListState === lazyListState) ||
+            (scrollState != null && it.scrollState === scrollState) ||
+            (lazyGridState != null && it.lazyGridState === lazyGridState)
+        }?.viewportBoundsInRoot ?: Rect.Zero
         registeredScrollables.removeAll {
             (lazyListState != null && it.lazyListState === lazyListState) ||
             (scrollState != null && it.scrollState === scrollState) ||
             (lazyGridState != null && it.lazyGridState === lazyGridState)
         }
-        registeredScrollables.add(ControllerScrollableEntry(lazyListState, scrollState, lazyGridState, scope))
+        registeredScrollables.add(
+            ControllerScrollableEntry(
+                lazyListState = lazyListState,
+                scrollState = scrollState,
+                lazyGridState = lazyGridState,
+                scope = scope,
+                viewportBoundsInRoot = existingBounds,
+            )
+        )
+    }
+
+    fun updateScrollableViewportBounds(
+        lazyListState: LazyListState? = null,
+        scrollState: ScrollState? = null,
+        lazyGridState: LazyGridState? = null,
+        boundsInRoot: Rect,
+    ) {
+        registeredScrollables.forEach { entry ->
+            val matches = (lazyListState != null && entry.lazyListState === lazyListState) ||
+                (scrollState != null && entry.scrollState === scrollState) ||
+                (lazyGridState != null && entry.lazyGridState === lazyGridState)
+            if (matches) {
+                entry.viewportBoundsInRoot = boundsInRoot
+            }
+        }
     }
 
     fun unregisterVerticalScrollable(
@@ -1126,11 +1156,27 @@ object ControllerFocusEngine {
             val composedRows = getComposedContentRows()
             val targetRow = composedRows.firstOrNull { row -> row.nodes.any { it.id == node.id } }
 
+            val rawViewportBounds = activeScroll?.viewportBoundsInRoot
+            val viewportTop = if (rawViewportBounds != null && rawViewportBounds.height > 10f) {
+                rawViewportBounds.top
+            } else {
+                composedRows.asSequence()
+                    .flatMap { it.nodes.asSequence() }
+                    .firstOrNull { it.unclippedBoundsInRoot.height > 2f && it.unclippedBoundsInRoot.top < it.boundsInRoot.top - 1f }
+                    ?.boundsInRoot?.top
+                    ?: 0f
+            }
+            val viewportBottom = viewportTop + vh
+
             val rowCardTop: Float
             val rowCardBottom: Float
             if (targetRow != null) {
-                rowCardTop = targetRow.top
-                rowCardBottom = targetRow.bottom
+                rowCardTop = targetRow.nodes.minOf {
+                    if (it.unclippedBoundsInRoot.height > 2f) it.unclippedBoundsInRoot.top else it.boundsInRoot.top
+                }
+                rowCardBottom = targetRow.nodes.maxOf {
+                    if (it.unclippedBoundsInRoot.height > 2f) it.unclippedBoundsInRoot.bottom else it.boundsInRoot.bottom
+                }
             } else if (node.id.startsWith("view_all_pill_")) {
                 val rowBelow = composedRows.firstOrNull {
                     it.top >= node.boundsInRoot.bottom - 40f && it.top <= node.boundsInRoot.bottom + 180f
@@ -1138,8 +1184,9 @@ object ControllerFocusEngine {
                 rowCardTop = rowBelow?.top ?: (node.boundsInRoot.bottom + 15f)
                 rowCardBottom = rowBelow?.bottom ?: (rowCardTop + 280f * scaleFactor)
             } else {
-                rowCardTop = node.boundsInRoot.top
-                rowCardBottom = node.boundsInRoot.bottom
+                val unclipped = if (node.unclippedBoundsInRoot.height > 2f) node.unclippedBoundsInRoot else node.boundsInRoot
+                rowCardTop = unclipped.top
+                rowCardBottom = unclipped.bottom
             }
 
             val isSeasonRow = node.groupKey == "detail_seasons_row" ||
@@ -1181,9 +1228,9 @@ object ControllerFocusEngine {
             // Visual vertical center of the active row including title header and poster card
             val visualRowCenterY = (visualTop + visualBottom) / 2f
 
-            // Viewport vertical center (offset slightly to account for top bar chrome).
+            // Viewport vertical center in root window coordinates (accounting for header/tabs above container).
             // For seasons selection, center it around 38% down the screen so that the episode row below is fully revealed.
-            val viewportCenterY = if (isSeasonRow) vh * 0.38f else vh * 0.52f
+            val viewportCenterY = viewportTop + if (isSeasonRow) vh * 0.38f else vh * 0.52f
 
             var delta = visualRowCenterY - viewportCenterY
 
@@ -1199,10 +1246,21 @@ object ControllerFocusEngine {
 
             // If non-shelf vertical content is already fully visible inside viewport safe margins, do not scroll
             val isGridContent = gridState != null
-            val topChromeSafeMargin = 85f * scaleFactor
-            val bottomSafeMargin = vh - (40f * scaleFactor)
+            val topChromeSafeMargin = maxOf(85f * scaleFactor, viewportTop + 16f * scaleFactor)
+            val bottomSafeMargin = viewportBottom - (40f * scaleFactor)
             if (!isShelfRow && !isSeasonRow && !isGridContent && visualTop >= topChromeSafeMargin && visualBottom <= bottomSafeMargin) {
                 delta = 0f
+            }
+
+            // Guarantee grid rows that were partially clipped at top/bottom edge are scrolled completely into view
+            if (isGridContent) {
+                val safeGridTop = viewportTop + (16f * scaleFactor)
+                val safeGridBottom = viewportBottom - (24f * scaleFactor)
+                if (direction == ControllerDirection.Up && visualTop < safeGridTop) {
+                    delta = minOf(delta, visualTop - safeGridTop)
+                } else if (direction == ControllerDirection.Down && visualBottom > safeGridBottom) {
+                    delta = maxOf(delta, visualBottom - safeGridBottom)
+                }
             }
 
             // When navigating horizontally within the same row, suppress vertical micro-jitter
@@ -1615,7 +1673,9 @@ object ControllerFocusEngine {
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
                 val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
-                val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor).coerceIn(380f * scaleFactor, 540f * scaleFactor)
+                val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor)
+                    .coerceIn(380f * scaleFactor, 540f * scaleFactor)
+                    .coerceAtMost(vh * 0.72f)
 
                 activeVerticalScrollJob?.cancel()
                 activeVerticalScrollJob = scope.launch {
@@ -1668,7 +1728,9 @@ object ControllerFocusEngine {
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
                 val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
-                val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor).coerceIn(380f * scaleFactor, 540f * scaleFactor)
+                val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor)
+                    .coerceIn(380f * scaleFactor, 540f * scaleFactor)
+                    .coerceAtMost(vh * 0.72f)
 
                 val isAtTopBoundary = (listState != null && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= scrollDistance) ||
                     (gridState != null && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset <= scrollDistance) ||
@@ -2287,6 +2349,25 @@ fun RegisterControllerVerticalScroll(
             lastIndex = idx
             lastOffset = off
         }
+    }
+}
+
+/**
+ * Attaches root viewport bounds tracking to a scrollable container so vertical auto-scroll
+ * accounts for headers or tabs stacked above the container.
+ */
+fun Modifier.controllerVerticalScrollViewport(
+    lazyListState: LazyListState? = null,
+    scrollState: ScrollState? = null,
+    lazyGridState: LazyGridState? = null,
+): Modifier = this.onGloballyPositioned { coordinates ->
+    if (coordinates.isAttached) {
+        ControllerFocusEngine.updateScrollableViewportBounds(
+            lazyListState = lazyListState,
+            scrollState = scrollState,
+            lazyGridState = lazyGridState,
+            boundsInRoot = coordinates.boundsInRoot(),
+        )
     }
 }
 

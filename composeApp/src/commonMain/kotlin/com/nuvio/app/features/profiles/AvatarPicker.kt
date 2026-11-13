@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.nuvio.app.controller.LocalControllerRowItemIndex
+import com.nuvio.app.controller.LocalControllerRowTotalCount
+import com.nuvio.app.controller.controllerFocusable
 
 @Composable
 internal fun AvatarPicker(
@@ -35,18 +39,24 @@ internal fun AvatarPicker(
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val columns = ((maxWidth + spacing) / (minAvatarSize + spacing)).toInt().coerceAtLeast(1)
         Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
-            avatars.chunked(columns).forEach { row ->
+            avatars.chunked(columns).forEachIndexed { rowIndex, row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                 ) {
-                    row.forEach { avatar ->
-                        AvatarChoiceItem(
-                            avatar = avatar,
-                            modifier = Modifier.weight(1f).aspectRatio(1f),
-                            isSelected = avatar.id == selectedAvatarId,
-                            onClick = { onAvatarSelected(avatar) },
-                        )
+                    row.forEachIndexed { colIndex, avatar ->
+                        CompositionLocalProvider(
+                            LocalControllerRowItemIndex provides colIndex,
+                            LocalControllerRowTotalCount provides row.size,
+                        ) {
+                            AvatarChoiceItem(
+                                avatar = avatar,
+                                rowIndex = rowIndex,
+                                modifier = Modifier.weight(1f).aspectRatio(1f),
+                                isSelected = avatar.id == selectedAvatarId,
+                                onClick = { onAvatarSelected(avatar) },
+                            )
+                        }
                     }
                     repeat(columns - row.size) {
                         Spacer(modifier = Modifier.weight(1f))
@@ -60,12 +70,21 @@ internal fun AvatarPicker(
 @Composable
 private fun AvatarChoiceItem(
     avatar: AvatarCatalogItem,
+    rowIndex: Int,
     modifier: Modifier,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = modifier
+            .controllerFocusable(
+                id = "profile_avatar_${avatar.id}",
+                groupKey = "profile_edit_avatars_row_$rowIndex",
+                shape = CircleShape,
+                focusScale = 1.08f,
+                selectLabel = avatar.displayName,
+                onSelect = onClick,
+            )
             .clip(CircleShape)
             .background(
                 avatar.bgColor?.let(::parseHexColor)

@@ -102,10 +102,11 @@
   - Pressing `A` (or clicking) toggles release tracking on/off in `%APPDATA%\NuvioDeck\release_watchlist.json`, updating the button to an active highlighted **"Tracking"** state.
   - **Targeted Background Polling Engine:** Quietly probes stream addons strictly for items marked `TRACKING` with polite `2.5s` spacing. Once a clean HD/4K release is detected, marks the item `RELEASED` and pushes a top-priority notification directly to index 0 of the Notification Center.
 - **10-Item FIFO Notification Dropdown & Visual Differentiation for Tracked Releases:**
-  - Stores up to 10 notifications in `%APPDATA%\NuvioDeck\new_arrivals_notifications.json` (newest first, automatically dropping the oldest item on overflow) with 16:9 landscape thumbnails, relative timestamps, and direct `A`-button navigation to the title's Details page.
+  - Stores up to 10 notifications in `%APPDATA%\NuvioDeck\new_arrivals_notifications.json` (newest first, automatically dropping the oldest item on overflow) with 16:9 landscape thumbnails, relative timestamps, smooth viewport-edge D-Pad scrolling (scrolling only as selection approaches or crosses the bottom or top pane boundary), and direct `A`-button navigation to the title's Details page.
   - **Visual Distinction for User-Tracked Releases:** Tracked release cards render with a subtle `10%–15%` accent color wash, a `3dp` solid accent bar along the left edge, a `🔔 TRACKED RELEASE` header badge, and a vibrant unread dot that clears upon selection.
-- **Standalone Profile Switcher Dropdown & Sleek Rounded-Rectangle PIN Pads:**
+- **Standalone Profile Switcher Dropdown, Edit Profile Navigation & Rounded-Rectangle PIN Pads:**
   - Clicking or pressing `A` on the top-right Profile Photo opens an anchored Profile Switcher dropdown with D-Pad `Up`/`Down` navigation and solid highlight fills (zero text clipping).
+  - Full controller traversal on **Manage / Edit Profile** starting at the top Name input and stepping cleanly through Use Primary Addons, Custom Avatar URL, Profile Background & Avatar Picker grids, Set/Remove PIN Lock, Save, and Delete, with `B` returning cleanly to the profile screen.
   - Both the Profile Switcher dropdown and the main Profile Selection screen feature a unified, spacious **rounded-rectangle PIN pad** (`RoundedCornerShape(18.dp)` dark studio surface, generous inner padding, larger tactile keys, `"PROFILE PIN"` lock header, recessed status pill with live verification spinner feedback upon entering 4 digits, and a 3×4 controller-navigable key grid with `[X] Delete` and `[B] Cancel`).
 
 ### 🎮 Universal Windows 11 Controller Support & Spatial Focus Engine
@@ -152,12 +153,12 @@
 
 ### ⚡ High-Performance Desktop Engine & Side-by-Side Coexistence
 - **High-DPI Windows Shell, Xbox App & Game Bar Tile Integration:** Embeds a true multi-resolution icon (`16x16` up to a PNG-compressed `256x256` layer) directly into `NuvioDeck.exe` and shortcuts, paired with bundled high-resolution square branding assets (`512x512`, `256x256`, `Square150x150Logo`, `Square70x70Logo`) organized into a clean `Assets\` subfolder and referenced by `NuvioDeck.VisualElementsManifest.xml` (`#0D0D0D`) so the Windows Start Menu, Game Bar, and Xbox App render crisp, high-DPI thumbnails without root directory clutter.
-- **Subtle Studio Login Backdrop & Anti-Banding Display:** Clean, star-free dark obsidian-slate studio login background with a smooth `650ms` radial ambient wash tinted by the active profile's accent color, paired with a cached micro-dither brush to eliminate gradient banding on 8-bit/10-bit displays.
+- **Subtle Studio Login Backdrop, Zero-Banding Frosted Glass App Backdrop & Anti-Banding Display:** Both the studio login/profile backdrop (`CinematicBackground`) and the **Frosted Glass Background** across the main app run on 32-bit floating-point SkSL GPU shaders featuring multi-point Gaussian ambient light clouds (spanning upper and lower halves of the screen with theme-tinted warmth and counter-depth), delicate rim sheen, and `1:1` physical-pixel Triangular Interleaved Gradient Noise (`IGN`) dithering prior to quantization to eliminate 8-bit contour banding cleanly—smoothly blending behind feathered hero artwork via offscreen alpha masking. Includes a toggle under **Settings → Appearance → Display** to switch between **Frosted Glass** and **Classic Flat** backdrops at any time (with pure black always preserved for **AMOLED Black**).
 - **512MB Persistent Disk Image Cache & High-Refresh VSync:** Okio-backed disk cache (`%LOCALAPPDATA%\NuvioDeck\Cache\image_cache`), hardware trilinear mipmapping (`FilterQuality.Medium`), low-pause G1GC (`-XX:+UseG1GC -XX:MaxGCPauseMillis=16`), and unlocked VSync (`-Dskiko.fps=-1 -Dskiko.vsync=true`) for 90Hz / 120Hz / 144Hz displays.
 - **Isolated Side-by-Side Installation:** Uses a dedicated `NuvioDeck` application identity, unique Windows MSI `upgradeUuid`, and isolated data directories (`%APPDATA%\NuvioDeck` and `%LOCALAPPDATA%\NuvioDeck\Cache`) so NuvioDeck and upstream NuvioDesktop can run side-by-side without conflict.
 - **Unified Monochrome Stream Selection (App & Player OSD):** Both the main-app stream list and the in-player OSD stream selector share matching card styling (`12dp` radius, `0.32f` accent focus fill, `0.52f` active border) with flat monochrome vector/SVG metadata icons replacing emoji markers.
-- **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, and center **Folders in Collections** rows symmetrically during both `Up` and `Down` D-Pad traversal.
-- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.25`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
+- **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, and center **Folders in Collections** multi-row grids reliably in a single D-Pad press during both `Up` and `Down` traversal using root-viewport bounds and unclipped item geometry.
+- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.26`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
 
 ---
 
@@ -169,9 +170,9 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 ## 📦 Installation & Downloads
 
-Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.25.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
+Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.26.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.25.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.26.msi`) or Standalone Executable (`NuvioDeck.exe`)
 
 ---
 
@@ -202,7 +203,7 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.25.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.26.msi`
 
 ---
 

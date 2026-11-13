@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -1050,20 +1051,95 @@ private fun NotificationCenterDropdownPanel(
                                     selectLabel = "View Details",
                                     onMoveUp = {
                                         if (index > 0) {
-                                            val prevId = "notification_item_${cappedItems[index - 1].id}"
-                                            scope.launch {
-                                                runCatching { listState.animateScrollToItem((index - 1).coerceAtLeast(0)) }
+                                            val targetIndex = index - 1
+                                            val prevId = "notification_item_${cappedItems[targetIndex].id}"
+                                            val layoutInfo = listState.layoutInfo
+                                            val viewportStart = layoutInfo.viewportStartOffset
+                                            val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+                                            val topEdgeBufferPx = 12
+                                            val scrollDelta = when {
+                                                targetInfo != null && targetInfo.offset >= viewportStart + topEdgeBufferPx -> 0f
+                                                targetInfo != null -> (targetInfo.offset - (viewportStart + topEdgeBufferPx)).toFloat()
+                                                targetIndex == 0 -> null // Scroll cleanly to very top
+                                                else -> {
+                                                    val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull()
+                                                    val avgSize = layoutInfo.visibleItemsInfo
+                                                        .map { it.size }.average().toFloat()
+                                                        .takeIf { it > 10f } ?: 88f
+                                                    if (firstVisible != null) {
+                                                        (firstVisible.offset - viewportStart - avgSize - topEdgeBufferPx).coerceAtMost(-avgSize)
+                                                    } else {
+                                                        -(avgSize + topEdgeBufferPx)
+                                                    }
+                                                }
+                                            }
+                                            if (scrollDelta == 0f) {
                                                 ControllerFocusEngine.requestFocus(prevId, triggerScroll = false)
+                                            } else {
+                                                scope.launch {
+                                                    if (scrollDelta == null) {
+                                                        runCatching { listState.animateScrollToItem(0, 0) }
+                                                    } else {
+                                                        runCatching {
+                                                            listState.animateScrollBy(
+                                                                scrollDelta,
+                                                                tween(180, easing = FastOutSlowInEasing),
+                                                            )
+                                                        }
+                                                    }
+                                                    repeat(4) {
+                                                        if (ControllerFocusEngine.requestFocus(prevId, triggerScroll = false)) {
+                                                            return@launch
+                                                        }
+                                                        delay(16)
+                                                    }
+                                                }
                                             }
                                         }
                                         true
                                     },
                                     onMoveDown = {
                                         if (index < cappedItems.lastIndex) {
-                                            val nextId = "notification_item_${cappedItems[index + 1].id}"
-                                            scope.launch {
-                                                runCatching { listState.animateScrollToItem(index + 1) }
+                                            val targetIndex = index + 1
+                                            val nextId = "notification_item_${cappedItems[targetIndex].id}"
+                                            val layoutInfo = listState.layoutInfo
+                                            val viewportEnd = layoutInfo.viewportEndOffset
+                                            val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+                                            val bottomEdgeBufferPx = 24
+                                            val scrollDelta = when {
+                                                targetInfo != null && (targetInfo.offset + targetInfo.size) <= (viewportEnd - bottomEdgeBufferPx) -> 0f
+                                                targetInfo != null -> ((targetInfo.offset + targetInfo.size) - (viewportEnd - bottomEdgeBufferPx)).toFloat()
+                                                else -> {
+                                                    val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                                                    val avgSize = layoutInfo.visibleItemsInfo
+                                                        .map { it.size }.average().toFloat()
+                                                        .takeIf { it > 10f } ?: 88f
+                                                    val spacing = layoutInfo.mainAxisItemSpacing
+                                                    if (lastVisible != null) {
+                                                        ((lastVisible.offset + lastVisible.size + spacing) - (viewportEnd - bottomEdgeBufferPx) + avgSize)
+                                                            .coerceAtLeast(avgSize)
+                                                    } else {
+                                                        avgSize + bottomEdgeBufferPx
+                                                    }
+                                                }
+                                            }
+                                            if (scrollDelta == 0f) {
                                                 ControllerFocusEngine.requestFocus(nextId, triggerScroll = false)
+                                            } else {
+                                                scope.launch {
+                                                    runCatching {
+                                                        listState.animateScrollBy(
+                                                            scrollDelta,
+                                                            tween(180, easing = FastOutSlowInEasing),
+                                                        )
+                                                    }
+                                                    repeat(4) {
+                                                        if (ControllerFocusEngine.requestFocus(nextId, triggerScroll = false)) {
+                                                            return@launch
+                                                        }
+                                                        delay(16)
+                                                    }
+                                                }
                                             }
                                         }
                                         true

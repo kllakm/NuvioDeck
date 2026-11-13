@@ -2,7 +2,9 @@ package com.nuvio.app.features.profiles
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +27,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +56,11 @@ import com.nuvio.app.core.ui.themePalette
 import com.nuvio.app.features.membership.CosmeticEntitlement
 import com.nuvio.app.features.membership.MemberAccessRepository
 import com.nuvio.app.features.membership.ProfileBackgroundRepository
+import com.nuvio.app.controller.ControllerFocusEngine
+import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.RegisterControllerHandler
+import com.nuvio.app.controller.controllerFocusable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -114,6 +122,29 @@ fun ProfileEditScreen(
         parseHexColor(visibleAvatarItem?.bgColor ?: fallbackColorHex)
     }
 
+    val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+
+    RegisterControllerHandler(
+        key = "profile_edit_screen_handler",
+        onBack = {
+            onBack()
+            true
+        },
+    )
+
+    LaunchedEffect(Unit) {
+        ControllerManager.updateScreenContext {
+            it.copy(backLabel = "Back")
+        }
+    }
+
+    LaunchedEffect(isControllerActive) {
+        if (isControllerActive) {
+            delay(60)
+            ControllerFocusEngine.requestFocus("profile_edit_name_input", triggerScroll = false)
+        }
+    }
+
     NuvioScreen(modifier = modifier) {
         stickyHeader {
             NuvioScreenHeader(
@@ -163,6 +194,8 @@ fun ProfileEditScreen(
                             }
                         },
                         placeholder = stringResource(Res.string.profile_custom_avatar_url_placeholder),
+                        enableControllerFocus = true,
+                        controllerFocusId = "profile_edit_custom_url_input",
                     )
                     if (avatarUrlIsInvalid) {
                         Text(
@@ -319,7 +352,13 @@ fun ProfileEditScreen(
                     onClick = { showDeleteConfirm = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(52.dp)
+                        .controllerFocusable(
+                            id = "profile_edit_delete_button",
+                            shape = RoundedCornerShape(16.dp),
+                            selectLabel = stringResource(Res.string.profile_delete_title),
+                            onSelect = { showDeleteConfirm = true },
+                        ),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
@@ -504,6 +543,9 @@ private fun ProfileIdentityCard(
                 value = name,
                 onValueChange = onNameChange,
                 placeholder = stringResource(Res.string.profile_name_placeholder),
+                enableControllerFocus = true,
+                controllerFocusId = "profile_edit_name_input",
+                isDefaultControllerFocus = true,
             )
 
             ProfileOptionRow(
@@ -525,7 +567,18 @@ private fun ProfileOptionRow(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .controllerFocusable(
+                id = "profile_edit_primary_addons_toggle",
+                shape = RoundedCornerShape(12.dp),
+                focusScale = 1.0f,
+                selectLabel = if (checked) "Disable" else "Enable",
+                onSelect = { onCheckedChange(!checked) },
+            )
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -324,7 +326,7 @@ fun LibraryScreen(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(MaterialTheme.colorScheme.background)
+                            .nuvioAppBackground(MaterialTheme.colorScheme.background, transparentInGlassMode = true)
                             .nuvioConsumePointerEvents(),
                     )
                     androidx.compose.foundation.layout.Column(

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.controller.AppBackgroundManager
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.nuvioHeroBackdropMask
 
 import androidx.compose.animation.animateContentSize
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
@@ -447,49 +449,63 @@ private fun DefaultHomeHeroFrame(
     showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
+    val glassActive = AppBackgroundManager.isFrostedGlassActive(MaterialTheme.colorScheme.background)
+    val bottomFadePx = with(androidx.compose.ui.platform.LocalDensity.current) { layout.bottomFadeHeight.toPx() }
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        HeroBackgroundLayers(
-            items = items,
-            pagerState = pagerState,
-            listState = listState,
-            layout = layout,
-            heroWidthPx = heroWidthPx,
-            heroHeightPx = heroHeightPx,
-            stretchPx = stretchPx,
-            includePagerNeighbors = includePagerNeighbors,
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.02f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.12f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.34f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.78f),
-                        ),
-                    ),
+                .nuvioHeroBackdropMask(
+                    enabled = glassActive,
+                    useDesktopFrame = false,
+                    bottomFadeHeightPx = bottomFadePx,
                 ),
-        )
+        ) {
+            HeroBackgroundLayers(
+                items = items,
+                pagerState = pagerState,
+                listState = listState,
+                layout = layout,
+                heroWidthPx = heroWidthPx,
+                heroHeightPx = heroHeightPx,
+                stretchPx = stretchPx,
+                includePagerNeighbors = includePagerNeighbors,
+            )
+        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.bottomFadeHeight)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
-                            MaterialTheme.colorScheme.background,
+        if (!glassActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.02f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.12f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.34f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.78f),
+                            ),
                         ),
                     ),
-                ),
-        )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.bottomFadeHeight)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.background.copy(alpha = 0f),
+                                MaterialTheme.colorScheme.background,
+                            ),
+                        ),
+                    ),
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -573,71 +589,89 @@ private fun DesktopHomeHeroFrame(
     val opacity = NuvioTokens.Opacity
     val space = NuvioTokens.Space
     val backgroundColor = colorScheme.background
+    val glassActive = AppBackgroundManager.isFrostedGlassActive(backgroundColor)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val topFadePx = with(density) { layout.topFadeHeight.toPx() }
+    val bottomFadePx = with(density) { layout.bottomFadeHeight.toPx() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor),
+            .then(if (glassActive) Modifier else Modifier.background(backgroundColor)),
     ) {
-        HeroBackgroundLayers(
-            items = items,
-            pagerState = pagerState,
-            listState = listState,
-            layout = layout,
-            heroWidthPx = heroWidthPx,
-            heroHeightPx = heroHeightPx,
-            stretchPx = stretchPx,
-            includePagerNeighbors = includePagerNeighbors,
-            desktopFrame = true,
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.topFadeHeight)
-                .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            backgroundColor.copy(alpha = opacity.overlayHeavy),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colorStops = arrayOf(
-                            0.00f to backgroundColor.copy(alpha = 0.96f),
-                            0.08f to backgroundColor.copy(alpha = 0.90f),
-                            0.16f to backgroundColor.copy(alpha = 0.76f),
-                            0.26f to backgroundColor.copy(alpha = 0.54f),
-                            0.36f to backgroundColor.copy(alpha = 0.30f),
-                            0.46f to backgroundColor.copy(alpha = 0.12f),
-                            0.54f to Color.Transparent,
-                        ),
-                    ),
+                .nuvioHeroBackdropMask(
+                    enabled = glassActive,
+                    useDesktopFrame = true,
+                    topFadeHeightPx = topFadePx,
+                    bottomFadeHeightPx = bottomFadePx,
+                    topOverlayAlpha = opacity.overlayHeavy,
                 ),
-        )
+        ) {
+            HeroBackgroundLayers(
+                items = items,
+                pagerState = pagerState,
+                listState = listState,
+                layout = layout,
+                heroWidthPx = heroWidthPx,
+                heroHeightPx = heroHeightPx,
+                stretchPx = stretchPx,
+                includePagerNeighbors = includePagerNeighbors,
+                desktopFrame = true,
+            )
+        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.bottomFadeHeight)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            backgroundColor.copy(alpha = 0f),
-                            backgroundColor,
+        if (!glassActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.topFadeHeight)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                backgroundColor.copy(alpha = opacity.overlayHeavy),
+                                Color.Transparent,
+                            ),
                         ),
                     ),
-                ),
-        )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.00f to backgroundColor.copy(alpha = 0.96f),
+                                0.08f to backgroundColor.copy(alpha = 0.90f),
+                                0.16f to backgroundColor.copy(alpha = 0.76f),
+                                0.26f to backgroundColor.copy(alpha = 0.54f),
+                                0.36f to backgroundColor.copy(alpha = 0.30f),
+                                0.46f to backgroundColor.copy(alpha = 0.12f),
+                                0.54f to Color.Transparent,
+                            ),
+                        ),
+                    ),
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.bottomFadeHeight)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                backgroundColor.copy(alpha = 0f),
+                                backgroundColor,
+                            ),
+                        ),
+                    ),
+            )
+        }
 
         Box(
             modifier = Modifier

@@ -1,5 +1,7 @@
 package com.nuvio.app.core.ui
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -53,12 +55,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nuvio.app.controller.PlatformVirtualKeyboard
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.controllerVerticalScrollViewport
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -91,11 +97,13 @@ fun NuvioScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(tokens.colors.background),
+            .nuvioAppBackground(tokens.colors.background),
     ) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .controllerVerticalScrollViewport(lazyListState = listState),
             contentPadding = PaddingValues(
                 start = horizontalPadding,
                 top = topPadding ?: tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,
@@ -180,7 +188,7 @@ fun NuvioScreenHeader(
         Row(
             modifier = Modifier
                 .matchParentSize()
-                .background(backgroundColor)
+                .nuvioAppBackground(backgroundColor, transparentInGlassMode = true)
                 .nuvioConsumePointerEvents(),
         ) {}
         Row(
@@ -390,21 +398,42 @@ fun NuvioInputField(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.nuvio.shapes.compactCard,
     enableControllerFocus: Boolean = false,
+    controllerFocusId: String = "",
+    isDefaultControllerFocus: Boolean = false,
     trailingContent: (@Composable (() -> Unit))? = null,
 ) {
     val tokens = MaterialTheme.nuvio
+    val inputFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val resolvedId = remember(controllerFocusId) {
+        controllerFocusId.ifEmpty { "nuvio_input_${kotlin.random.Random.nextInt()}" }
+    }
+    if (enableControllerFocus) {
+        val isControllerFocused = com.nuvio.app.controller.isControllerNodeFocused(resolvedId)
+        LaunchedEffect(isControllerFocused) {
+            if (!isControllerFocused) {
+                runCatching { focusManager.clearFocus(force = true) }
+            }
+        }
+    }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
+            .focusRequester(inputFocusRequester)
             .then(
                 if (enableControllerFocus) {
                     Modifier.controllerFocusable(
+                        id = resolvedId,
+                        isDefaultFocus = isDefaultControllerFocus,
                         shape = shape,
                         focusScale = 1.0f,
                         isTextInput = true,
-                        onSelect = { PlatformVirtualKeyboard.show() },
+                        onSelect = {
+                            runCatching { inputFocusRequester.requestFocus() }
+                            PlatformVirtualKeyboard.show()
+                        },
                         selectLabel = placeholder,
                     )
                 } else {

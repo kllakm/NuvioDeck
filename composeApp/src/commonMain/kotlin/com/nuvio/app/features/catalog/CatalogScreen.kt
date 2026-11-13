@@ -1,5 +1,7 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -178,7 +180,7 @@ fun CatalogScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .nuvioAppBackground(MaterialTheme.colorScheme.background),
     ) {
         val pageHorizontalPadding = if (isDesktop) {
             desktopPageHorizontalPaddingForWidth(maxWidth.value)
@@ -329,7 +331,7 @@ private fun CatalogHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .nuvioAppBackground(MaterialTheme.colorScheme.background, frostedScrimOnly = true)
             .then(if (isDesktop) Modifier.windowInsetsPadding(WindowInsets.statusBars) else Modifier)
             .padding(horizontal = pageHorizontalPadding)
             .padding(top = if (isDesktop) 32.dp else 52.dp, bottom = 12.dp),

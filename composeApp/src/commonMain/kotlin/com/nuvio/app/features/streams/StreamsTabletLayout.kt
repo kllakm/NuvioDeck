@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
@@ -183,7 +185,7 @@ internal fun TabletStreamsLayout(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
+                        .nuvioAppBackground(MaterialTheme.colorScheme.background),
                 )
             }
 
@@ -370,7 +372,7 @@ private fun LegacyTabletStreamsLayout(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
+                        .nuvioAppBackground(MaterialTheme.colorScheme.background),
                 )
             }
 

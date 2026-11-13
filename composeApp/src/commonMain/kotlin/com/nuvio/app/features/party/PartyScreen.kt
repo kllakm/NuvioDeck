@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.controller.nuvioAppBackground
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -237,7 +239,7 @@ internal fun PartyPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(tokens.colors.background)
+            .nuvioAppBackground(tokens.colors.background)
             .padding(top = tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding)
             .padding(horizontal = tokens.spacing.screenHorizontal),
     ) {
