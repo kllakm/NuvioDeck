@@ -2,6 +2,8 @@ package com.nuvio.app.core.ui
 import com.nuvio.app.controller.ControllerFocusZone
 import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -143,11 +145,19 @@ fun DialogButton(
         DialogButtonStyle.Destructive -> tokens.colors.danger
     }
     val contentColor = if (style == DialogButtonStyle.Secondary) tokens.colors.textPrimary else tokens.colors.onAccent
+    val focusId = rememberControllerButtonFocusId("dialog_btn")
+    val buttonColors = rememberControllerWhiteButtonColors(
+        focusId = focusId,
+        defaultContainerColor = containerColor,
+        defaultContentColor = contentColor,
+        enabled = enabled && !loading,
+    )
     Button(
         onClick = onClick,
         modifier = modifier
             .heightIn(min = NuvioTokens.Space.s48)
             .controllerFocusable(
+                id = focusId,
                 zone = ControllerFocusZone.Overlay,
                 groupKey = "dialog_buttons",
                 enabled = enabled && !loading,
@@ -162,8 +172,8 @@ fun DialogButton(
         ),
         shape = tokens.shapes.button,
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
+            containerColor = buttonColors.containerColor,
+            contentColor = buttonColors.contentColor,
             disabledContainerColor = containerColor.copy(alpha = containerColor.alpha * tokens.opacity.disabled),
             disabledContentColor = contentColor.copy(alpha = tokens.opacity.disabled),
         ),
@@ -172,7 +182,7 @@ fun DialogButton(
         if (loading) {
             NuvioLoadingIndicator(
                 modifier = Modifier.size(tokens.icons.sm),
-                color = contentColor,
+                color = buttonColors.contentColor,
             )
             Spacer(modifier = Modifier.width(NuvioTokens.Space.s8))
         }

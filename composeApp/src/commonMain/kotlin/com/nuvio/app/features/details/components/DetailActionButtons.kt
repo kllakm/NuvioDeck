@@ -51,6 +51,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.ControllerFocusedWhiteButtonBg
+import com.nuvio.app.controller.ControllerFocusedWhiteButtonBorder
+import com.nuvio.app.controller.ControllerFocusedWhiteButtonFg
 import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.AppIconResource
@@ -142,20 +145,20 @@ fun DetailActionButtons(
             val isPlayFocused = isControllerNodeFocused("detail_action_play")
             val playButtonBg = when {
                 isPlayFocused && isNotifyMode && isTrackingActive -> tokens.colors.accent.copy(alpha = 0.35f)
-                isPlayFocused -> Color(0xFF0D0E15)
+                isPlayFocused -> ControllerFocusedWhiteButtonBg
                 isNotifyMode && isTrackingActive -> tokens.colors.accent.copy(alpha = 0.22f)
                 effectiveEnabled -> MaterialTheme.colorScheme.onBackground
                 else -> MaterialTheme.colorScheme.surfaceVariant
             }
             val playButtonFg = when {
-                isPlayFocused -> Color.White
+                isPlayFocused -> ControllerFocusedWhiteButtonFg
                 isNotifyMode && isTrackingActive -> Color.White
                 effectiveEnabled -> MaterialTheme.colorScheme.background
                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             }
             val playBorder = when {
                 isPlayFocused && isNotifyMode && isTrackingActive -> BorderStroke(2.dp, tokens.colors.accent)
-                isPlayFocused -> BorderStroke(2.dp, Color.White)
+                isPlayFocused -> ControllerFocusedWhiteButtonBorder
                 isNotifyMode && isTrackingActive -> BorderStroke(1.5.dp, tokens.colors.accent)
                 else -> null
             }

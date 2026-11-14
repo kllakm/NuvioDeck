@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import com.nuvio.app.controller.controllerFocusable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
@@ -691,6 +693,13 @@ private fun TrackingBrandPrimaryButton(
     onClick: () -> Unit,
     showSyncIcon: Boolean = false,
 ) {
+    val focusId = rememberControllerButtonFocusId("tracking_btn")
+    val buttonColors = rememberControllerWhiteButtonColors(
+        focusId = focusId,
+        defaultContainerColor = Color.White,
+        defaultContentColor = Color(0xFF171717),
+        enabled = enabled,
+    )
     Button(
         onClick = onClick,
         enabled = enabled,
@@ -698,6 +707,7 @@ private fun TrackingBrandPrimaryButton(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .controllerFocusable(
+                id = focusId,
                 enabled = enabled,
                 shape = RoundedCornerShape(24.dp),
                 focusScale = 1.0f,
@@ -705,15 +715,15 @@ private fun TrackingBrandPrimaryButton(
                 selectLabel = label,
             ),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.White,
-            contentColor = Color(0xFF171717),
+            containerColor = buttonColors.containerColor,
+            contentColor = buttonColors.contentColor,
             disabledContainerColor = Color.White.copy(alpha = 0.34f),
             disabledContentColor = Color.White.copy(alpha = 0.7f),
         ),
     ) {
         when {
             loading -> NuvioLoadingIndicator(
-                color = Color(0xFF171717),
+                color = buttonColors.contentColor,
                 modifier = Modifier.size(18.dp),
             )
             showSyncIcon -> Icon(

@@ -32,6 +32,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -212,16 +215,32 @@ internal fun ServerConnectionSheet(
                 )
             }
             Spacer(modifier = Modifier.height(NuvioTokens.Space.s20))
+            val connectFocusId = rememberControllerButtonFocusId("server_connect_btn")
+            val connectEnabled = url.isNotBlank() && !state.isDiscovering
+            val connectColors = rememberControllerWhiteButtonColors(
+                focusId = connectFocusId,
+                defaultContainerColor = tokens.colors.accent,
+                defaultContentColor = tokens.colors.onAccent,
+                enabled = connectEnabled,
+            )
             Button(
                 onClick = { onDiscover(url) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(NuvioTokens.Space.s56),
-                enabled = url.isNotBlank() && !state.isDiscovering,
+                    .height(NuvioTokens.Space.s56)
+                    .controllerFocusable(
+                        id = connectFocusId,
+                        enabled = connectEnabled,
+                        shape = tokens.shapes.button,
+                        focusScale = 1.0f,
+                        onSelect = { onDiscover(url) },
+                        selectLabel = stringResource(Res.string.server_connect_action),
+                    ),
+                enabled = connectEnabled,
                 shape = tokens.shapes.button,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.colors.accent,
-                    contentColor = tokens.colors.onAccent,
+                    containerColor = connectColors.containerColor,
+                    contentColor = connectColors.contentColor,
                 ),
             ) {
                 if (state.isDiscovering) {
@@ -231,7 +250,7 @@ internal fun ServerConnectionSheet(
                     ) {
                         NuvioLoadingIndicator(
                             modifier = Modifier.size(tokens.icons.sm),
-                            color = tokens.colors.onAccent,
+                            color = connectColors.contentColor,
                         )
                         Text(stringResource(Res.string.server_connect_checking))
                     }

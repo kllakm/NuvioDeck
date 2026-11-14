@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
@@ -987,11 +988,17 @@ private fun DesktopHeroContentBlock(
                 horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val heroCtaFocusId = "home_hero_desktop_cta_${item.id}"
+                val heroCtaColors = rememberControllerWhiteButtonColors(
+                    focusId = heroCtaFocusId,
+                    defaultContainerColor = colorScheme.onBackground,
+                    defaultContentColor = colorScheme.background,
+                )
                 Surface(
                     modifier = Modifier
                         .height(48.dp)
                         .controllerFocusable(
-                            id = "home_hero_desktop_cta_${item.id}",
+                            id = heroCtaFocusId,
                             groupKey = "home_hero",
                             shape = RoundedCornerShape(40.dp),
                             scaleOnFocus = 1.04f,
@@ -999,8 +1006,8 @@ private fun DesktopHeroContentBlock(
                             selectLabel = "View Details",
                         )
                         .clickable { onItemClick(item) },
-                    color = colorScheme.onBackground,
-                    contentColor = colorScheme.background,
+                    color = heroCtaColors.containerColor,
+                    contentColor = heroCtaColors.contentColor,
                     shape = RoundedCornerShape(40.dp),
                 ) {
                     Box(

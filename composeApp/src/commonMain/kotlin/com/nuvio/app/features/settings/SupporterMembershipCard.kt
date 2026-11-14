@@ -32,6 +32,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.features.membership.MemberTier
 import com.nuvio.app.features.membership.MembershipOverview
@@ -492,13 +495,30 @@ private fun MembershipButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val focusId = rememberControllerButtonFocusId("membership_btn")
+    val buttonColors = rememberControllerWhiteButtonColors(
+        focusId = focusId,
+        defaultContainerColor = PrimaryTextColor,
+        defaultContentColor = CardColor,
+        enabled = enabled,
+    )
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.heightIn(min = 44.dp),
+        modifier = Modifier
+            .heightIn(min = 44.dp)
+            .controllerFocusable(
+                id = focusId,
+                enabled = enabled,
+                shape = RoundedCornerShape(22.dp),
+                focusScale = 1.0f,
+                onSelect = onClick,
+                selectLabel = label,
+            ),
+        shape = RoundedCornerShape(22.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = PrimaryTextColor,
-            contentColor = CardColor,
+            containerColor = buttonColors.containerColor,
+            contentColor = buttonColors.contentColor,
         ),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
     ) {

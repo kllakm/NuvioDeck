@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import com.nuvio.app.core.ui.CinematicBackground
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.Icon
@@ -831,6 +832,7 @@ private fun AuthForm(
             height = metrics.primaryHeight,
             scale = scale,
             onClick = onSubmit,
+            controllerFocusId = "auth_primary_submit",
             modifier = Modifier.controllerFocusable(
                 id = "auth_primary_submit",
                 zone = ControllerFocusZone.Content,
@@ -1044,7 +1046,14 @@ internal fun AuthPrimaryButton(
     scale: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    controllerFocusId: String = "",
 ) {
+    val buttonColors = rememberControllerWhiteButtonColors(
+        focusId = controllerFocusId,
+        defaultContainerColor = AuthPrimaryButtonBackground,
+        defaultContentColor = AuthPrimaryButtonText,
+        enabled = enabled,
+    )
     Button(
         onClick = onClick,
         modifier = modifier
@@ -1054,8 +1063,8 @@ internal fun AuthPrimaryButton(
         shape = RoundedCornerShape(16.dp),
         contentPadding = PaddingValues(0.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AuthPrimaryButtonBackground,
-            contentColor = AuthPrimaryButtonText,
+            containerColor = buttonColors.containerColor,
+            contentColor = buttonColors.contentColor,
             disabledContainerColor = if (isLoading) {
                 AuthPrimaryButtonBackground
             } else {
@@ -1067,7 +1076,7 @@ internal fun AuthPrimaryButton(
         if (isLoading) {
             NuvioLoadingIndicator(
                 modifier = Modifier.size(20.dp * scale),
-                color = AuthPrimaryButtonText,
+                color = buttonColors.contentColor,
             )
         } else {
             Text(

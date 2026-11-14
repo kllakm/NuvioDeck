@@ -1,6 +1,8 @@
 package com.nuvio.app.core.ui
 
 import com.nuvio.app.controller.nuvioAppBackground
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -355,12 +357,20 @@ fun NuvioPrimaryButton(
     onClick: () -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
+    val focusId = rememberControllerButtonFocusId("primary_btn")
+    val buttonColors = rememberControllerWhiteButtonColors(
+        focusId = focusId,
+        defaultContainerColor = tokens.colors.accent,
+        defaultContentColor = tokens.colors.onAccent,
+        enabled = enabled,
+    )
     Button(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)
             .controllerFocusable(
+                id = focusId,
                 enabled = enabled,
                 shape = tokens.shapes.button,
                 focusScale = 1.0f,
@@ -370,8 +380,8 @@ fun NuvioPrimaryButton(
         enabled = enabled,
         shape = tokens.shapes.button,
         colors = ButtonDefaults.buttonColors(
-            containerColor = tokens.colors.accent,
-            contentColor = tokens.colors.onAccent,
+            containerColor = buttonColors.containerColor,
+            contentColor = buttonColors.contentColor,
             disabledContainerColor = tokens.colors.accent.copy(alpha = tokens.opacity.disabled),
             disabledContentColor = tokens.colors.onAccent.copy(alpha = tokens.opacity.disabled),
         ),

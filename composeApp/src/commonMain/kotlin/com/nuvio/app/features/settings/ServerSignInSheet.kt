@@ -28,6 +28,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.rememberControllerButtonFocusId
+import com.nuvio.app.controller.rememberControllerWhiteButtonColors
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -189,16 +192,31 @@ internal fun ServerSignInSheet(
                 )
             }
             Spacer(modifier = Modifier.height(NuvioTokens.Space.s20))
+            val connectFocusId = rememberControllerButtonFocusId("server_signin_btn")
+            val connectColors = rememberControllerWhiteButtonColors(
+                focusId = connectFocusId,
+                defaultContainerColor = tokens.colors.accent,
+                defaultContentColor = tokens.colors.onAccent,
+                enabled = canConnect,
+            )
             Button(
                 onClick = ::connect,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(NuvioTokens.Space.s56),
+                    .height(NuvioTokens.Space.s56)
+                    .controllerFocusable(
+                        id = connectFocusId,
+                        enabled = canConnect,
+                        shape = tokens.shapes.button,
+                        focusScale = 1.0f,
+                        onSelect = ::connect,
+                        selectLabel = stringResource(Res.string.servers_connect),
+                    ),
                 enabled = canConnect,
                 shape = tokens.shapes.button,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.colors.accent,
-                    contentColor = tokens.colors.onAccent,
+                    containerColor = connectColors.containerColor,
+                    contentColor = connectColors.contentColor,
                 ),
             ) {
                 if (connecting) {
@@ -208,7 +226,7 @@ internal fun ServerSignInSheet(
                     ) {
                         NuvioLoadingIndicator(
                             modifier = Modifier.size(tokens.icons.sm),
-                            color = tokens.colors.onAccent,
+                            color = connectColors.contentColor,
                         )
                         Text(stringResource(Res.string.servers_connecting))
                     }
