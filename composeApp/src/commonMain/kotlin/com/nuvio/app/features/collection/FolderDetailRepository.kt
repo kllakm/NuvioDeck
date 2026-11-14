@@ -322,53 +322,94 @@ object FolderDetailRepository {
         loadJobs.remove(index)?.cancel()
         val job = scope.launch {
             runCatching {
-                val source = currentTab.source
-                when {
-                    source?.isTmdb == true -> TmdbCollectionSourceResolver.resolve(
-                        source = source,
-                        page = if (reset) 1 else requestedSkip,
+                var currentSkipOrPage = if (reset) {
+                    if (currentTab.source?.isTmdb == true || currentTab.source?.isTrakt == true) 1 else 0
+                } else {
+                    requestedSkip
+                }
+                val firstPage = fetchTabCatalogPage(
+                    tab = currentTab,
+                    requestedSkip = currentSkipOrPage,
+                    reset = reset,
+                )
+                var mergedItems = firstPage.items
+                var supportsPagination = currentTab.supportsPagination || firstPage.rawItemCount >= CATALOG_PAGE_SIZE
+                var paginationState = nextCatalogPaginationState(
+                    supportsPagination = supportsPagination,
+                    requestedSkip = requestedSkip,
+                    page = firstPage,
+                    loadedNewItems = true,
+                    consecutiveDuplicatePages = if (reset) 0 else currentTab.consecutiveDuplicatePages,
+                )
+                var pagesFetched = 1
+                // Fetch up to MAX_ROW_ITEM_LIMIT + 1 on initial load so desktop/folder rows honor row limits
+                // up to 30 and confirm whether additional items actually exist before showing "View All".
+                while (
+                    reset &&
+                    supportsPagination &&
+                    paginationState.nextSkip != null &&
+                    mergedItems.size <= HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT &&
+                    pagesFetched < 3
+                ) {
+                    val nextCursor = paginationState.nextSkip ?: break
+                    val nextPage = fetchTabCatalogPage(
+                        tab = currentTab,
+                        requestedSkip = nextCursor,
+                        reset = false,
                     )
-
-                    source?.isTrakt == true -> TraktPublicListSourceResolver.resolve(
-                        source = source,
-                        page = if (reset) 1 else requestedSkip,
+                    pagesFetched++
+                    supportsPagination = supportsPagination || nextPage.rawItemCount >= CATALOG_PAGE_SIZE
+                    val nextMerged = mergeCatalogItems(mergedItems, nextPage.items)
+                    val loadedNewItems = nextMerged.size > mergedItems.size
+                    mergedItems = nextMerged
+                    if (!loadedNewItems) {
+                        paginationState = paginationState.copy(nextSkip = null)
+                        break
+                    }
+                    paginationState = nextCatalogPaginationState(
+                        supportsPagination = supportsPagination,
+                        requestedSkip = nextCursor,
+                        page = nextPage,
+                        loadedNewItems = true,
+                        consecutiveDuplicatePages = 0,
                     )
-
-                    else -> fetchCatalogPage(
-                        manifestUrl = requireNotNull(currentTab.manifestUrl),
-                        type = currentTab.type,
-                        catalogId = currentTab.catalogId,
-                        genre = currentTab.genre,
-                        skip = requestedSkip.takeIf { it > 0 },
-                    )
-                }.withUnreleasedFilter()
-            }.onSuccess { page ->
+                }
+                Triple(mergedItems, supportsPagination, paginationState)
+            }.onSuccess { (resolvedItems, supportsPagination, paginationState) ->
                 val posterPattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
                     repo.ensureLoaded()
                     repo.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.COLLECTIONS)
                 }
                 updateTab(index) { tab ->
                     val mergedItems = if (reset) {
-                        page.items
+                        resolvedItems
                     } else {
-                        mergeCatalogItems(tab.items, page.items)
+                        mergeCatalogItems(tab.items, resolvedItems)
                     }.withCustomPosterUrls(posterPattern)
-                    val supportsPagination = tab.supportsPagination || page.rawItemCount >= CATALOG_PAGE_SIZE
-                    val loadedNewItems = reset || mergedItems.size > tab.items.size
-                    val paginationState = nextCatalogPaginationState(
-                        supportsPagination = supportsPagination,
-                        requestedSkip = requestedSkip,
-                        page = page,
-                        loadedNewItems = loadedNewItems,
-                        consecutiveDuplicatePages = if (reset) 0 else tab.consecutiveDuplicatePages,
-                    )
+                    val tabSupportsPagination = tab.supportsPagination || supportsPagination
+                    val effectivePagination = if (reset) {
+                        paginationState
+                    } else {
+                        val loadedNewItems = mergedItems.size > tab.items.size
+                        nextCatalogPaginationState(
+                            supportsPagination = tabSupportsPagination,
+                            requestedSkip = requestedSkip,
+                            page = CatalogPage(
+                                items = resolvedItems,
+                                rawItemCount = resolvedItems.size,
+                                nextSkip = paginationState.nextSkip,
+                            ),
+                            loadedNewItems = loadedNewItems,
+                            consecutiveDuplicatePages = tab.consecutiveDuplicatePages,
+                        )
+                    }
                     tab.copy(
                         items = mergedItems,
-                        supportsPagination = supportsPagination,
+                        supportsPagination = tabSupportsPagination,
                         isLoading = false,
                         isLoadingMore = false,
-                        nextSkip = paginationState.nextSkip,
-                        consecutiveDuplicatePages = paginationState.consecutiveDuplicatePages,
+                        nextSkip = effectivePagination.nextSkip,
+                        consecutiveDuplicatePages = effectivePagination.consecutiveDuplicatePages,
                         error = null,
                     )
                 }
@@ -418,14 +459,42 @@ object FolderDetailRepository {
             val hasInitialLoads = sourceTabs.any { it.isLoading }
             val hasLoadMore = sourceTabs.any { it.isLoadingMore }
             val errorMessage = sourceTabs.firstOrNull { it.error != null }?.error
+            val keepEmptyWhileInitialLoads = hasInitialLoads && updatedTabs[allTabIndex].items.isEmpty()
             updatedTabs[allTabIndex] = updatedTabs[allTabIndex].copy(
-                items = merged,
+                items = if (keepEmptyWhileInitialLoads) emptyList() else merged,
                 isLoading = hasInitialLoads,
                 isLoadingMore = hasLoadMore,
-                error = errorMessage.takeIf { merged.isEmpty() },
+                error = if (keepEmptyWhileInitialLoads) null else errorMessage.takeIf { merged.isEmpty() },
             )
         }
         _uiState.value = current.copy(tabs = updatedTabs)
+    }
+
+    private suspend fun fetchTabCatalogPage(
+        tab: FolderTab,
+        requestedSkip: Int,
+        reset: Boolean,
+    ): CatalogPage {
+        val source = tab.source
+        return when {
+            source?.isTmdb == true -> TmdbCollectionSourceResolver.resolve(
+                source = source,
+                page = if (reset) 1 else requestedSkip,
+            )
+
+            source?.isTrakt == true -> TraktPublicListSourceResolver.resolve(
+                source = source,
+                page = if (reset) 1 else requestedSkip,
+            )
+
+            else -> fetchCatalogPage(
+                manifestUrl = requireNotNull(tab.manifestUrl),
+                type = tab.type,
+                catalogId = tab.catalogId,
+                genre = tab.genre,
+                skip = requestedSkip.takeIf { it > 0 },
+            )
+        }.withUnreleasedFilter()
     }
 
     fun getCatalogSectionsForRows(): List<HomeCatalogSection> {
@@ -433,7 +502,14 @@ object FolderDetailRepository {
         val folder = current.folder ?: return emptyList()
         val collectionId = activeCollectionId ?: return emptyList()
 
-        return current.tabs.filter { !it.isAllTab && it.items.isNotEmpty() }.mapNotNull { tab ->
+        // Emit only the contiguous loaded prefix of tabs so later faster sources never render
+        // above earlier slower sources and push initial scroll/focus halfway down the folder.
+        val loadedPrefix = current.tabs
+            .filter { !it.isAllTab }
+            .takeWhile { !it.isLoading }
+            .filter { it.items.isNotEmpty() }
+
+        return loadedPrefix.mapNotNull { tab ->
             val directSource = tab.source?.let { it.isTmdb || it.isTrakt } == true
             val target = if (directSource) {
                 val sourceKey = tab.sourceKey ?: return@mapNotNull null

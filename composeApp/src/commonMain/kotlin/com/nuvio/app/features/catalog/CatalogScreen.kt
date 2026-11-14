@@ -50,6 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
+import com.nuvio.app.core.poster.metahubFallbackArtworkUrl
+import com.nuvio.app.core.poster.rememberArtworkImageModel
+import com.nuvio.app.core.ui.NuvioFallbackPosterArtwork
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -381,9 +384,23 @@ private fun CatalogPosterTile(
         onLongClick = onLongClick,
         modifier = Modifier.fillMaxWidth(),
     ) {
+        val cardFocusId = remember(item.id) { "poster_catalog_${item.id}" }
+        val cleanPoster = item.poster?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanRawPoster = item.rawPosterUrl?.trim()?.takeIf { it.isNotEmpty() }
+        val metahubFallback = remember(item.id) { metahubFallbackArtworkUrl(item.id) }
+        val resolvedPrimaryUrl = cleanPoster ?: cleanRawPoster ?: metahubFallback
+        val imageModel = rememberArtworkImageModel(
+            primaryUrl = cleanPoster,
+            fallbackUrl = cleanRawPoster,
+            secondaryFallbackUrl = metahubFallback,
+        )
+        var imageLoadFailed by remember(resolvedPrimaryUrl, cleanRawPoster, metahubFallback) {
+            mutableStateOf(false)
+        }
+        val showFallbackArtwork = resolvedPrimaryUrl == null || imageLoadFailed
         Column(
             modifier = Modifier
-                .desktopPosterHoverScale()
+                .desktopPosterHoverScale(focusId = cardFocusId)
                 .then(it),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -394,10 +411,10 @@ private fun CatalogPosterTile(
                     .posterCardClickable(
                         onClick = onClick,
                         onLongClick = onLongClick,
-                        zoomImageUrl = item.poster,
+                        zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
-                        focusId = remember(item.id) { "poster_catalog_${item.id}" },
+                        focusId = cardFocusId,
                     )
                     .clip(RoundedCornerShape(cornerRadiusDp.dp))
                     .background(MaterialTheme.colorScheme.surface)
@@ -406,27 +423,23 @@ private fun CatalogPosterTile(
                         surface = NuvioCardDepthSurface.Posters,
                     ),
             ) {
-                if (item.poster != null) {
-                    val platformContext = coil3.compose.LocalPlatformContext.current
-                    val hasFallback = !item.rawPosterUrl.isNullOrBlank() && item.rawPosterUrl != item.poster
-                    val imageModel = remember(item.poster, item.rawPosterUrl, platformContext) {
-                        if (hasFallback) {
-                            coil3.request.ImageRequest.Builder(platformContext)
-                                .data(item.poster)
-                                .memoryCacheKeyExtras(
-                                    mapOf(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to item.rawPosterUrl!!)
-                                )
-                                .build()
-                        } else {
-                            item.poster
-                        }
-                    }
+                if (imageModel != null && !imageLoadFailed) {
                     AsyncImage(
                         model = imageModel,
                         contentDescription = item.name,
                         modifier = Modifier.fillMaxSize(),
+                        onSuccess = { imageLoadFailed = false },
+                        onError = { imageLoadFailed = true },
                         contentScale = ContentScale.Crop,
                         desktopAnimation = rememberAnimatedArtworkAnimation(),
+                    )
+                }
+                if (showFallbackArtwork) {
+                    NuvioFallbackPosterArtwork(
+                        title = item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        showTitle = true,
+                        isLandscape = item.posterShape == PosterShape.Landscape,
                     )
                 }
                 NuvioPosterWatchedOverlay(isWatched = isWatched)

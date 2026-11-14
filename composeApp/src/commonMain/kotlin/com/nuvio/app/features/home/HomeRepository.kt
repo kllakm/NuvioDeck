@@ -299,9 +299,15 @@ object HomeRepository {
                 maxItems = DESKTOP_HOME_CATALOG_PREVIEW_FETCH_LIMIT - items.size,
                 forceRefresh = forceRefresh,
             )
+            val previousCount = items.size
             items = mergeCatalogItems(items, page.items)
+            val loadedNewItems = items.size > previousCount
+            if (pagesFetched > 0 && !loadedNewItems) {
+                nextSkip = null
+                break
+            }
             rawItemCount += page.rawItemCount
-            nextSkip = page.nextSkip
+            nextSkip = if (supportsPagination) page.nextSkip else null
             pagesFetched++
         } while (
             supportsPagination && nextSkip != null && items.size < DESKTOP_HOME_CATALOG_PREVIEW_FETCH_LIMIT &&
@@ -309,14 +315,15 @@ object HomeRepository {
         )
         return CatalogPage(
             items = items.take(DESKTOP_HOME_CATALOG_PREVIEW_FETCH_LIMIT),
-            rawItemCount = rawItemCount,
-            nextSkip = nextSkip,
+            rawItemCount = if (nextSkip != null) maxOf(rawItemCount, items.size) else items.size,
+            nextSkip = if (supportsPagination) nextSkip else null,
         )
     }
 
     private suspend fun HomeCatalogDefinition.toServerSection(connectionId: String): HomeCatalogSection {
         val target = CatalogTarget.Server(connectionId, catalogId, type)
-        val page = ServerCatalog.page(target, skip = 0, limit = HOME_CATALOG_PREVIEW_FETCH_LIMIT)
+        val previewLimit = if (isDesktop) DESKTOP_HOME_CATALOG_PREVIEW_FETCH_LIMIT else HOME_CATALOG_PREVIEW_FETCH_LIMIT
+        val page = ServerCatalog.page(target, skip = 0, limit = previewLimit)
         return HomeCatalogSection(
             key = key,
             title = defaultTitle,

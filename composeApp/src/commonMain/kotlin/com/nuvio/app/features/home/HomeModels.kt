@@ -48,8 +48,19 @@ data class HomeCatalogSection(
     val hasMore: Boolean = false,
 )
 
+const val TOP_10_ITEM_LIMIT = 10
+
+private val TOP_10_REGEX = Regex("""(?i)(?:^|[^a-z0-9])top[\s_-]*(?:10|ten)(?:$|[^a-z0-9])""")
+
 fun HomeCatalogSection.canOpenCatalog(previewLimit: Int): Boolean =
     availableItemCount > previewLimit || hasMore
+
+fun HomeCatalogSection.isTop10Catalog(parentTitle: String? = null): Boolean {
+    if (TOP_10_REGEX.containsMatchIn(title)) return true
+    if (!parentTitle.isNullOrBlank() && TOP_10_REGEX.containsMatchIn(parentTitle)) return true
+    val catalogId = (target as? CatalogTarget.Addon)?.catalogId.orEmpty()
+    return catalogId.isNotBlank() && TOP_10_REGEX.containsMatchIn(catalogId)
+}
 
 data class HomeUiState(
     val isLoading: Boolean = false,

@@ -132,6 +132,14 @@ internal fun LazyListScope.homescreenSettingsContent(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 val homescreenState by HomeCatalogSettingsRepository.uiState.collectAsState()
+                SettingsSwitchRow(
+                    title = "My List",
+                    description = "Show your Library as a My List row at the top of the home screen.",
+                    checked = homescreenState.showMyListRow,
+                    isTablet = isTablet,
+                    onCheckedChange = HomeCatalogSettingsRepository::setShowMyListRow,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 val rowItemLimit = homescreenState.rowItemLimit.coerceIn(
                     HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
                     HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,

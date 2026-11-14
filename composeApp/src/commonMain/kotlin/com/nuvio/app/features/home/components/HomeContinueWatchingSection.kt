@@ -28,7 +28,9 @@ import com.nuvio.app.features.shuffle.ShuffleBadge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -46,10 +48,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.poster.metahubFallbackArtworkUrl
+import com.nuvio.app.core.poster.rememberArtworkImageModel
 import com.nuvio.app.core.ui.DisintegratingContainer
 import com.nuvio.app.core.ui.DisintegrationRequest
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.NuvioFallbackPosterArtwork
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.NuvioShelfSection
@@ -65,6 +70,7 @@ import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.cloudLibraryDisplayArtworkUrl
+import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import com.nuvio.app.features.watchprogress.ContinueWatchingSectionStyle
@@ -81,7 +87,7 @@ import com.nuvio.app.core.i18n.localizedEpisodeTitle
 private val ContinueWatchingStatusBadgeShape = RoundedCornerShape(4.dp)
 private val ContinueWatchingNewEpisodeBadgeColor = Color(0xFF1D4ED8)
 private val ContinueWatchingNewSeasonBadgeColor = Color(0xFFB45309)
-private const val ContinueWatchingLandscapeCardScale = 1.2f
+private const val ContinueWatchingLandscapeCardScale = 1.0f
 internal val HomeContinueWatchingSectionBottomPadding = 12.dp
 
 internal fun continueWatchingLandscapeCardWidth(basePosterWidthDp: Int): Dp =
@@ -228,34 +234,56 @@ private fun ContinueWatchingItem.continueWatchingCardArtworkUrl(
 private fun firstNonBlank(vararg values: String?): String? =
     values.firstOrNull { value -> !value.isNullOrBlank() }?.trim()
 
-private fun ContinueWatchingItem.fallbackUrlForArtwork(artworkUrl: String?): String? {
-    if (artworkUrl.isNullOrBlank()) return null
-    val trimmed = artworkUrl.trim()
-    if (trimmed == poster?.trim() && !rawPosterUrl.isNullOrBlank() && rawPosterUrl != poster) return rawPosterUrl
-    if (trimmed == background?.trim() && !rawBackgroundUrl.isNullOrBlank() && rawBackgroundUrl != background) return rawBackgroundUrl
-    return null
+private fun ContinueWatchingItem.fallbackUrlsForArtwork(
+    artworkUrl: String?,
+    isLandscape: Boolean,
+): Pair<String?, String?> {
+    val trimmed = artworkUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val rawPrimary = when (trimmed) {
+        poster?.trim() -> rawPosterUrl
+        background?.trim() -> rawBackgroundUrl
+        else -> null
+    }
+    val ordered = if (isLandscape) {
+        listOf(
+            rawPrimary,
+            background,
+            rawBackgroundUrl,
+            poster,
+            rawPosterUrl,
+            metahubFallbackArtworkUrl(parentMetaId, isLandscape = true),
+        )
+    } else {
+        listOf(
+            rawPrimary,
+            poster,
+            rawPosterUrl,
+            background,
+            rawBackgroundUrl,
+            metahubFallbackArtworkUrl(parentMetaId, isLandscape = false),
+        )
+    }
+    val fallbacks = buildList {
+        ordered.forEach { candidate ->
+            val clean = candidate?.trim()?.takeIf { it.isNotEmpty() }
+            if (clean != null && clean != trimmed && clean !in this) {
+                add(clean)
+            }
+        }
+    }
+    return fallbacks.getOrNull(0) to fallbacks.getOrNull(1)
 }
 
 @Composable
 private fun continuewatchingImageModel(
     imageUrl: String?,
     fallbackUrl: String?,
-): Any? {
-    val platformContext = coil3.compose.LocalPlatformContext.current
-    return remember(imageUrl, fallbackUrl, platformContext) {
-        if (imageUrl.isNullOrBlank()) return@remember imageUrl
-        if (!fallbackUrl.isNullOrBlank() && fallbackUrl != imageUrl) {
-            coil3.request.ImageRequest.Builder(platformContext)
-                .data(imageUrl)
-                .memoryCacheKeyExtras(
-                    mapOf(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to fallbackUrl)
-                )
-                .build()
-        } else {
-            imageUrl
-        }
-    }
-}
+    secondaryFallbackUrl: String? = null,
+): Any? = rememberArtworkImageModel(
+    primaryUrl = imageUrl,
+    fallbackUrl = fallbackUrl,
+    secondaryFallbackUrl = secondaryFallbackUrl,
+)
 
 internal fun ContinueWatchingItem.shouldBlurContinueWatchingArtwork(
     blurUnwatchedEpisodes: Boolean,
@@ -347,14 +375,22 @@ private fun HomeContinueWatchingSectionContent(
             )
         }
         val displayEntries = disintegration.sync(dataSourceKey, items, disintegrationRequest)
+        val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+        val activeProfileName = profileState.activeProfile?.name?.trim().orEmpty()
+        val resolvedTitle = title ?: if (activeProfileName.isNotEmpty()) {
+            "Continue Watching for $activeProfileName"
+        } else {
+            stringResource(Res.string.compose_settings_page_continue_watching)
+        }
 
         NuvioShelfSection(
-            title = title ?: stringResource(Res.string.compose_settings_page_continue_watching),
+            title = resolvedTitle,
             entries = displayEntries,
             modifier = modifier,
             headerHorizontalPadding = sectionPadding,
             rowContentPadding = PaddingValues(horizontal = sectionPadding),
-            itemSpacing = layout.itemGap,
+            itemSpacing = if (style == ContinueWatchingSectionStyle.Card && isDesktop) 10.dp else layout.itemGap,
+            groupKey = if (title == null) "shelf_continue_watching" else null,
             key = { entry -> entry.key },
             animatePlacement = true,
             state = listState,
@@ -693,15 +729,24 @@ private fun ContinueWatchingCard(
         null
     }
     val preferBackdropForNextUp = item.isNextUp && airDateText != null && !item.isReleaseAlert
-    val imageUrl = item.continueWatchingCardArtworkUrl(
+    val rawImageUrl = item.continueWatchingCardArtworkUrl(
         useEpisodeThumbnails = useEpisodeThumbnails,
         preferBackdropForNextUp = preferBackdropForNextUp,
     )
+    val imageUrl = rawImageUrl?.trim()?.takeIf { it.isNotEmpty() }
+        ?: metahubFallbackArtworkUrl(item.parentMetaId, isLandscape = true)
     val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
         blurUnwatchedEpisodes = blurNextUp,
         useEpisodeThumbnails = useEpisodeThumbnails,
-        artworkUrl = imageUrl,
+        artworkUrl = rawImageUrl,
     )
+    val (cwFallbackUrl, cwSecondaryFallbackUrl) = remember(item, imageUrl) {
+        item.fallbackUrlsForArtwork(imageUrl, isLandscape = true)
+    }
+    var imageLoadFailed by remember(imageUrl, cwFallbackUrl, cwSecondaryFallbackUrl) {
+        mutableStateOf(false)
+    }
+    val showFallbackArtwork = imageUrl == null || imageLoadFailed
     val episodeCode = if (item.seasonNumber != null && item.episodeNumber != null) {
         stringResource(Res.string.streams_episode_badge, item.seasonNumber, item.episodeNumber)
     } else {
@@ -717,7 +762,7 @@ private fun ContinueWatchingCard(
             .posterCardClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
-                zoomImageUrl = imageUrl,
+                zoomImageUrl = if (showFallbackArtwork) null else imageUrl,
                 zoomCornerRadius = cardMetrics.cornerRadius,
                 focusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" },
             )
@@ -730,11 +775,11 @@ private fun ContinueWatchingCard(
                 surface = NuvioCardDepthSurface.ContinueWatching,
             ),
     ) {
-        if (imageUrl != null) {
-            val cwFallbackUrl = item.fallbackUrlForArtwork(imageUrl)
+        if (imageUrl != null && !imageLoadFailed) {
             val cwImageModel = continuewatchingImageModel(
                 imageUrl = cloudLibraryDisplayArtworkUrl(imageUrl),
                 fallbackUrl = cwFallbackUrl,
+                secondaryFallbackUrl = cwSecondaryFallbackUrl,
             )
             AsyncImage(
                 model = cwImageModel,
@@ -762,8 +807,18 @@ private fun ContinueWatchingCard(
                             size = Size(size.width + 4f, (size.height - startY) + 4f),
                         )
                     },
+                onSuccess = { imageLoadFailed = false },
+                onError = { imageLoadFailed = true },
                 contentScale = ContentScale.Crop,
                 desktopAnimation = rememberAnimatedArtworkAnimation(),
+            )
+        }
+        if (showFallbackArtwork) {
+            NuvioFallbackPosterArtwork(
+                title = item.title,
+                modifier = Modifier.fillMaxSize(),
+                showTitle = false,
+                isLandscape = true,
             )
         }
         if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
@@ -917,16 +972,23 @@ private fun ContinueWatchingWideCard(
             ),
     ) {
         val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
+            ?.trim()?.takeIf { it.isNotEmpty() }
+            ?: metahubFallbackArtworkUrl(item.parentMetaId, isLandscape = false)
         val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
             blurUnwatchedEpisodes = blurNextUp,
             useEpisodeThumbnails = useEpisodeThumbnails,
             artworkUrl = artworkUrl,
         )
+        val (wideFallback1, wideFallback2) = remember(item, artworkUrl) {
+            item.fallbackUrlsForArtwork(artworkUrl, isLandscape = false)
+        }
         ArtworkPanel(
+            title = item.title,
             imageUrl = artworkUrl,
             width = layout.widePosterStripWidth,
             blurred = shouldBlurArtwork,
-            fallbackUrl = item.fallbackUrlForArtwork(artworkUrl),
+            fallbackUrl = wideFallback1,
+            secondaryFallbackUrl = wideFallback2,
             contentScale = if (item.isCloudLibraryItem()) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier.fillMaxHeight(),
         )
@@ -1032,10 +1094,20 @@ private fun ContinueWatchingPosterCard(
     onLongClick: (() -> Unit)?,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
-    val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
+    val rawImageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
+    val imageUrl = rawImageUrl?.trim()?.takeIf { it.isNotEmpty() }
+        ?: metahubFallbackArtworkUrl(item.parentMetaId, isLandscape = false)
+    val (posterFallbackUrl, posterSecondaryFallbackUrl) = remember(item, imageUrl) {
+        item.fallbackUrlsForArtwork(imageUrl, isLandscape = false)
+    }
+    var imageLoadFailed by remember(imageUrl, posterFallbackUrl, posterSecondaryFallbackUrl) {
+        mutableStateOf(false)
+    }
+    val showFallbackArtwork = imageUrl == null || imageLoadFailed
+    val cardFocusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" }
     Column(
         modifier = Modifier
-            .desktopPosterHoverScale()
+            .desktopPosterHoverScale(focusId = cardFocusId)
             .width(layout.posterCardWidth),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1052,22 +1124,22 @@ private fun ContinueWatchingPosterCard(
                 .posterCardClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    zoomImageUrl = imageUrl,
+                    zoomImageUrl = if (showFallbackArtwork) null else imageUrl,
                     zoomCornerRadius = cornerRadius,
                     hoverScaleEnabled = false,
-                    focusId = remember(item.parentMetaId, item.videoId) { "continue_watching_${item.parentMetaId}_${item.videoId}" },
+                    focusId = cardFocusId,
                 ),
         ) {
             val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
                 blurUnwatchedEpisodes = blurNextUp,
                 useEpisodeThumbnails = useEpisodeThumbnails,
-                artworkUrl = imageUrl,
+                artworkUrl = rawImageUrl,
             )
-            if (imageUrl != null) {
-                val cwFallbackUrl = item.fallbackUrlForArtwork(imageUrl)
+            if (imageUrl != null && !imageLoadFailed) {
                 val cwImageModel = continuewatchingImageModel(
                     imageUrl = cloudLibraryDisplayArtworkUrl(imageUrl),
-                    fallbackUrl = cwFallbackUrl,
+                    fallbackUrl = posterFallbackUrl,
+                    secondaryFallbackUrl = posterSecondaryFallbackUrl,
                 )
                 AsyncImage(
                     model = cwImageModel,
@@ -1075,8 +1147,18 @@ private fun ContinueWatchingPosterCard(
                     modifier = Modifier
                         .fillMaxSize()
                         .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
+                    onSuccess = { imageLoadFailed = false },
+                    onError = { imageLoadFailed = true },
                     contentScale = if (item.isCloudLibraryItem()) ContentScale.Fit else ContentScale.Crop,
                     desktopAnimation = rememberAnimatedArtworkAnimation(),
+                )
+            }
+            if (showFallbackArtwork) {
+                NuvioFallbackPosterArtwork(
+                    title = item.title,
+                    modifier = Modifier.fillMaxSize(),
+                    showTitle = true,
+                    isLandscape = false,
                 )
             }
             if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
@@ -1165,22 +1247,29 @@ private fun ContinueWatchingPosterCard(
 
 @Composable
 private fun ArtworkPanel(
+    title: String,
     imageUrl: String?,
     width: Dp,
     blurred: Boolean = false,
     fallbackUrl: String? = null,
+    secondaryFallbackUrl: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     modifier: Modifier = Modifier,
 ) {
+    var imageLoadFailed by remember(imageUrl, fallbackUrl, secondaryFallbackUrl) {
+        mutableStateOf(false)
+    }
+    val showFallbackArtwork = imageUrl == null || imageLoadFailed
     Box(
         modifier = modifier
             .width(width)
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        if (imageUrl != null) {
+        if (imageUrl != null && !imageLoadFailed) {
             val artworkModel = continuewatchingImageModel(
                 imageUrl = cloudLibraryDisplayArtworkUrl(imageUrl),
                 fallbackUrl = fallbackUrl,
+                secondaryFallbackUrl = secondaryFallbackUrl,
             )
             AsyncImage(
                 model = artworkModel,
@@ -1188,8 +1277,18 @@ private fun ArtworkPanel(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (blurred) Modifier.blur(18.dp) else Modifier),
+                onSuccess = { imageLoadFailed = false },
+                onError = { imageLoadFailed = true },
                 contentScale = contentScale,
                 desktopAnimation = rememberAnimatedArtworkAnimation(),
+            )
+        }
+        if (showFallbackArtwork) {
+            NuvioFallbackPosterArtwork(
+                title = title,
+                modifier = Modifier.fillMaxSize(),
+                showTitle = false,
+                isLandscape = false,
             )
         }
     }

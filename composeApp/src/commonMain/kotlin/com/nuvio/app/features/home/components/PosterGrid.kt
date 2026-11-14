@@ -17,7 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,9 +31,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.LocalControllerGroupKey
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
-import coil3.compose.AsyncImage
+import com.nuvio.app.core.poster.metahubFallbackArtworkUrl
+import com.nuvio.app.core.poster.rememberArtworkImageModel
 import com.nuvio.app.core.ui.NuvioAsyncImage
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.NuvioFallbackPosterArtwork
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.SkeletonPoster
 import com.nuvio.app.core.ui.desktopPosterHoverScale
@@ -137,9 +142,26 @@ private fun PosterGridTile(
         onLongClick = onLongClick,
         modifier = modifier,
     ) {
+        val cardFocusId = remember(ambientGroupKey, item.id, item.type) {
+            if (!ambientGroupKey.isNullOrEmpty()) "poster_grid_${ambientGroupKey}_${item.stableKey()}"
+            else "poster_grid_${item.stableKey()}"
+        }
+        val cleanPoster = item.poster?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanRawPoster = item.rawPosterUrl?.trim()?.takeIf { it.isNotEmpty() }
+        val metahubFallback = remember(item.id) { metahubFallbackArtworkUrl(item.id) }
+        val resolvedPrimaryUrl = cleanPoster ?: cleanRawPoster ?: metahubFallback
+        val imageModel = rememberArtworkImageModel(
+            primaryUrl = cleanPoster,
+            fallbackUrl = cleanRawPoster,
+            secondaryFallbackUrl = metahubFallback,
+        )
+        var imageLoadFailed by remember(resolvedPrimaryUrl, cleanRawPoster, metahubFallback) {
+            mutableStateOf(false)
+        }
+        val showFallbackArtwork = resolvedPrimaryUrl == null || imageLoadFailed
         Column(
             modifier = Modifier
-                .desktopPosterHoverScale()
+                .desktopPosterHoverScale(focusId = cardFocusId)
                 .fillMaxWidth()
                 .then(it),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -151,13 +173,10 @@ private fun PosterGridTile(
                     .posterCardClickable(
                         onClick = onClick,
                         onLongClick = onLongClick,
-                        zoomImageUrl = item.poster,
+                        zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
                         zoomCornerRadius = cornerRadiusDp.dp,
                         hoverScaleEnabled = false,
-                        focusId = remember(ambientGroupKey, item.id, item.type) {
-                            if (!ambientGroupKey.isNullOrEmpty()) "poster_grid_${ambientGroupKey}_${item.stableKey()}"
-                            else "poster_grid_${item.stableKey()}"
-                        },
+                        focusId = cardFocusId,
                     )
                     .nuvioCardDepth(
                         shape = RoundedCornerShape(cornerRadiusDp.dp),
@@ -166,37 +185,24 @@ private fun PosterGridTile(
                     .clip(RoundedCornerShape(cornerRadiusDp.dp))
                     .background(MaterialTheme.colorScheme.surface),
             ) {
-                if (item.poster != null) {
-                    val platformContext = coil3.compose.LocalPlatformContext.current
-                    val hasFallback = !item.rawPosterUrl.isNullOrBlank() && item.rawPosterUrl != item.poster
-                    val imageModel = remember(item.poster, item.rawPosterUrl, platformContext) {
-                        if (hasFallback) {
-                            coil3.request.ImageRequest.Builder(platformContext)
-                                .data(item.poster)
-                                .memoryCacheKeyExtras(
-                                    mapOf(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to item.rawPosterUrl!!)
-                                )
-                                .build()
-                        } else {
-                            item.poster
-                        }
-                    }
-                    if (isDesktop) {
-                        NuvioAsyncImage(
-                            model = imageModel,
-                            contentDescription = item.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            desktopAnimation = rememberAnimatedArtworkAnimation(),
-                        )
-                    } else {
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = item.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                        )
-                    }
+                if (imageModel != null && !imageLoadFailed) {
+                    NuvioAsyncImage(
+                        model = imageModel,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        onSuccess = { imageLoadFailed = false },
+                        onError = { imageLoadFailed = true },
+                        contentScale = ContentScale.Crop,
+                        desktopAnimation = rememberAnimatedArtworkAnimation(),
+                    )
+                }
+                if (showFallbackArtwork) {
+                    NuvioFallbackPosterArtwork(
+                        title = item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        showTitle = true,
+                        isLandscape = item.posterShape == PosterShape.Landscape,
+                    )
                 }
                 NuvioPosterWatchedOverlay(isWatched = isWatched)
             }

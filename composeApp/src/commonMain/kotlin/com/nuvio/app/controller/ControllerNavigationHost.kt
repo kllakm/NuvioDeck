@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -42,8 +43,14 @@ fun ControllerNavigationHost(
         else -> currentRoute::class.simpleName ?: ""
     }
 
+    val routeAndTabKey = "$routeIdentity:$selectedTab"
+    remember(routeAndTabKey) {
+        ControllerFocusEngine.onRouteOrTabChanged(routeAndTabKey, focusImmediately = false)
+        true
+    }
+
     LaunchedEffect(currentRoute, selectedTab, isModalOverlayOpen) {
-        ControllerFocusEngine.onRouteOrTabChanged("$routeIdentity:$selectedTab")
+        ControllerFocusEngine.onRouteOrTabChanged(routeAndTabKey)
         val context = when {
             isModalOverlayOpen -> ControllerScreenContext(
                 screenType = ControllerScreenType.ModalOverlay,

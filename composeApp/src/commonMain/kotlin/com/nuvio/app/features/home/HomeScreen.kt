@@ -93,11 +93,17 @@ import com.nuvio.app.features.watchprogress.continueWatchingEntries
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.features.watchprogress.toUpNextContinueWatchingItem
 import com.nuvio.app.core.ui.DisintegrationRequest
+import com.nuvio.app.core.poster.CustomPosterScreen
+import com.nuvio.app.core.poster.CustomPosterUrlRepository
+import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.core.poster.withCustomPosterUrls
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.watching.domain.WatchingContentRef
 import com.nuvio.app.features.watching.domain.isReleasedBy
+import com.nuvio.app.features.catalog.CatalogTarget
 import com.nuvio.app.features.collection.CollectionRepository
+import com.nuvio.app.features.library.LibraryRepository
+import com.nuvio.app.features.library.toMetaPreview
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.home.components.HomeCollectionRowSection
 import kotlinx.coroutines.Dispatchers
@@ -131,6 +137,7 @@ fun HomeScreen(
     onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     continueWatchingDisintegrationRequest: DisintegrationRequest<String>? = null,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    onOpenLibraryClick: (() -> Unit)? = null,
     onFirstCatalogRendered: (() -> Unit)? = null,
 ) {
     LaunchedEffect(Unit) {
@@ -139,6 +146,7 @@ fun HomeScreen(
             CollectionRepository.initialize()
             ContinueWatchingPreferencesRepository.ensureLoaded()
             HomeCatalogSettingsRepository.snapshot()
+            LibraryRepository.ensureLoaded()
             WatchedRepository.ensureLoaded()
             WatchProgressRepository.ensureLoaded()
         }
@@ -172,6 +180,7 @@ fun HomeScreen(
     val fullyWatchedSeriesKeys by WatchedRepository.fullyWatchedSeriesKeys.collectAsStateWithLifecycle()
     val watchProgressUiState by WatchProgressRepository.uiState.collectAsStateWithLifecycle()
     val effectiveWatchProgressSource = watchProgressUiState.source
+    val libraryUiState by LibraryRepository.uiState.collectAsStateWithLifecycle()
     val cloudLibraryUiState by CloudLibraryRepository.uiState.collectAsStateWithLifecycle()
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     val trackingSettingsUiState by remember {
@@ -521,6 +530,26 @@ fun HomeScreen(
             if (com.nuvio.app.core.poster.CustomPosterScreen.CONTINUE_WATCHING in screens) pattern else ""
         }
     }.collectAsStateWithLifecycle(initialValue = com.nuvio.app.core.poster.CustomPosterUrlRepository.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.CONTINUE_WATCHING))
+    val homePosterPattern by CustomPosterUrlRepository.let { repo ->
+        repo.ensureLoaded()
+        kotlinx.coroutines.flow.combine(repo.pattern, repo.enabledScreens) { pattern, screens ->
+            if (CustomPosterScreen.HOME in screens) pattern else ""
+        }
+    }.collectAsStateWithLifecycle(initialValue = CustomPosterUrlRepository.patternForScreen(CustomPosterScreen.HOME))
+    val myListAllItems = remember(libraryUiState.items, homeSettingsUiState.showMyListRow, homePosterPattern) {
+        if (!homeSettingsUiState.showMyListRow || libraryUiState.items.isEmpty()) {
+            emptyList()
+        } else {
+            libraryUiState.items
+                .sortedByDescending { it.savedAtEpochMs }
+                .map { item ->
+                    item.toMetaPreview().let { preview ->
+                        if (homePosterPattern.isNotBlank()) preview.withCustomPosterUrl(homePosterPattern) else preview
+                    }
+                }
+        }
+    }
+    val hasMyListRow = myListAllItems.isNotEmpty()
 
     val allContinueWatchingItems = remember(
         visibleContinueWatchingEntries,
@@ -949,6 +978,28 @@ fun HomeScreen(
         } else {
             HOME_CATALOG_PREVIEW_LIMIT
         }
+        val myListEntries = remember(myListAllItems, homeCatalogPreviewLimit) {
+            myListAllItems.take(homeCatalogPreviewLimit)
+        }
+        val myListSection = remember(myListAllItems) {
+            if (myListAllItems.isEmpty()) {
+                null
+            } else {
+                HomeCatalogSection(
+                    key = HOME_MY_LIST_SECTION_KEY,
+                    title = "My List",
+                    subtitle = "",
+                    addonName = "",
+                    target = CatalogTarget.Library(
+                        contentType = "all",
+                        sectionType = "my_list",
+                    ),
+                    items = myListAllItems,
+                    availableItemCount = myListAllItems.size,
+                    hasMore = false,
+                )
+            }
+        }
         val continueWatchingLayout = rememberContinueWatchingLayout(maxWidth.value, posterCardStyle)
         val nativeBottomNavigationOverlayHeight =
             if (LocalNuvioBottomNavigationOverlayPadding.current > 0.dp) {
@@ -1053,6 +1104,16 @@ fun HomeScreen(
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
                     )
+                    homeMyListSection(
+                        section = myListSection,
+                        entries = myListEntries,
+                        sectionPadding = homeSectionPadding,
+                        watchedKeys = watchedUiState.watchedKeys,
+                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                        onOpenLibraryClick = onOpenLibraryClick,
+                        onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
+                    )
                     items(
                         count = 3,
                         key = { "home_skeleton_$it" },
@@ -1077,6 +1138,16 @@ fun HomeScreen(
                         onItemClick = onContinueWatchingClick,
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
+                    )
+                    homeMyListSection(
+                        section = myListSection,
+                        entries = myListEntries,
+                        sectionPadding = homeSectionPadding,
+                        watchedKeys = watchedUiState.watchedKeys,
+                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                        onOpenLibraryClick = onOpenLibraryClick,
+                        onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
                     )
                     item(key = "home_empty", contentType = "empty") {
                         when {
@@ -1123,7 +1194,8 @@ fun HomeScreen(
 
                 homeUiState.sections.isEmpty() && homeUiState.heroItems.isEmpty() &&
                     (!continueWatchingPreferences.isVisible || !hasContinueWatchingRows) &&
-                    !hasRenderableCollectionRows -> {
+                    !hasRenderableCollectionRows &&
+                    !hasMyListRow -> {
                     item(key = "home_empty", contentType = "empty") {
                         val loadFailed = !homeUiState.errorMessage.isNullOrBlank()
                         if (networkStatusUiState.isOfflineLike && loadFailed) {
@@ -1179,6 +1251,16 @@ fun HomeScreen(
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
                     )
+                    homeMyListSection(
+                        section = myListSection,
+                        entries = myListEntries,
+                        sectionPadding = homeSectionPadding,
+                        watchedKeys = watchedUiState.watchedKeys,
+                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                        onOpenLibraryClick = onOpenLibraryClick,
+                        onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
+                    )
 
                     keyedEnabledHomeItems.forEach { keyedSettingsItem ->
                         val settingsItem = keyedSettingsItem.value
@@ -1199,16 +1281,19 @@ fun HomeScreen(
                             val section = sectionsMap[settingsItem.key]
                             if (section != null && section.items.isNotEmpty()) {
                                 item(key = keyedSettingsItem.lazyKey, contentType = "catalog") {
+                                    val isTop10 = section.isTop10Catalog()
+                                    val effectiveRowLimit = if (isTop10) TOP_10_ITEM_LIMIT else homeCatalogPreviewLimit
                                     HomeCatalogRowSection(
                                         section = section,
-                                        entries = section.items.take(homeCatalogPreviewLimit),
+                                        entries = section.items.take(effectiveRowLimit),
                                         modifier = Modifier.padding(bottom = 12.dp),
                                         sectionPadding = homeSectionPadding,
-                                        onViewAllClick = if (section.items.size > homeCatalogPreviewLimit || section.canOpenCatalog(homeCatalogPreviewLimit)) {
+                                        onViewAllClick = if (!isTop10 && (section.items.size > effectiveRowLimit || section.canOpenCatalog(effectiveRowLimit))) {
                                             onCatalogClick?.let { { it(section) } }
                                         } else {
                                             null
                                         },
+                                        isTop10 = isTop10,
                                         watchedKeys = watchedUiState.watchedKeys,
                                         fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                         onPosterClick = onPosterClick,
@@ -1279,9 +1364,38 @@ private fun LazyListScope.homeContinueWatchingSections(
     }
 }
 
+private fun LazyListScope.homeMyListSection(
+    section: HomeCatalogSection?,
+    entries: List<MetaPreview>,
+    sectionPadding: Dp,
+    watchedKeys: Set<String>,
+    fullyWatchedSeriesKeys: Set<String>,
+    onOpenLibraryClick: (() -> Unit)?,
+    onPosterClick: ((MetaPreview) -> Unit)?,
+    onPosterLongClick: ((MetaPreview) -> Unit)?,
+) {
+    if (section == null || entries.isEmpty()) return
+
+    item(key = HOME_MY_LIST_SECTION_KEY, contentType = "catalog") {
+        HomeCatalogRowSection(
+            section = section,
+            entries = entries,
+            modifier = Modifier.padding(bottom = 12.dp),
+            sectionPadding = sectionPadding,
+            onViewAllClick = onOpenLibraryClick,
+            isTop10 = false,
+            watchedKeys = watchedKeys,
+            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+            onPosterClick = onPosterClick,
+            onPosterLongClick = onPosterLongClick,
+        )
+    }
+}
+
 private const val HOME_CATALOG_PREVIEW_LIMIT = 18
 private const val HOME_CONTINUE_WATCHING_SECTION_KEY = "home_continue_watching"
 private const val HOME_UPCOMING_SECTION_KEY = "home_upcoming"
+private const val HOME_MY_LIST_SECTION_KEY = "home_my_list"
 internal const val HomeContinueWatchingMaxRecentProgressItems = 300
 internal const val HomeNextUpInitialResolutionLimit = 32
 private const val NEXT_UP_RESOLUTION_CONCURRENCY = 4

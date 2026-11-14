@@ -21,9 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.jetbrains_sans_bold
-import nuvio.composeapp.generated.resources.jetbrains_sans_regular
-import nuvio.composeapp.generated.resources.jetbrains_sans_semibold
+import nuvio.composeapp.generated.resources.netflix_sans_bold
+import nuvio.composeapp.generated.resources.netflix_sans_thin
 import org.jetbrains.compose.resources.Font
 
 val LocalAppTheme = staticCompositionLocalOf { AppTheme.WHITE }
@@ -67,66 +66,81 @@ private fun buildColorScheme(palette: ThemeColorPalette, amoled: Boolean = false
 private val JetBrainsSans: FontFamily
     @Composable
     get() = FontFamily(
-        Font(Res.font.jetbrains_sans_bold, FontWeight.Bold, FontStyle.Normal),
-        Font(Res.font.jetbrains_sans_semibold, FontWeight.SemiBold, FontStyle.Normal),
-        Font(Res.font.jetbrains_sans_regular, FontWeight.Normal, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.Bold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.ExtraBold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.Black, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.SemiBold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Medium, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Normal, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Light, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.ExtraLight, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Thin, FontStyle.Normal),
     )
 
 private val NuvioTypography: Typography
     @Composable
-    get() = Typography(
-        displayLarge = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.pageDisplay,
-            lineHeight = NuvioTokens.LineHeight.pageDisplay,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = NuvioTokens.LetterSpacing.pageDisplay,
-        ),
-        headlineLarge = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.headline,
-            lineHeight = NuvioTokens.LineHeight.headline,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = NuvioTokens.LetterSpacing.headline,
-        ),
-        titleLarge = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.titleSm,
-            lineHeight = NuvioTokens.LineHeight.materialTitleLarge,
-            fontWeight = FontWeight.SemiBold,
-        ),
-        titleMedium = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.bodyLg,
-            lineHeight = NuvioTokens.LineHeight.bodyMd,
-            fontWeight = FontWeight.SemiBold,
-        ),
-        bodyLarge = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.bodyApp,
-            lineHeight = NuvioTokens.LineHeight.bodyApp,
-            fontWeight = FontWeight.Normal,
-        ),
-        bodyMedium = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.bodyMd,
-            lineHeight = NuvioTokens.LineHeight.bodyMd,
-            fontWeight = FontWeight.Normal,
-        ),
-        labelLarge = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.bodyMd,
-            lineHeight = NuvioTokens.LineHeight.bodySm,
-            fontWeight = FontWeight.SemiBold,
-        ),
-        labelMedium = TextStyle(
-            fontFamily = JetBrainsSans,
-            fontSize = NuvioTokens.Type.labelSm,
-            lineHeight = NuvioTokens.LineHeight.labelXs,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = NuvioTokens.LetterSpacing.label,
-        ),
-    )
+    get() = Typography().run {
+        copy(
+            displayLarge = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.pageDisplay,
+                lineHeight = NuvioTokens.LineHeight.pageDisplay,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = NuvioTokens.LetterSpacing.pageDisplay,
+            ),
+            displayMedium = displayMedium.copy(fontFamily = JetBrainsSans),
+            displaySmall = displaySmall.copy(fontFamily = JetBrainsSans),
+            headlineLarge = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.headline,
+                lineHeight = NuvioTokens.LineHeight.headline,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = NuvioTokens.LetterSpacing.headline,
+            ),
+            headlineMedium = headlineMedium.copy(fontFamily = JetBrainsSans),
+            headlineSmall = headlineSmall.copy(fontFamily = JetBrainsSans),
+            titleLarge = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.titleSm,
+                lineHeight = NuvioTokens.LineHeight.materialTitleLarge,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            titleMedium = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.bodyLg,
+                lineHeight = NuvioTokens.LineHeight.bodyMd,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            titleSmall = titleSmall.copy(fontFamily = JetBrainsSans),
+            bodyLarge = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.bodyApp,
+                lineHeight = NuvioTokens.LineHeight.bodyApp,
+                fontWeight = FontWeight.Normal,
+            ),
+            bodyMedium = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.bodyMd,
+                lineHeight = NuvioTokens.LineHeight.bodyMd,
+                fontWeight = FontWeight.Normal,
+            ),
+            bodySmall = bodySmall.copy(fontFamily = JetBrainsSans),
+            labelLarge = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.bodyMd,
+                lineHeight = NuvioTokens.LineHeight.bodySm,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            labelMedium = TextStyle(
+                fontFamily = JetBrainsSans,
+                fontSize = NuvioTokens.Type.labelSm,
+                lineHeight = NuvioTokens.LineHeight.labelXs,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = NuvioTokens.LetterSpacing.label,
+            ),
+            labelSmall = labelSmall.copy(fontFamily = JetBrainsSans),
+        )
+    }
 
 private val NuvioTypeTokens: NuvioTypeScale
     @Composable
@@ -165,19 +179,19 @@ private val NuvioTypeTokens: NuvioTypeScale
             fontFamily = JetBrainsSans,
             fontSize = NuvioTokens.Type.titleSm,
             lineHeight = NuvioTokens.LineHeight.titleSm,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         ),
         titleMd = TextStyle(
             fontFamily = JetBrainsSans,
             fontSize = NuvioTokens.Type.titleMd,
             lineHeight = NuvioTokens.LineHeight.titleMd,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         ),
         titleLg = TextStyle(
             fontFamily = JetBrainsSans,
             fontSize = NuvioTokens.Type.titleLg,
             lineHeight = NuvioTokens.LineHeight.titleLg,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         ),
         displaySm = TextStyle(
             fontFamily = JetBrainsSans,

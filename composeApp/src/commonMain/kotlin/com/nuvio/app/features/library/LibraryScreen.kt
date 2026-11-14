@@ -89,6 +89,7 @@ import com.nuvio.app.features.cloud.CloudLibraryRepository
 import com.nuvio.app.features.cloud.CloudLibraryUiState
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import com.nuvio.app.features.servers.ServerRepository
@@ -283,6 +284,12 @@ fun LibraryScreen(
         }
     }
 
+    val catalogSettings by remember {
+        HomeCatalogSettingsRepository.snapshot()
+        HomeCatalogSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val sectionPreviewLimit = if (isDesktop) catalogSettings.rowItemLimit else LIBRARY_SECTION_PREVIEW_LIMIT
+
     val disintegration = remember { LibraryDisintegrationHolder() }
     val librarySectionsDisplay = if (
         sourceMode == LibraryViewMode.Saved &&
@@ -293,7 +300,7 @@ fun LibraryScreen(
         disintegration.sync(
             sourceMode = uiState.sourceMode,
             sections = sortedSections,
-            previewLimit = LIBRARY_SECTION_PREVIEW_LIMIT,
+            previewLimit = sectionPreviewLimit,
             request = disintegrationRequest,
         )
     } else {
@@ -523,6 +530,7 @@ fun LibraryScreen(
                         when (displaySettings.layoutMode) {
                             LibraryLayoutMode.HORIZONTAL -> librarySections(
                                 displaySections = librarySectionsDisplay,
+                                sectionPreviewLimit = sectionPreviewLimit,
                                 watchedKeys = watchedUiState.watchedKeys,
                                 fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 sortOption = effectiveSortOption,
@@ -1255,6 +1263,7 @@ private enum class LibraryViewMode {
 
 private fun LazyListScope.librarySections(
     displaySections: List<LibraryDisplaySection>,
+    sectionPreviewLimit: Int,
     watchedKeys: Set<String>,
     fullyWatchedSeriesKeys: Set<String>,
     sortOption: LibrarySortOption,
@@ -1275,7 +1284,7 @@ private fun LazyListScope.librarySections(
             headerHorizontalPadding = 16.dp,
             rowContentPadding = PaddingValues(horizontal = 16.dp),
             onViewAllClick = section.source
-                ?.takeIf { it.items.size > LIBRARY_SECTION_PREVIEW_LIMIT }
+                ?.takeIf { it.items.size > sectionPreviewLimit }
                 ?.let { source -> onSectionViewAllClick?.let { { it(source, sortOption) } } },
             viewAllPillSize = NuvioViewAllPillSize.Compact,
             key = { entry -> entry.globalKey },

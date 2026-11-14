@@ -94,7 +94,10 @@ private val PinKeypadNetflixFont: FontFamily
     get() = FontFamily(
         Font(Res.font.netflix_sans_thin, FontWeight.Normal, FontStyle.Normal),
         Font(Res.font.netflix_sans_thin, FontWeight.Medium, FontStyle.Normal),
-        Font(Res.font.netflix_sans_thin, FontWeight.SemiBold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.SemiBold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_bold, FontWeight.Bold, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Light, FontStyle.Normal),
+        Font(Res.font.netflix_sans_thin, FontWeight.Thin, FontStyle.Normal),
     )
 
 @OptIn(ExperimentalMaterial3Api::class)

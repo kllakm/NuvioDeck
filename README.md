@@ -45,15 +45,15 @@
 
 <div align="center">
   <img src="screenshots/01-home-hero.jpg" alt="NuvioDeck Home Screen & Hero Banner" width="100%" />
-  <p><em>Full-width Netflix-style Top Navigation Bar over the Hero Banner, Continue Watching shelf, and dynamic Xbox-style Controller Hint Toolbar.</em></p>
+  <p><em>Full-width Netflix-style Top Navigation Bar over the Hero Banner, Continue Watching shelf, and My List row.</em></p>
 </div>
 
 <br />
 
-| **Catalog Shelves & In-Line "View All" Card** | **"New Arrivals" Notification Center** |
+| **Catalog Shelves & In-Line "View All" Card** | **"New Arrivals" Notification Center & Top 10 Ranked Shelves** |
 | :---: | :---: |
-| <img src="screenshots/02-home-shelves-view-all.jpg" alt="Home Shelves & In-Line View All Card" width="100%" /> | <img src="screenshots/03-new-arrivals-notifications.jpg" alt="New Arrivals Notification Center" width="100%" /> |
-| *Customizable row poster limit (`10–30`, default `15`) with an in-line semi-transparent **View All** poster card, specular cover sheen, and sleek `1.6dp` selection border.* | *10-item FIFO **New Arrivals** dropdown surfacing recently aired watchlist/history episodes and new movies with verified `1080p` / `4K` streams.* |
+| <img src="screenshots/02-home-shelves-view-all.jpg" alt="Home Shelves & In-Line View All Card" width="100%" /> | <img src="screenshots/03-new-arrivals-notifications.jpg" alt="New Arrivals Notification Center and Top 10 Ranked Shelves" width="100%" /> |
+| *Customizable row poster limit (`10–30`, default `15`) with an in-line semi-transparent **View All** poster card, **Netflix Sans** typography, and **Frosted Glass** ambient backdrop.* | *10-item FIFO **New Arrivals** dropdown surfacing recent episodes/movies with verified `1080p` / `4K` streams above Netflix-style **Top 10** ranked portrait shelves.* |
 
 | **Search & Discover Grid** | **Series Details & Season Selection** |
 | :---: | :---: |
@@ -113,13 +113,17 @@
 - **Multi-Backend Hardware Polling & Hot-Plugging:** Low-latency JNA polling across **XInput** (`XInput1_4.dll`, `XInput9_1_0.dll`, `XInput1_3.dll`) and **Windows Multimedia / DirectInput** (`winmm.dll`) with automatic device deduplication and normalization for Xbox, Sony DualSense / DualShock 4, Nintendo Switch Pro / Joy-Con, and built-in handheld controllers.
 - **Zero-Friction Auto-Hide Mouse Cursor:** Immediately hides the system cursor (via a `1x1` transparent cursor and Win32 stationary cursor refresh) and clears passive hover states the moment any controller button, trigger, or stick is used—and restores the cursor as soon as the physical mouse moves (`>= 6px`).
 - **Selected Artwork Brightening, Specular Cover Sheen & Sleek `1.6dp` Focus Ring:**
-  - Focusing a poster or media card with the controller applies a smooth scale-up transition, an subtle brightening wash (`6.5%` white), and a diagonal specular sheen gradient clipped to the card's rounded corners, framed by a refined **`1.6dp` solid white selection border** and diffused outer glow.
+  - Focusing a poster or media card with the controller applies a smooth scale-up transition scaling **both the poster artwork and its title/subtitle labels below together** (`1.07x`, matching mouse hover), a subtle brightening wash (`6.5%` white), and a diagonal specular sheen gradient clipped to the card's rounded corners, framed by a refined **`1.6dp` solid white selection border** and diffused outer glow.
   - **Unified White Primary Button Focus Effect (`#0D0E15` + Gradient Sheen + Single White Focus Border):** Every controller-focused white primary action pill across the app—including **Play** on Details, **View Details** on the Home hero banner, **Yes** on confirmation/exit dialogs, **Sign In / Create Account**, Profile Edit, Addons, Collections, Account, and Tracking/Server actions—consistently inverts to a sleek dark fill (`#0D0E15`), crisp white label, inside diagonal gradient sheen, and a single `1.6dp` white focus border (`ControllerWhiteButtonStyle`).
   - **Season Poster-Only Selection:** On series detail pages, the selection border and scale effect wrap strictly around the season poster artwork (excluding the `"Season 1"` text label underneath).
   - **Synchronized Discover Card Borders:** Card depth borders in the Discover poster grid scale in lockstep with the selected poster artwork.
-- **In-Line "View All" Poster Card & Customizable Row Poster Limit (`10–30`):**
-  - Replaces the hard-to-reach header chevron with a full-size, semi-transparent **"View All"** poster card at the end of each catalog row with deterministic ID stability so navigating back from catalog folders returns focus directly to the "View All" card.
-  - Includes a persistent **Row Poster Limit** slider (`10` to `30` posters per row, defaulting to **`15`**) under **Settings → Layout → Homescreen** styled with a pure accent fill (no white outer selection border) and adjustable via mouse drag or controller D-Pad `Left`/`Right`.
+- **In-Line "View All" Poster Card, Top 10 Ranked Shelves & Customizable Row Poster Limit (`10–30`):**
+  - Replaces the hard-to-reach header chevron with a full-size, semi-transparent **"View All"** poster card at the end of each catalog row—only appearing on Desktop Home, Library, and Collection Folder rows when actual additional items exist beyond the user's configured row limit.
+  - **Netflix-Style Top 10 Ranked Rows:** Automatically detects Top 10 catalogs and folders (`Top 10`, `Top Ten`, `top10` across row headings, folder titles, or addon catalog IDs) and renders each top-10 portrait poster behind bold **Netflix Sans** outlined metallic-grey rank numerals (`1`–`10`) that gradually fade to `0` opacity at the poster edge (over opaque poster footprints with full-opacity row siblings so numerals never bleed through artwork), capped at 10 entries.
+  - **Personalised "Continue Watching" Row & Consistent Landscape Sizing:** Displays `"Continue Watching for <Profile Name>"` using the active profile name, and matches Continue Watching landscape card dimensions pixel-for-pixel with standard landscape catalog posters (`1.0x` scale and matching `10dp` desktop spacing).
+  - **"My List" Home Row & Toggle:** Includes a persistent **My List** toggle under **Settings → Layout → Homescreen** (enabled by default) that renders your Library immediately below Continue Watching (or at the very top if Continue Watching is hidden or empty), sorted most recently added first, adhering to poster vs. landscape card style preferences and the Row Poster Limit, with **"View All"** navigating directly to the **Library** tab for search and filtering.
+  - **Missing Artwork Recovery & Gradient Glass Fallback Tiles:** Automatically chains secondary IMDb Metahub artwork recovery (`images.metahub.space`) whenever an addon returns missing or failed poster/backdrop URLs, and renders a deterministic multi-hue dark-glass gradient tile displaying the title in bold **Netflix Sans** if no artwork image is available.
+  - Includes a persistent **Row Poster Limit** slider (`10` to `30` posters per row, defaulting to **`15`**) under **Settings → Layout → Homescreen** styled with a pure accent fill (no white outer selection border) and adjustable via mouse drag or controller D-Pad `Left`/`Right` across Home, Library shelves, and Collection Folders.
   - Fully controller-selectable **Hero Catalogs** header with accent selection fill allowing users to expand and collapse hero source toggles with controller `A`.
   - Seamless D-Pad `Right` navigation from the Settings sidebar always lands cleanly at the very top of the right content pane.
 - **Single-Press Horizontal Poster Reveal & Directional Vertical Scroll Guard:**
@@ -158,9 +162,9 @@
 - **512MB Persistent Disk Image Cache, Async Hover Preloading & High-Refresh VSync:** Okio-backed disk cache (`%LOCALAPPDATA%\NuvioDeck\Cache\image_cache`), hardware trilinear mipmapping (`FilterQuality.Medium`), asynchronous scroll-settled background preloading (`HoverPreviewAssetPrefetcher` warming landscape banners, logos, and posters with bounded concurrency and instant hover boost using matching decode/animation cache keys so hover popups appear without waiting), low-pause G1GC (`-XX:+UseG1GC -XX:MaxGCPauseMillis=16`), and unlocked VSync (`-Dskiko.fps=-1 -Dskiko.vsync=true`) for 90Hz / 120Hz / 144Hz displays.
 - **Isolated Side-by-Side Installation:** Uses a dedicated `NuvioDeck` application identity, unique Windows MSI `upgradeUuid`, and isolated data directories (`%APPDATA%\NuvioDeck` and `%LOCALAPPDATA%\NuvioDeck\Cache`) so NuvioDeck and upstream NuvioDesktop can run side-by-side without conflict.
 - **Unified Monochrome Stream Selection (App & Player OSD):** Both the main-app stream list and the in-player OSD stream selector share matching card styling (`12dp` radius, `0.32f` accent focus fill, `0.52f` active border) with flat monochrome vector/SVG metadata icons replacing emoji markers.
-- **Clean Row Typography & Continue Watching Defaults:** Home (`Continue Watching`, catalog, and collection shelves) and Library row headings share unified, slightly larger `22sp` (`titleMd`) section headings, while Search `"Discover"` retains its standalone display header. New installs default **Prefer Episode Thumbnails** in Continue Watching to **OFF** (showing clean series poster/backdrop artwork) and **Hover Preview Open Delay** to **`0.5s`**.
-- **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, hide redundant Navigation Bar layout/sidebar style rows on Desktop where the top toolbar is always active, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, and center **Folders in Collections** multi-row grids reliably in a single D-Pad press during both `Up` and `Down` traversal using root-viewport bounds and unclipped item geometry.
-- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.27`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
+- **App-Wide Netflix Sans Typography, Row Headings & Continue Watching Defaults:** Bundles both **Netflix Sans** weights (**`netflix_sans_bold.ttf`** for bold headings, `Bold`/`ExtraBold`/`Black`/`SemiBold` UI weights, Top 10 numerals, and bold PIN keys; **`netflix_sans_thin.ttf`** for body copy, movie descriptions, subtitles, badges, and standard/medium PIN keys) across the entire Material 3 & `NuvioTypeScale` hierarchy. Home (`Continue Watching for <Profile Name>`, `My List`, catalog, and collection shelves) and Library row headings share bold `22sp` (`titleMd`) section headings, while Search `"Discover"` retains its standalone display header. New installs default **Prefer Episode Thumbnails** in Continue Watching to **OFF** (showing clean series poster/backdrop artwork) and **Hover Preview Open Delay** to **`0.5s`**.
+- **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, hide redundant Navigation Bar layout/sidebar style rows on Desktop where the top toolbar is always active, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, center **Folders in Collections** multi-row grids cleanly, always open folders scrolled at the very top (synchronizing route/tab focus before exit disposal and waiting for ordered tab loads), and move strictly by horizontal spatial alignment on D-Pad `Up`/`Down` across content rows without snapping back to old column memory.
+- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.29`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
 
 ---
 
@@ -172,9 +176,9 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 ## 📦 Installation & Downloads
 
-Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.27.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
+Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.29.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.27.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.29.msi`) or Standalone Executable (`NuvioDeck.exe`)
 
 ---
 
@@ -205,7 +209,7 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.27.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.29.msi`
 
 ---
 

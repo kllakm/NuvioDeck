@@ -196,6 +196,7 @@ internal data class AppTabActions(
     val onCollectionsSettingsClick: () -> Unit = {},
     val onWatchPartySettingsClick: () -> Unit = {},
     val onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    val onOpenLibraryClick: (() -> Unit)? = null,
     val onRequestedSettingsPageConsumed: () -> Unit = {},
     val onInitialHomeContentRendered: () -> Unit = {},
 )
@@ -255,6 +256,7 @@ internal fun AppTabHost(
                         onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
                         continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
                         onFolderClick = actions.onFolderClick,
+                        onOpenLibraryClick = actions.onOpenLibraryClick,
                         onFirstCatalogRendered = actions.onInitialHomeContentRendered,
                     )
                 }

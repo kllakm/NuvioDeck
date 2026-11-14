@@ -1665,6 +1665,7 @@ internal fun MainAppContent(
                                 onRequestedSettingsPageConsumed = {
                                     requestedSettingsPageName = null
                                 },
+                                onOpenLibraryClick = { activateTab(AppScreenTab.Library) },
                                 onInitialHomeContentRendered = { initialHomeReady = true },
                             )
                         },

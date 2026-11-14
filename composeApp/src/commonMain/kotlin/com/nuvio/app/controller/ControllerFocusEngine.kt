@@ -350,7 +350,10 @@ object ControllerFocusEngine {
         }
     }
 
-    fun onRouteOrTabChanged(routeKey: Any? = null) {
+    fun onRouteOrTabChanged(
+        routeKey: Any? = null,
+        focusImmediately: Boolean = true,
+    ) {
         val newRouteStr = routeKey?.toString()
         val routeChanged = activeRouteKey != null && activeRouteKey != newRouteStr
         if (routeChanged) {
@@ -429,7 +432,9 @@ object ControllerFocusEngine {
             }
         }
         updateInteractiveContentStatus()
-        ensureValidFocus()
+        if (focusImmediately) {
+            ensureValidFocus()
+        }
     }
 
     internal fun upsertNode(node: ControllerFocusNode) {
@@ -539,7 +544,9 @@ object ControllerFocusEngine {
                     }
                 }
                 if (pendingRestoredNodeId == null) {
-                    ensureValidFocus(preferBounds = removed?.boundsInRoot, preferZone = removed?.zone)
+                    val preferBounds = if (hasUserNavigatedOnCurrentRoute) removed?.boundsInRoot else null
+                    val preferZone = if (hasUserNavigatedOnCurrentRoute) removed?.zone else null
+                    ensureValidFocus(preferBounds = preferBounds, preferZone = preferZone)
                 }
             } finally {
                 isInternalCleanupFocus = false
@@ -1037,7 +1044,13 @@ object ControllerFocusEngine {
                 if (node.rowLazyListState != null || sample.rowLazyListState != null) {
                     node.rowLazyListState != null && node.rowLazyListState === sample.rowLazyListState
                 } else if (!node.groupKey.isNullOrEmpty() || !sample.groupKey.isNullOrEmpty()) {
-                    node.groupKey == sample.groupKey
+                    if (node.groupKey != sample.groupKey) {
+                        false
+                    } else {
+                        val sampleCenterY = cluster.map { it.boundsInRoot.center.y }.average().toFloat()
+                        val tolerance = maxOf(node.boundsInRoot.height, sample.boundsInRoot.height, 40f) * 0.45f
+                        kotlin.math.abs(node.boundsInRoot.center.y - sampleCenterY) <= tolerance
+                    }
                 } else {
                     val sampleCenterY = cluster.map { it.boundsInRoot.center.y }.average().toFloat()
                     val verticalOverlap = min(node.boundsInRoot.bottom, sample.boundsInRoot.bottom) -
@@ -1090,19 +1103,8 @@ object ControllerFocusEngine {
                 ?: candidates.first()
         }
 
-        if (!row.groupKey.isNullOrEmpty()) {
-            val rememberedId = lastFocusedByGroup[row.groupKey]
-            if (rememberedId != null) {
-                val rememberedNode = candidates.firstOrNull { it.id == rememberedId }
-                if (rememberedNode != null) return rememberedNode
-            }
-        }
-
-        if (current.rowItemIndex >= 0) {
-            val matchingIndexNode = candidates.firstOrNull { it.rowItemIndex == current.rowItemIndex }
-            if (matchingIndexNode != null) return matchingIndexNode
-        }
-
+        // Navigate vertically by horizontal spatial alignment so Up/Down always lands on the
+        // visually aligned item above or below rather than jumping back to an old column.
         val currentCenterX = current.boundsInRoot.center.x
         return candidates.minByOrNull { abs(it.boundsInRoot.center.x - currentCenterX) }
     }
@@ -2499,7 +2501,7 @@ fun Modifier.controllerFocusable(
     val focusedSnapshot by ControllerFocusEngine.focusedNodeSnapshot.collectAsState()
     val isSiblingActiveInGroup = !isFocused && isControllerActive && effectiveGroupKey != null &&
         focusedSnapshot?.groupKey == effectiveGroupKey
-    val targetAlpha = if (isSiblingActiveInGroup) 0.82f else 1f
+    val targetAlpha = 1f
     val animatedAlpha by animateFloatAsState(
         targetValue = targetAlpha,
         animationSpec = tween(durationMillis = 150),

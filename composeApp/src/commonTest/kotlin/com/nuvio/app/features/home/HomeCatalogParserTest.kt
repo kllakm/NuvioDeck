@@ -1,7 +1,9 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.core.poster.metahubFallbackArtworkUrl
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class HomeCatalogParserTest {
 
@@ -138,5 +140,21 @@ class HomeCatalogParserTest {
         val item = result.items.single()
         assertEquals(null, item.runtime)
         assertEquals(null, item.status)
+    }
+
+    @Test
+    fun `metahub fallback artwork url extracts valid imdb ids and rejects non imdb ids`() {
+        assertEquals(
+            "https://images.metahub.space/poster/medium/tt0137523/img",
+            metahubFallbackArtworkUrl("tt0137523"),
+        )
+        assertEquals(
+            "https://images.metahub.space/background/medium/tt0944947/img",
+            metahubFallbackArtworkUrl(" tt0944947:1:1 ", isLandscape = true),
+        )
+        assertNull(metahubFallbackArtworkUrl("tmdb:1396"))
+        assertNull(metahubFallbackArtworkUrl("kitsu:7442", isLandscape = true))
+        assertNull(metahubFallbackArtworkUrl(""))
+        assertNull(metahubFallbackArtworkUrl(null))
     }
 }

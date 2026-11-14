@@ -38,7 +38,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -70,9 +73,12 @@ import com.nuvio.app.core.ui.posterGridColumnCountForViewport
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
+import com.nuvio.app.features.home.TOP_10_ITEM_LIMIT
 import com.nuvio.app.features.home.canOpenCatalog
+import com.nuvio.app.features.home.isTop10Catalog
 import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomePosterHoverPreview
@@ -407,6 +413,13 @@ private fun TabbedGridContent(
 ) {
     val gridState = rememberLazyGridState()
     com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyGridState = gridState)
+    var lastResetTabIndex by rememberSaveable { mutableIntStateOf(-1) }
+    LaunchedEffect(uiState.selectedTabIndex) {
+        if (lastResetTabIndex != uiState.selectedTabIndex) {
+            gridState.scrollToItem(0, 0)
+            lastResetTabIndex = uiState.selectedTabIndex
+        }
+    }
 
     LaunchedEffect(gridState, uiState.selectedTabIndex, uiState.selectedTabCanLoadMore, uiState.selectedTabIsLoadingMore) {
         snapshotFlow { gridState.layoutInfo }
@@ -516,6 +529,7 @@ private fun TabbedGridContent(
                                         modifier = cardModifier,
                                         basePosterWidthDp = if (isDesktop) basePosterWidthDp else null,
                                         fallbackImageUrl = item.rawPosterUrl,
+                                        secondaryFallbackImageUrl = com.nuvio.app.core.poster.metahubFallbackArtworkUrl(item.id),
                                         shape = NuvioPosterShape.Poster,
                                         detailLine = item.releaseInfo,
                                         isWatched = isWatched,
@@ -553,8 +567,19 @@ private fun RowsContent(
     onPosterClick: (MetaPreview) -> Unit,
 ) {
     val sections = FolderDetailRepository.getCatalogSectionsForRows()
+    val catalogSettings by remember {
+        HomeCatalogSettingsRepository.snapshot()
+        HomeCatalogSettingsRepository.uiState
+    }.collectAsState()
     val listState = rememberLazyListState()
     com.nuvio.app.controller.RegisterControllerVerticalScroll(lazyListState = listState)
+    var hasInitializedTop by rememberSaveable(uiState.folder?.id) { mutableStateOf(false) }
+    LaunchedEffect(uiState.folder?.id) {
+        if (!hasInitializedTop) {
+            listState.scrollToItem(0, 0)
+            hasInitializedTop = true
+        }
+    }
 
     if (uiState.isLoading && sections.isEmpty()) {
         LoadingIndicator()
@@ -568,20 +593,12 @@ private fun RowsContent(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val sectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) else null
-        val posterCardStyle = rememberPosterCardStyleUiState()
-        val catalogPreviewLimit = if (isDesktop) {
-            homeCatalogPreviewLimitForWidth(
-                maxWidthDp = maxWidth.value,
-                sectionPadding = sectionPadding ?: 0.dp,
-                basePosterWidthDp = posterCardStyle.widthDp,
-                useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
-            )
-        } else {
-            18
-        }
+        val catalogPreviewLimit = if (isDesktop) catalogSettings.rowItemLimit else 18
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .controllerVerticalScrollViewport(),
             contentPadding = PaddingValues(
                 bottom = nuvioSafeBottomPadding(18.dp),
             ),
@@ -592,21 +609,18 @@ private fun RowsContent(
                 key = { it.lazyKey },
             ) { keyedSection ->
                 val section = keyedSection.value
+                val isTop10 = section.isTop10Catalog(parentTitle = uiState.folder?.title)
+                val rowLimit = if (isTop10) TOP_10_ITEM_LIMIT else catalogPreviewLimit
                 HomeCatalogRowSection(
                     section = section,
-                    entries = if (isDesktop) {
-                        // Match desktop home rows: the lazy row exposes every fetched item so the
-                        // catalog remains horizontally scrollable without opening the expanded view.
-                        section.items
-                    } else {
-                        section.items.take(catalogPreviewLimit)
-                    },
+                    entries = section.items.take(rowLimit),
                     sectionPadding = sectionPadding,
-                    onViewAllClick = if (section.canOpenCatalog(catalogPreviewLimit)) {
+                    onViewAllClick = if (!isTop10 && section.canOpenCatalog(rowLimit)) {
                         { onCatalogClick(section) }
                     } else {
                         null
                     },
+                    isTop10 = isTop10,
                     watchedKeys = watchedKeys,
                     onPosterClick = { onPosterClick(it) },
                 )

@@ -135,7 +135,7 @@ internal fun Modifier.posterCardClickable(
             id = controllerFocusId,
             enabled = onClick != null,
             cornerRadius = zoomCornerRadius,
-            focusScale = 1.07f,
+            focusScale = if (hoverScaleEnabled) 1.07f else 1.0f,
             selectLabel = "Open",
             secondaryActionLabel = if (handleLongClick != null) "Options" else null,
             onSecondaryAction = handleLongClick,

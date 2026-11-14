@@ -2,6 +2,7 @@ package com.nuvio.app.core.ui
 import androidx.compose.runtime.collectAsState
 import com.nuvio.app.controller.ControllerManager
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.controller.isControllerNodeFocused
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -43,17 +44,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -279,6 +284,7 @@ fun NuvioPosterCard(
     modifier: Modifier = Modifier,
     basePosterWidthDp: Int? = null,
     fallbackImageUrl: String? = null,
+    secondaryFallbackImageUrl: String? = null,
     shape: NuvioPosterShape = NuvioPosterShape.Poster,
     detailLine: String? = null,
     showTitleBelow: Boolean = true,
@@ -299,10 +305,24 @@ fun NuvioPosterCard(
         shape = shape,
     )
     val shouldShowTitleBelow = showTitleBelow && !posterCardStyle.hideLabelsEnabled
+    val normalizedPrimary = imageUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val normalizedFallback = fallbackImageUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val normalizedSecondary = secondaryFallbackImageUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val resolvedPrimaryUrl = normalizedPrimary ?: normalizedFallback ?: normalizedSecondary
+    val imageModel = com.nuvio.app.core.poster.rememberArtworkImageModel(
+        primaryUrl = normalizedPrimary,
+        fallbackUrl = normalizedFallback,
+        secondaryFallbackUrl = normalizedSecondary,
+    )
+    var imageLoadFailed by remember(resolvedPrimaryUrl, normalizedFallback, normalizedSecondary) {
+        mutableStateOf(false)
+    }
+    val showFallbackArtwork = resolvedPrimaryUrl == null || imageLoadFailed
+    val effectiveFocusId = focusId ?: remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" }
 
     Column(
         modifier = Modifier
-            .desktopPosterHoverScale()
+            .desktopPosterHoverScale(focusId = effectiveFocusId)
             .then(modifier)
             .width(cardWidth),
         verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
@@ -314,10 +334,10 @@ fun NuvioPosterCard(
                 .posterCardClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    zoomImageUrl = imageUrl,
+                    zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
                     zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
                     hoverScaleEnabled = false,
-                    focusId = focusId ?: remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" },
+                    focusId = effectiveFocusId,
                 )
                 .clip(cardShape)
                 .background(tokens.colors.surface)
@@ -327,41 +347,29 @@ fun NuvioPosterCard(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            if (imageUrl != null) {
-                val platformContext = coil3.compose.LocalPlatformContext.current
-                val hasFallback = !fallbackImageUrl.isNullOrBlank() && fallbackImageUrl != imageUrl
-                val imageModel = remember(imageUrl, fallbackImageUrl, platformContext) {
-                    if (hasFallback) {
-                        coil3.request.ImageRequest.Builder(platformContext)
-                            .data(imageUrl)
-                            .memoryCacheKeyExtras(
-                                mapOf(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to fallbackImageUrl!!)
-                            )
-                            .build()
-                    } else {
-                        imageUrl
-                    }
-                }
+            if (imageModel != null && !imageLoadFailed) {
                 NuvioAsyncImage(
                     model = imageModel,
                     contentDescription = title,
                     modifier = Modifier.matchParentSize(),
+                    onSuccess = { imageLoadFailed = false },
+                    onError = { imageLoadFailed = true },
                     contentScale = ContentScale.Crop,
                     desktopAnimation = posterCardStyle.animatedArtworkMode.toDesktopAnimation(),
                 )
-            } else {
-                Text(
-                    text = title,
-                    modifier = Modifier.padding(horizontal = NuvioTokens.Space.s14),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = tokens.colors.textMuted,
-                    textAlign = TextAlign.Center,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+            }
+            if (showFallbackArtwork) {
+                NuvioFallbackPosterArtwork(
+                    title = title,
+                    modifier = Modifier.matchParentSize(),
+                    showTitle = true,
+                    isLandscape = shape == NuvioPosterShape.Landscape,
                 )
             }
 
-            if (!bottomLeftLogoUrl.isNullOrBlank() || !bottomLeftText.isNullOrBlank()) {
+            val hasLogo = !bottomLeftLogoUrl.isNullOrBlank()
+            val hasBottomText = !showFallbackArtwork && !bottomLeftText.isNullOrBlank() && !hasLogo
+            if (hasLogo || hasBottomText) {
                 // Gradient scrim for readability — matching NuvioTV Modern Home style
                 Box(
                     modifier = Modifier
@@ -382,7 +390,7 @@ fun NuvioPosterCard(
                         .align(Alignment.BottomStart)
                         .padding(horizontal = NuvioTokens.Space.s10, vertical = NuvioTokens.Space.s10),
                 ) {
-                    if (!bottomLeftLogoUrl.isNullOrBlank()) {
+                    if (hasLogo) {
                         NuvioAsyncImage(
                             model = bottomLeftLogoUrl,
                             contentDescription = stringResource(Res.string.poster_logo_content_description, title),
@@ -432,6 +440,149 @@ fun NuvioPosterCard(
     }
 }
 
+private data class FallbackPosterPalette(
+    val topColor: Color,
+    val bottomColor: Color,
+    val glowColor: Color,
+    val secondaryGlowColor: Color,
+)
+
+private val FallbackGlassPalettes = listOf(
+    FallbackPosterPalette(
+        topColor = Color(0xFF4A1525),
+        bottomColor = Color(0xFF140910),
+        glowColor = Color(0xFFE11D48),
+        secondaryGlowColor = Color(0xFFFB7185),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF13294B),
+        bottomColor = Color(0xFF090F1E),
+        glowColor = Color(0xFF2563EB),
+        secondaryGlowColor = Color(0xFF38BDF8),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF0E3B33),
+        bottomColor = Color(0xFF071716),
+        glowColor = Color(0xFF10B981),
+        secondaryGlowColor = Color(0xFF34D399),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF321A4C),
+        bottomColor = Color(0xFF12091E),
+        glowColor = Color(0xFF8B5CF6),
+        secondaryGlowColor = Color(0xFFC084FC),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF472711),
+        bottomColor = Color(0xFF180D07),
+        glowColor = Color(0xFFF59E0B),
+        secondaryGlowColor = Color(0xFFFBBF24),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF0D3849),
+        bottomColor = Color(0xFF06151E),
+        glowColor = Color(0xFF06B6D4),
+        secondaryGlowColor = Color(0xFF22D3EE),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF46183D),
+        bottomColor = Color(0xFF160817),
+        glowColor = Color(0xFFD946EF),
+        secondaryGlowColor = Color(0xFFF472B6),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF1E224D),
+        bottomColor = Color(0xFF0A0D20),
+        glowColor = Color(0xFF6366F1),
+        secondaryGlowColor = Color(0xFF818CF8),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF173D22),
+        bottomColor = Color(0xFF08170D),
+        glowColor = Color(0xFF22C55E),
+        secondaryGlowColor = Color(0xFF4ADE80),
+    ),
+    FallbackPosterPalette(
+        topColor = Color(0xFF4B1D1B),
+        bottomColor = Color(0xFF1A0909),
+        glowColor = Color(0xFFF97316),
+        secondaryGlowColor = Color(0xFFFB923C),
+    ),
+)
+
+@Composable
+fun NuvioFallbackPosterArtwork(
+    title: String,
+    modifier: Modifier = Modifier,
+    showTitle: Boolean = true,
+    isLandscape: Boolean = false,
+) {
+    val palette = remember(title) {
+        val hash = title.trim().lowercase().hashCode() and 0x7fffffff
+        FallbackGlassPalettes[hash % FallbackGlassPalettes.size]
+    }
+    Box(
+        modifier = modifier.drawWithCache {
+            val baseGradient = Brush.linearGradient(
+                colors = listOf(palette.topColor, palette.bottomColor),
+                start = Offset.Zero,
+                end = Offset(size.width, size.height),
+            )
+            val topGlow = Brush.radialGradient(
+                colors = listOf(
+                    palette.glowColor.copy(alpha = 0.42f),
+                    palette.glowColor.copy(alpha = 0.14f),
+                    Color.Transparent,
+                ),
+                center = Offset(size.width * 0.18f, size.height * 0.22f),
+                radius = maxOf(size.width, size.height) * 0.78f,
+            )
+            val bottomGlow = Brush.radialGradient(
+                colors = listOf(
+                    palette.secondaryGlowColor.copy(alpha = 0.24f),
+                    Color.Transparent,
+                ),
+                center = Offset(size.width * 0.85f, size.height * 0.82f),
+                radius = maxOf(size.width, size.height) * 0.68f,
+            )
+            val glassSheen = Brush.linearGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.12f),
+                    Color.White.copy(alpha = 0.03f),
+                    Color.Black.copy(alpha = 0.34f),
+                ),
+                start = Offset.Zero,
+                end = Offset(size.width, size.height),
+            )
+            val rimColor = Color.White.copy(alpha = 0.12f)
+            val strokePx = 1.dp.toPx()
+            onDrawBehind {
+                drawRect(baseGradient)
+                drawRect(topGlow)
+                drawRect(bottomGlow)
+                drawRect(glassSheen)
+                drawRect(
+                    color = rimColor,
+                    style = Stroke(width = strokePx),
+                )
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (showTitle && title.isNotBlank()) {
+            Text(
+                text = title,
+                modifier = Modifier.padding(horizontal = NuvioTokens.Space.s12, vertical = NuvioTokens.Space.s8),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.White.copy(alpha = 0.95f),
+                textAlign = TextAlign.Center,
+                maxLines = if (isLandscape) 2 else 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 @Composable
 private fun NuvioShelfSectionHeader(
     title: String,
@@ -454,7 +605,7 @@ private fun NuvioShelfSectionHeader(
                 modifier = Modifier
                     .weight(1f)
                     .then(if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier),
-                style = MaterialTheme.nuvioTypeScale.titleMd,
+                style = MaterialTheme.nuvioTypeScale.titleMd.copy(fontWeight = FontWeight.Bold),
                 color = tokens.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -699,14 +850,22 @@ private fun NuvioPosterShape.cardWidth(basePosterWidthDp: Int): Dp =
 internal fun Modifier.desktopPosterHoverScale(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    focusId: String? = null,
+    controllerFocusScale: Float = 1.07f,
 ): Modifier {
     if (!enabled || !isDesktop) return this
 
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val isControllerFocused = isControllerActive && !focusId.isNullOrEmpty() && isControllerNodeFocused(focusId)
     val rawHovered by interactionSource.collectIsHoveredAsState()
     val hovered = rawHovered && !isControllerActive
+    val targetScale = when {
+        isControllerFocused -> controllerFocusScale
+        hovered -> DesktopPosterHoverScale
+        else -> 1f
+    }
     val scale by animateFloatAsState(
-        targetValue = if (hovered) DesktopPosterHoverScale else 1f,
+        targetValue = targetScale,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMediumLow,
@@ -714,7 +873,7 @@ internal fun Modifier.desktopPosterHoverScale(
         label = "desktop_poster_hover_scale",
     )
 
-    val isScaling = hovered || scale != 1f
+    val isScaling = isControllerFocused || hovered || scale != 1f
 
     return this
         .then(
@@ -724,7 +883,7 @@ internal fun Modifier.desktopPosterHoverScale(
                         scaleX = scale
                         scaleY = scale
                     }
-                    .zIndex(1f)
+                    .zIndex(if (isControllerFocused) 15f else 1f)
             } else {
                 Modifier
             },
