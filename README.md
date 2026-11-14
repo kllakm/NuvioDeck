@@ -44,7 +44,7 @@
 ## 📸 Screenshots & Showcase
 
 <div align="center">
-  <img src="screenshots/01-home-hero.jpg" alt="NuvioDeck Home Screen & Hero Banner" width="100%" />
+  <img src="screenshots/01-home-hero.jpg?v=0.1.29" alt="NuvioDeck Home Screen & Hero Banner" width="100%" />
   <p><em>Full-width Netflix-style Top Navigation Bar over the Hero Banner, Continue Watching shelf, and My List row.</em></p>
 </div>
 
@@ -52,18 +52,18 @@
 
 | **Catalog Shelves & In-Line "View All" Card** | **"New Arrivals" Notification Center & Top 10 Ranked Shelves** |
 | :---: | :---: |
-| <img src="screenshots/02-home-shelves-view-all.jpg" alt="Home Shelves & In-Line View All Card" width="100%" /> | <img src="screenshots/03-new-arrivals-notifications.jpg" alt="New Arrivals Notification Center and Top 10 Ranked Shelves" width="100%" /> |
+| <img src="screenshots/02-home-shelves-view-all.jpg?v=0.1.29" alt="Home Shelves & In-Line View All Card" width="100%" /> | <img src="screenshots/03-new-arrivals-notifications.jpg?v=0.1.29" alt="New Arrivals Notification Center and Top 10 Ranked Shelves" width="100%" /> |
 | *Customizable row poster limit (`10–30`, default `15`) with an in-line semi-transparent **View All** poster card, **Netflix Sans** typography, and **Frosted Glass** ambient backdrop.* | *10-item FIFO **New Arrivals** dropdown surfacing recent episodes/movies with verified `1080p` / `4K` streams above Netflix-style **Top 10** ranked portrait shelves.* |
 
 | **Search & Discover Grid** | **Series Details & Season Selection** |
 | :---: | :---: |
-| <img src="screenshots/04-search-discover.jpg" alt="Search & Discover Grid" width="100%" /> | <img src="screenshots/05-series-details.jpg" alt="Series Details & Season Selection" width="100%" /> |
+| <img src="screenshots/04-search-discover.jpg?v=0.1.29" alt="Search & Discover Grid" width="100%" /> | <img src="screenshots/05-series-details.jpg?v=0.1.29" alt="Series Details & Season Selection" width="100%" /> |
 | *Seamless D-Pad traversal from the search input and recent searches through Discover filter dropdowns and into the poster grid with synchronized card border scaling.* | *High-contrast inverted **Play** button focus ring, season-poster-only selection borders, vertical middle alignment, and one-press horizontal carousel reveals.* |
 
 <br />
 
 <div align="center">
-  <img src="screenshots/06-streamless-notify-button.jpg" alt="Streamless Release Tracking & Dynamic Notify Button" width="100%" />
+  <img src="screenshots/06-streamless-notify-button.jpg?v=0.1.29" alt="Streamless Release Tracking & Dynamic Notify Button" width="100%" />
   <p><em>Dynamic "Play" ↔ "Notify" button swap on Details screen for unreleased media and titles without streams, with background polling and notification alerts.</em></p>
 </div>
 
