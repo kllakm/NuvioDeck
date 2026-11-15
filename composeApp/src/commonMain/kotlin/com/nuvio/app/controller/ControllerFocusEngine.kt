@@ -1263,7 +1263,7 @@ object ControllerFocusEngine {
             val vh = listState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                 ?: 900f
-            val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
+            val scaleFactor = (vh / 900f).coerceIn(0.85f, 2.6f)
 
             val composedRows = getComposedContentRows()
             val targetRow = composedRows.firstOrNull { row -> row.nodes.any { it.id == node.id } }
@@ -1393,7 +1393,7 @@ object ControllerFocusEngine {
                 }
                 delta = delta.coerceAtLeast(-maxScrollUp)
 
-                if (!isGridContent && visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
+                if (!isShelfRow && !isSeasonRow && !isGridContent && visualTop >= topChromeSafeMargin && (visualTop - delta) > (topChromeSafeMargin + 80f)) {
                     val clampedDelta = visualTop - topChromeSafeMargin
                     if (clampedDelta > delta) {
                         delta = clampedDelta
@@ -1784,7 +1784,7 @@ object ControllerFocusEngine {
                 val vh = listState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
-                val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
+                val scaleFactor = (vh / 900f).coerceIn(0.85f, 2.6f)
                 val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor)
                     .coerceIn(380f * scaleFactor, 540f * scaleFactor)
                     .coerceAtMost(vh * 0.72f)
@@ -1839,14 +1839,15 @@ object ControllerFocusEngine {
                 val vh = listState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: gridState?.layoutInfo?.viewportSize?.height?.toFloat()
                     ?: 900f
-                val scaleFactor = (vh / 900f).coerceIn(0.85f, 1.6f)
+                val scaleFactor = (vh / 900f).coerceIn(0.85f, 2.6f)
                 val scrollDistance = (currentRow.bottom - currentRow.top + 160f * scaleFactor)
                     .coerceIn(380f * scaleFactor, 540f * scaleFactor)
                     .coerceAtMost(vh * 0.72f)
 
-                val isAtTopBoundary = (listState != null && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= scrollDistance) ||
-                    (gridState != null && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset <= scrollDistance) ||
-                    (scrollState != null && scrollState.value <= scrollDistance)
+                val topSnapThreshold = maxOf(scrollDistance, vh * 0.95f)
+                val isAtTopBoundary = (listState != null && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= topSnapThreshold) ||
+                    (gridState != null && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset <= topSnapThreshold) ||
+                    (scrollState != null && scrollState.value <= topSnapThreshold)
 
                 activeVerticalScrollJob?.cancel()
                 activeVerticalScrollJob = scope.launch {
