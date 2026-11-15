@@ -39,8 +39,10 @@ private data class StoredPosterCardStylePreferences(
     val widthDp: Int = DefaultPosterCardWidthDp,
     val heightDp: Int = DefaultPosterCardHeightDp,
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
-    val catalogLandscapeModeEnabled: Boolean = false,
-    val hideLabelsEnabled: Boolean = false,
+    val catalogLandscapeModeEnabled: Boolean = true,
+    val hideLabelsEnabled: Boolean = true,
+    val hideLabelsDefaultV30Migrated: Boolean = false,
+    val landscapeDefaultV30Migrated: Boolean = false,
     val hoverPreviewEnabled: Boolean = true,
     val hoverPreviewOpenDelayMillis: Int = DefaultHoverPreviewOpenDelayMillis,
     val hoverPreviewTrailerEnabled: Boolean = false,
@@ -54,8 +56,8 @@ data class PosterCardStyleUiState(
     val widthDp: Int = DefaultPosterCardWidthDp,
     val heightDp: Int = DefaultPosterCardHeightDp,
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
-    val catalogLandscapeModeEnabled: Boolean = false,
-    val hideLabelsEnabled: Boolean = false,
+    val catalogLandscapeModeEnabled: Boolean = true,
+    val hideLabelsEnabled: Boolean = true,
     val hoverPreviewEnabled: Boolean = true,
     val hoverPreviewOpenDelayMillis: Int = DefaultHoverPreviewOpenDelayMillis,
     val hoverPreviewTrailerEnabled: Boolean = false,
@@ -208,12 +210,27 @@ object PosterCardStyleRepository {
             val widthDp = stored.widthDp.takeIf { it > 0 } ?: DefaultPosterCardWidthDp
             val heightDp = stored.heightDp.takeIf { it > 0 } ?: ((widthDp * 3) / 2)
             val cornerRadiusDp = stored.cornerRadiusDp.coerceAtLeast(0)
+            val effectiveHideLabels = if (stored.hideLabelsDefaultV30Migrated) {
+                stored.hideLabelsEnabled
+            } else {
+                true
+            }
+            val effectiveLandscape = if (stored.landscapeDefaultV30Migrated) {
+                stored.catalogLandscapeModeEnabled
+            } else {
+                true
+            }
+            val effectiveAlwaysClearlogo = if (stored.landscapeDefaultV30Migrated) {
+                stored.alwaysShowLandscapeClearlogo
+            } else {
+                false
+            }
             PosterCardStyleUiState(
                 widthDp = widthDp,
                 heightDp = heightDp,
                 cornerRadiusDp = cornerRadiusDp,
-                catalogLandscapeModeEnabled = stored.catalogLandscapeModeEnabled,
-                hideLabelsEnabled = stored.hideLabelsEnabled,
+                catalogLandscapeModeEnabled = effectiveLandscape,
+                hideLabelsEnabled = effectiveHideLabels,
                 hoverPreviewEnabled = stored.hoverPreviewEnabled,
                 hoverPreviewOpenDelayMillis = normalizeHoverPreviewOpenDelayMillis(
                     stored.hoverPreviewOpenDelayMillis,
@@ -223,13 +240,16 @@ object PosterCardStyleRepository {
                 hoverPreviewTrailerStartSeconds = normalizeHoverPreviewTrailerStartSeconds(
                     stored.hoverPreviewTrailerStartSeconds,
                 ),
-                alwaysShowLandscapeClearlogo = stored.alwaysShowLandscapeClearlogo,
+                alwaysShowLandscapeClearlogo = effectiveAlwaysClearlogo,
                 animatedArtworkMode = AnimatedArtworkMode.entries
                     .firstOrNull { it.name == stored.animatedArtworkMode }
                     ?: AnimatedArtworkMode.Always,
             )
         } else {
             PosterCardStyleUiState()
+        }
+        if (stored != null && (!stored.hideLabelsDefaultV30Migrated || !stored.landscapeDefaultV30Migrated)) {
+            persist()
         }
     }
 
@@ -242,6 +262,8 @@ object PosterCardStyleRepository {
                     cornerRadiusDp = _uiState.value.cornerRadiusDp,
                     catalogLandscapeModeEnabled = _uiState.value.catalogLandscapeModeEnabled,
                     hideLabelsEnabled = _uiState.value.hideLabelsEnabled,
+                    hideLabelsDefaultV30Migrated = true,
+                    landscapeDefaultV30Migrated = true,
                     hoverPreviewEnabled = _uiState.value.hoverPreviewEnabled,
                     hoverPreviewOpenDelayMillis = _uiState.value.hoverPreviewOpenDelayMillis,
                     hoverPreviewTrailerEnabled = _uiState.value.hoverPreviewTrailerEnabled,

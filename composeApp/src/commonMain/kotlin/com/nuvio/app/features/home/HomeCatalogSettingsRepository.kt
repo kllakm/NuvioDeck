@@ -40,8 +40,14 @@ data class HomeCatalogSettingsItem(
         get() = customTitle.ifBlank { defaultTitle }
 }
 
+enum class HomeHeroStyle {
+    Default,
+    Poster,
+}
+
 data class HomeCatalogSettingsUiState(
     val heroEnabled: Boolean = true,
+    val heroStyle: HomeHeroStyle = HomeHeroStyle.Poster,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
@@ -51,6 +57,8 @@ data class HomeCatalogSettingsUiState(
     val signature: String
         get() = buildString {
             append(heroEnabled)
+            append('|')
+            append(heroStyle.name)
             append('|')
             append(showCatalogType)
             append('|')
@@ -77,6 +85,7 @@ internal data class HomeCatalogPreference(
 
 internal data class HomeCatalogSettingsSnapshot(
     val heroEnabled: Boolean,
+    val heroStyle: HomeHeroStyle = HomeHeroStyle.Poster,
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
     val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
@@ -96,6 +105,8 @@ private data class StoredHomeCatalogPreference(
 @Serializable
 private data class StoredHomeCatalogSettingsPayload(
     val heroEnabled: Boolean = true,
+    val heroStyle: String = HomeHeroStyle.Poster.name,
+    val heroStyleDefaultV30Migrated: Boolean = false,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val rowItemLimit: Int = HomeCatalogSettingsRepository.DEFAULT_ROW_ITEM_LIMIT,
@@ -119,6 +130,7 @@ object HomeCatalogSettingsRepository {
 
     private val emptySnapshot = HomeCatalogSettingsSnapshot(
         heroEnabled = true,
+        heroStyle = HomeHeroStyle.Poster,
         showCatalogType = true,
         hideUnreleasedContent = false,
         rowItemLimit = DEFAULT_ROW_ITEM_LIMIT,
@@ -140,6 +152,7 @@ object HomeCatalogSettingsRepository {
             preferencesRef.value = value
         }
     private var heroEnabled = true
+    private var heroStyle = HomeHeroStyle.Poster
     private var showCatalogType = true
     private var hideUnreleasedContent = false
     private var rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
@@ -149,6 +162,7 @@ object HomeCatalogSettingsRepository {
         hasLoaded = false
         preferences = emptyMap()
         heroEnabled = true
+        heroStyle = HomeHeroStyle.Poster
         showCatalogType = true
         hideUnreleasedContent = false
         rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
@@ -170,6 +184,7 @@ object HomeCatalogSettingsRepository {
         lastCollectionSync = null
         preferences = emptyMap()
         heroEnabled = true
+        heroStyle = HomeHeroStyle.Poster
         showCatalogType = true
         hideUnreleasedContent = false
         rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
@@ -249,6 +264,14 @@ object HomeCatalogSettingsRepository {
         HomeRepository.applyCurrentSettings()
     }
 
+    fun setHeroStyle(style: HomeHeroStyle) {
+        ensureLoaded()
+        if (heroStyle == style) return
+        heroStyle = style
+        publish()
+        persist()
+    }
+
     fun setShowCatalogType(enabled: Boolean) {
         ensureLoaded()
         if (showCatalogType == enabled) return
@@ -315,6 +338,7 @@ object HomeCatalogSettingsRepository {
     fun resetToDefaults() {
         ensureLoaded()
         heroEnabled = true
+        heroStyle = HomeHeroStyle.Poster
         showCatalogType = true
         hideUnreleasedContent = false
         rowItemLimit = DEFAULT_ROW_ITEM_LIMIT
@@ -369,12 +393,21 @@ object HomeCatalogSettingsRepository {
         if (parsedPayload != null) {
             lastPersistedPayload = payload
             heroEnabled = parsedPayload.heroEnabled
+            heroStyle = if (parsedPayload.heroStyleDefaultV30Migrated) {
+                HomeHeroStyle.entries.firstOrNull { it.name == parsedPayload.heroStyle }
+                    ?: HomeHeroStyle.Poster
+            } else {
+                HomeHeroStyle.Poster
+            }
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
             rowItemLimit = parsedPayload.rowItemLimit.coerceIn(MIN_ROW_ITEM_LIMIT, MAX_ROW_ITEM_LIMIT)
             showMyListRow = parsedPayload.showMyListRow
             preferences = parsedPayload.items.associateBy { it.key }
             publish()
+            if (!parsedPayload.heroStyleDefaultV30Migrated) {
+                persist()
+            }
             return
         }
 
@@ -437,6 +470,7 @@ object HomeCatalogSettingsRepository {
     private fun publish() {
         snapshotRef.value = HomeCatalogSettingsSnapshot(
             heroEnabled = heroEnabled,
+            heroStyle = heroStyle,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             rowItemLimit = rowItemLimit,
@@ -485,6 +519,7 @@ object HomeCatalogSettingsRepository {
 
         val nextState = HomeCatalogSettingsUiState(
             heroEnabled = heroEnabled,
+            heroStyle = heroStyle,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             rowItemLimit = rowItemLimit,
@@ -498,6 +533,8 @@ object HomeCatalogSettingsRepository {
         val payload = json.encodeToString(
             StoredHomeCatalogSettingsPayload(
                 heroEnabled = heroEnabled,
+                heroStyle = heroStyle.name,
+                heroStyleDefaultV30Migrated = true,
                 showCatalogType = showCatalogType,
                 hideUnreleasedContent = hideUnreleasedContent,
                 rowItemLimit = rowItemLimit,

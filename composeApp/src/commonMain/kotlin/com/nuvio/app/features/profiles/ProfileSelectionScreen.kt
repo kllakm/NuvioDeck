@@ -292,7 +292,7 @@ fun ProfileSelectionScreen(
                 Spacer(modifier = Modifier.height(if (isTabletLayout) 28.dp else 48.dp))
 
                 val profiles = profileState.profiles
-                val items = profiles.size + if (isEditMode && profiles.size < MAX_PROFILES) 1 else 0
+                val items = profiles.size + if (profiles.size < MAX_PROFILES) 1 else 0
 
                 if (isTabletLayout) {
                     Box(
@@ -303,7 +303,7 @@ fun ProfileSelectionScreen(
                             modifier = Modifier
                                 .horizontalScroll(rememberScrollState())
                                 .padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             for (currentIndex in 0 until items) {
                                 if (currentIndex < profiles.size) {
@@ -369,7 +369,7 @@ fun ProfileSelectionScreen(
                                         index++
                                     } else {
                                         if (profiles.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.width(150.dp))
+                                            Spacer(modifier = Modifier.width(144.dp))
                                         }
                                     }
                                 }
@@ -540,10 +540,18 @@ private fun ProfileAvatarCard(
         }
     }
 
+    val selectionCardShape = RoundedCornerShape(18.dp)
+    val loginAvatarShape = RoundedCornerShape(12.dp)
+    val avatarBgColor = if (avatarItem != null) {
+        avatarItem.bgColor?.let { parseHexColor(it) } ?: avatarColor
+    } else {
+        avatarColor.copy(alpha = 0.15f)
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(150.dp)
+            .width(144.dp)
             .graphicsLayer {
                 alpha = animAlpha.value
                 scaleX = animScale.value * pressScale * hoverScale
@@ -565,7 +573,7 @@ private fun ProfileAvatarCard(
                 groupKey = "profile_cards",
                 isDefaultFocus = isDefaultFocus,
                 enabled = enabled,
-                shape = RoundedCornerShape(20.dp),
+                shape = selectionCardShape,
                 scaleOnFocus = 1.0f,
                 hideFocusRing = true,
                 onSelect = onClick,
@@ -573,52 +581,37 @@ private fun ProfileAvatarCard(
                 onSecondaryAction = onEditProfile,
                 secondaryActionLabel = "Edit Profile",
             )
-            .clip(RoundedCornerShape(20.dp))
+            .clip(selectionCardShape)
             .background(Color.White.copy(alpha = selectionBgAlpha))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = (selectionBgAlpha * 1.1f).coerceIn(0f, 1f)),
+                shape = selectionCardShape,
+            )
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 14.dp),
     ) {
         Box(
-            modifier = Modifier.size(110.dp),
+            modifier = Modifier.size(120.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (avatarImageUrl != null) {
-                val bgColor = avatarItem?.bgColor?.let { parseHexColor(it) } ?: avatarColor
-                Box(
-                    modifier = Modifier
-                        .size(110.dp)
-                        .clip(CircleShape)
-                        .background(bgColor.copy(alpha = 0.2f)),
-                )
-            }
-
             Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (avatarItem != null) {
-                            avatarItem.bgColor?.let { parseHexColor(it) } ?: avatarColor
-                        } else {
-                            avatarColor.copy(alpha = 0.15f)
-                        },
-                    )
-                    .then(
-                        if (avatarImageUrl == null) Modifier.border(2.dp, avatarColor.copy(alpha = 0.4f), CircleShape)
-                        else Modifier,
-                    ),
+                    .size(120.dp)
+                    .clip(loginAvatarShape)
+                    .background(avatarBgColor),
                 contentAlignment = Alignment.Center,
             ) {
                 if (avatarImageUrl != null) {
                     AsyncImage(
                         model = avatarImageUrl,
                         contentDescription = avatarItem?.displayName ?: profile.name,
-                        modifier = Modifier.size(100.dp).clip(CircleShape),
+                        modifier = Modifier.fillMaxSize().clip(loginAvatarShape),
                         contentScale = ContentScale.Crop,
                         filterQuality = FilterQuality.High,
                         desktopAnimation = NuvioDesktopAnimation.Always,
@@ -679,15 +672,20 @@ private fun ProfileAvatarCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
             text = profile.name.ifBlank {
                 stringResource(Res.string.profile_label_number, profile.profileIndex)
             },
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+            color = Color.White.copy(
+                alpha = if (isSelected) 1f else 0.85f,
+            ),
+            fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -748,10 +746,13 @@ private fun AddProfileCard(
         label = "add_profile_hover_scale",
     )
 
+    val selectionCardShape = RoundedCornerShape(18.dp)
+    val addAvatarShape = RoundedCornerShape(12.dp)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(150.dp)
+            .width(144.dp)
             .graphicsLayer {
                 alpha = animAlpha.value
                 scaleX = animScale.value * pressScale * hoverScale
@@ -772,54 +773,59 @@ private fun AddProfileCard(
                 id = "profile_card_add",
                 groupKey = "profile_cards",
                 enabled = enabled,
-                shape = RoundedCornerShape(20.dp),
+                shape = selectionCardShape,
                 scaleOnFocus = 1.0f,
                 hideFocusRing = true,
                 onSelect = onClick,
                 selectLabel = addLabel,
             )
-            .clip(RoundedCornerShape(20.dp))
+            .clip(selectionCardShape)
             .background(Color.White.copy(alpha = selectionBgAlpha))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = (selectionBgAlpha * 1.1f).coerceIn(0f, 1f)),
+                shape = selectionCardShape,
+            )
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 14.dp),
     ) {
         Box(
-            modifier = Modifier.size(110.dp),
+            modifier = Modifier.size(120.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .border(
-                        2.dp,
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
-                        CircleShape,
-                    ),
+                    .size(120.dp)
+                    .clip(addAvatarShape)
+                    .background(Color.White.copy(alpha = if (isSelected) 0.18f else 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    tint = Color.White.copy(alpha = if (isSelected) 0.95f else 0.80f),
                     modifier = Modifier.size(40.dp),
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
             text = addLabel,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+            color = Color.White.copy(
+                alpha = if (isSelected) 1f else 0.85f,
+            ),
+            fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
         )
     }

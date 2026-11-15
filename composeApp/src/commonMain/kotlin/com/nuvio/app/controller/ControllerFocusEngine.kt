@@ -230,6 +230,10 @@ object ControllerFocusEngine {
     private val SnappyEaseOut = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
     private var manualSidebarOpen = false
     private var lastNavigationDirection: ControllerDirection? = null
+    internal var activeDwellExpandedNodeId: String? = null
+    internal var activeDwellExpandedWidthPx: Float = 0f
+
+    internal fun getFocusedNode(): ControllerFocusNode? = _focusedNodeId.value?.let { nodes[it] }
 
     private data class RouteFocusMemory(
         val focusedNodeId: String?,
@@ -241,6 +245,42 @@ object ControllerFocusEngine {
     private var pendingRestoredNodeId: String? = null
     private var pendingRestoreFallbackJob: Job? = null
     private var isInternalCleanupFocus: Boolean = false
+    private var pendingTopBarBumperTargetId: String? = null
+    private var pendingTopBarBumperJob: Job? = null
+
+    fun beginTopBarBumperNavigation(targetFocusId: String?) {
+        pendingRestoreFallbackJob?.cancel()
+        pendingRestoredNodeId = null
+        pendingTopBarBumperJob?.cancel()
+        pendingTopBarBumperTargetId = targetFocusId
+        setTopBarVisibleByScroll(true)
+        if (!targetFocusId.isNullOrBlank()) {
+            val targetNode = nodes[targetFocusId]?.takeIf { it.isVisibleAndValid }
+            if (targetNode != null) {
+                focusNodeInternal(targetNode, triggerScroll = false)
+            }
+        }
+        val scope = activeCoroutineScope ?: nodes.values.firstNotNullOfOrNull { it.coroutineScope }
+        pendingTopBarBumperJob = scope?.launch {
+            delay(850)
+            pendingTopBarBumperTargetId = null
+        }
+    }
+
+    fun clearTopBarBumperNavigation() {
+        pendingTopBarBumperJob?.cancel()
+        pendingTopBarBumperJob = null
+        pendingTopBarBumperTargetId = null
+    }
+
+    private fun tryFocusPendingTopBarBumperTarget(): Boolean {
+        val targetId = pendingTopBarBumperTargetId ?: return false
+        val targetNode = nodes[targetId]?.takeIf { it.isVisibleAndValid }
+        if (targetNode != null && _focusedNodeId.value != targetId) {
+            focusNodeInternal(targetNode, triggerScroll = false)
+        }
+        return true
+    }
 
     private val handlerStack = mutableListOf<Pair<String, ControllerGlobalHandlers>>()
     private var customPlayerEventHandler: ((ControllerEvent) -> Boolean)? = null
@@ -366,6 +406,18 @@ object ControllerFocusEngine {
         invalidIds.forEach { nodes.remove(it) }
 
         if (routeChanged) {
+            if (pendingTopBarBumperTargetId != null) {
+                pendingRestoreFallbackJob?.cancel()
+                pendingRestoredNodeId = null
+                lastFocusedByZone.clear()
+                lastFocusedByGroup.clear()
+                manualSidebarOpen = false
+                hasUserNavigatedOnCurrentRoute = false
+                _isNavigationZoneExpanded.value = false
+                tryFocusPendingTopBarBumperTarget()
+                updateInteractiveContentStatus()
+                return
+            }
             pendingRestoreFallbackJob?.cancel()
             val savedMemory = newRouteStr?.let { routeFocusHistory[it] }
             if (savedMemory != null && savedMemory.focusedNodeId != null) {
@@ -456,6 +508,14 @@ object ControllerFocusEngine {
             return
         }
 
+        val bumperTargetId = pendingTopBarBumperTargetId
+        if (bumperTargetId != null) {
+            if (node.id == bumperTargetId && node.isVisibleAndValid) {
+                focusNodeInternal(node, triggerScroll = false)
+            }
+            return
+        }
+
         val pendingId = pendingRestoredNodeId
         if (pendingId != null) {
             if (node.id == pendingId && node.isVisibleAndValid) {
@@ -482,8 +542,19 @@ object ControllerFocusEngine {
             val shouldPromoteDefaultNode = node.isDefaultFocus &&
                 !hasUserNavigatedOnCurrentRoute &&
                 currentNode?.isDefaultFocus != true
-            if (shouldPromoteDefaultNode || currentNode == null || !currentNode.isVisibleAndValid || (currentNode.zone == ControllerFocusZone.Navigation && !manualSidebarOpen)) {
-                if (node.isDefaultFocus || currentId == null || currentNode?.zone == ControllerFocusZone.Navigation) {
+            val shouldPromoteEarlierTopLeftNode = !hasUserNavigatedOnCurrentRoute &&
+                !node.isTextInput &&
+                currentNode != null &&
+                currentNode.zone == ControllerFocusZone.Content &&
+                currentNode.isVisibleAndValid &&
+                !currentNode.isDefaultFocus &&
+                run {
+                    val nodeRow = (node.boundsInRoot.top / 32f).toInt()
+                    val currentRow = (currentNode.boundsInRoot.top / 32f).toInt()
+                    nodeRow < currentRow || (nodeRow == currentRow && node.boundsInRoot.left < currentNode.boundsInRoot.left - 4f)
+                }
+            if (shouldPromoteDefaultNode || shouldPromoteEarlierTopLeftNode || currentNode == null || !currentNode.isVisibleAndValid || (currentNode.zone == ControllerFocusZone.Navigation && !manualSidebarOpen)) {
+                if (node.isDefaultFocus || shouldPromoteEarlierTopLeftNode || currentId == null || currentNode?.zone == ControllerFocusZone.Navigation) {
                     val contentNodes = nodes.values.filter { it.zone == ControllerFocusZone.Content && it.isVisibleAndValid }
                     val rememberedId = lastFocusedByZone[ControllerFocusZone.Content]
                     val rememberedNode = rememberedId?.let { id -> contentNodes.firstOrNull { it.id == id } }
@@ -543,6 +614,10 @@ object ControllerFocusEngine {
                         return
                     }
                 }
+                if (pendingTopBarBumperTargetId != null) {
+                    tryFocusPendingTopBarBumperTarget()
+                    return
+                }
                 if (pendingRestoredNodeId == null) {
                     val preferBounds = if (hasUserNavigatedOnCurrentRoute) removed?.boundsInRoot else null
                     val preferZone = if (hasUserNavigatedOnCurrentRoute) removed?.zone else null
@@ -567,6 +642,9 @@ object ControllerFocusEngine {
         excludeIds: Set<String> = emptySet(),
         triggerScroll: Boolean = false,
     ): Boolean {
+        if (pendingTopBarBumperTargetId != null) {
+            return tryFocusPendingTopBarBumperTarget()
+        }
         val candidates = nodes.values.filter {
             it.zone == ControllerFocusZone.Content &&
                 it.isVisibleAndValid &&
@@ -597,6 +675,9 @@ object ControllerFocusEngine {
         preferBounds: Rect? = null,
         preferZone: ControllerFocusZone? = null,
     ): Boolean {
+        if (pendingTopBarBumperTargetId != null) {
+            return tryFocusPendingTopBarBumperTarget()
+        }
         val overlayNodes = nodes.values.filter { it.zone == ControllerFocusZone.Overlay && it.isVisibleAndValid }
         if (overlayNodes.isNotEmpty()) {
             val current = _focusedNodeId.value?.let { nodes[it] }
@@ -718,6 +799,12 @@ object ControllerFocusEngine {
         direction: ControllerDirection? = null,
     ) {
         val previousId = _focusedNodeId.value
+        val previousExpandedNodeId = activeDwellExpandedNodeId
+        val previousExpandedWidthPx = activeDwellExpandedWidthPx
+        if (previousExpandedNodeId != null && previousExpandedNodeId != node.id) {
+            activeDwellExpandedNodeId = null
+            activeDwellExpandedWidthPx = 0f
+        }
         _focusedNodeId.value = node.id
         _focusedNodeSnapshot.value = node.toSnapshot()
         if (!isInternalCleanupFocus) {
@@ -748,7 +835,13 @@ object ControllerFocusEngine {
             }
             if (node.rowLazyListState != null && !suppressHorizontalScroll) {
                 val effectiveDirection = direction ?: lastNavigationDirection
-                scrollHorizontalContainerToNode(node, effectiveDirection)
+                val wasLeftExpanded = previousId != null && previousId == previousExpandedNodeId
+                scrollHorizontalContainerToNode(
+                    node = node,
+                    direction = effectiveDirection,
+                    collapsedLeftSiblingNodeId = if (wasLeftExpanded) previousExpandedNodeId else null,
+                    collapsedLeftSiblingWidthPx = if (wasLeftExpanded) previousExpandedWidthPx else 0f,
+                )
             }
         }
     }
@@ -917,6 +1010,8 @@ object ControllerFocusEngine {
     private fun scrollHorizontalContainerToNode(
         node: ControllerFocusNode,
         direction: ControllerDirection? = null,
+        collapsedLeftSiblingNodeId: String? = null,
+        collapsedLeftSiblingWidthPx: Float = 0f,
     ) {
         if (isNavigatingLazyRow) return
         val rowState = node.rowLazyListState ?: return
@@ -928,8 +1023,23 @@ object ControllerFocusEngine {
             ?: 1920f
 
         val unclipped = if (node.unclippedBoundsInRoot.width > 2f) node.unclippedBoundsInRoot else node.boundsInRoot
-        val cardLeft = unclipped.left
-        val cardRight = unclipped.right
+        val prevNode = if (collapsedLeftSiblingWidthPx > 0f && collapsedLeftSiblingNodeId != null) {
+            nodes[collapsedLeftSiblingNodeId]
+        } else {
+            null
+        }
+        val collapseAdjustmentPx = if (
+            direction == ControllerDirection.Right &&
+            prevNode != null &&
+            prevNode.rowLazyListState === rowState &&
+            prevNode.unclippedBoundsInRoot.left < unclipped.left
+        ) {
+            collapsedLeftSiblingWidthPx
+        } else {
+            0f
+        }
+        val cardLeft = unclipped.left - collapseAdjustmentPx
+        val cardRight = unclipped.right - collapseAdjustmentPx
         if (cardRight <= 0f && cardLeft <= 0f) return
 
         val safeLeft = max(layoutInfo.beforeContentPadding.toFloat(), 64f)
@@ -1800,6 +1910,7 @@ object ControllerFocusEngine {
         } else {
             val current = _focusedNodeId.value?.let { nodes[it] }?.takeIf { it.isVisibleAndValid }
             if (current == null) {
+                clearTopBarBumperNavigation()
                 return ensureValidFocus()
             }
             current.zone
@@ -1807,8 +1918,11 @@ object ControllerFocusEngine {
 
         val current = _focusedNodeId.value?.let { nodes[it] }?.takeIf { it.isVisibleAndValid && it.zone == activeZone }
             ?: run {
+                clearTopBarBumperNavigation()
                 return ensureValidFocus()
             }
+
+        clearTopBarBumperNavigation()
 
         // Check custom node directional overrides first
         val customHandled = when (direction) {
@@ -2514,8 +2628,10 @@ fun Modifier.controllerFocusable(
         label = "controller_focus_scale",
     )
 
+    val isDwellExpanded = isControllerPosterDwellExpanded(effectiveId)
+
     val sheenProgress by animateFloatAsState(
-        targetValue = if (isFocused && !hideFocusRing) 1f else 0f,
+        targetValue = if (isFocused && !hideFocusRing && !isDwellExpanded) 1f else 0f,
         animationSpec = tween(durationMillis = 180),
         label = "controller_focus_sheen",
     )
@@ -2575,7 +2691,7 @@ fun Modifier.controllerFocusable(
                     )
                 }
             }
-            if (isFocused && !hideFocusRing) {
+            if (isFocused && !hideFocusRing && !isDwellExpanded) {
                 if (useHaloFocusRing) {
                     // Play Button Halo / High-Contrast Focus Ring:
                     // Rendered strictly OUTSIDE the button perimeter so it never encroaches into the white button fill or icon:

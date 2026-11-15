@@ -1038,10 +1038,12 @@ fun HomeScreen(
             Modifier
         }
 
-        val effectiveTopPadding = if (showHeroSlot) {
-            0.dp
-        } else {
-            topChromePadding
+        val isPosterHeroStyle = isDesktop &&
+            homeSettingsUiState.heroStyle == HomeHeroStyle.Poster
+        val effectiveTopPadding = when {
+            showHeroSlot && isPosterHeroStyle -> topChromePadding?.let { (it - 14.dp).coerceAtLeast(52.dp) }
+            showHeroSlot && !isPosterHeroStyle -> 0.dp
+            else -> topChromePadding
         }
 
         NuvioScreen(
@@ -1076,6 +1078,7 @@ fun HomeScreen(
                                 stretchPx = { heroStretchState.stretchPx },
                                 showImdbRating = homeHeroState.showImdbRating,
                                 showMdbListRatings = homeHeroState.showMdbListRatings,
+                                heroStyle = homeSettingsUiState.heroStyle,
                                 onItemClick = onPosterClick,
                             )
 
@@ -1377,12 +1380,13 @@ private fun LazyListScope.homeMyListSection(
     if (section == null || entries.isEmpty()) return
 
     item(key = HOME_MY_LIST_SECTION_KEY, contentType = "catalog") {
+        val showMyListViewAll = section.hasMore || section.availableItemCount > entries.size
         HomeCatalogRowSection(
             section = section,
             entries = entries,
             modifier = Modifier.padding(bottom = 12.dp),
             sectionPadding = sectionPadding,
-            onViewAllClick = onOpenLibraryClick,
+            onViewAllClick = onOpenLibraryClick.takeIf { showMyListViewAll },
             isTop10 = false,
             watchedKeys = watchedKeys,
             fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,

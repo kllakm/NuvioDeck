@@ -517,11 +517,16 @@ private fun TabbedGridContent(
                                     watchedKeys = watchedKeys,
                                     item = item,
                                 )
+                                val cardFocusId = remember(item.id, item.type) {
+                                    "poster_folder_${item.stableKey()}"
+                                }
                                 HomePosterHoverPreview(
                                     item = item,
                                     isWatched = isWatched,
                                     onClick = { onPosterClick(item) },
                                     onLongClick = null,
+                                    focusId = cardFocusId,
+                                    isLandscapeCard = false,
                                 ) { cardModifier ->
                                     NuvioPosterCard(
                                         title = item.name,
@@ -534,6 +539,7 @@ private fun TabbedGridContent(
                                         detailLine = item.releaseInfo,
                                         isWatched = isWatched,
                                         onClick = { onPosterClick(item) },
+                                        focusId = cardFocusId,
                                     )
                                 }
                             }

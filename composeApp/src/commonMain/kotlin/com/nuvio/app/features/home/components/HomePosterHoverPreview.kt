@@ -42,6 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import com.nuvio.app.controller.ControllerManager
+import com.nuvio.app.controller.ControllerScreenType
+import com.nuvio.app.features.details.components.ImdbRatingSourceLabel
+import com.nuvio.app.features.details.components.ImdbYellow
+import com.nuvio.app.features.details.components.formatOneDecimal
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -122,6 +126,8 @@ internal fun HomePosterHoverPreview(
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    focusId: String? = null,
+    isLandscapeCard: Boolean = false,
     content: @Composable (Modifier) -> Unit,
 ) {
     if (!isDesktop) {
@@ -137,8 +143,27 @@ internal fun HomePosterHoverPreview(
         return
     }
 
-    if (PosterZoomOverlayCoordinator.isVisible || ControllerManager.isControllerActive.collectAsState().value) {
+    if (PosterZoomOverlayCoordinator.isVisible) {
         content(modifier)
+        return
+    }
+
+    if (ControllerManager.isControllerActive.collectAsState().value) {
+        val isInHorizontalRow = com.nuvio.app.controller.LocalControllerRowLazyListState.current != null
+        if (isInHorizontalRow) {
+            com.nuvio.app.controller.ControllerPosterDwellHost(
+                item = item,
+                isWatched = isWatched,
+                focusId = focusId,
+                isLandscapeCard = isLandscapeCard,
+                hoverPreviewEnabled = posterCardStyle.hoverPreviewEnabled,
+                openDelayMillis = posterCardStyle.hoverPreviewOpenDelayMillis,
+                modifier = modifier,
+                content = content,
+            )
+        } else {
+            content(modifier)
+        }
         return
     }
 
@@ -510,13 +535,45 @@ private fun HomePosterPreviewCard(
             ),
             verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s10),
         ) {
-            Text(
-                text = item.previewMetadataLine(),
-                style = MaterialTheme.typography.labelLarge,
-                color = tokens.colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val metaPrefix = item.previewMetadataPrefix()
+            val formattedImdb = item.imdbRating
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { raw -> raw.toDoubleOrNull()?.let(::formatOneDecimal) ?: raw }
+            if (metaPrefix.isNotBlank() || formattedImdb != null) {
+                val metaTextStyle = MaterialTheme.typography.labelLarge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (metaPrefix.isNotBlank()) {
+                        Text(
+                            text = metaPrefix,
+                            style = metaTextStyle,
+                            color = tokens.colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                    }
+                    if (formattedImdb != null) {
+                        if (metaPrefix.isNotBlank()) {
+                            Text(
+                                text = " • ",
+                                style = metaTextStyle,
+                                color = tokens.colors.textSecondary,
+                            )
+                        }
+                        ImdbRatingSourceLabel(storeTextStyle = metaTextStyle)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = formattedImdb,
+                            style = metaTextStyle,
+                            color = ImdbYellow,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
 
             item.genres
                 .take(3)
@@ -614,7 +671,7 @@ private fun HomePosterPreviewCard(
     }
 }
 
-private fun MetaPreview.previewMetadataLine(): String =
+private fun MetaPreview.previewMetadataPrefix(): String =
     buildList {
         add(type.replaceFirstChar(Char::uppercase))
         releaseInfo
@@ -622,10 +679,6 @@ private fun MetaPreview.previewMetadataLine(): String =
             ?.let(::formatReleaseDateForDisplay)
             ?.takeIf { it.isNotBlank() }
             ?.let(::add)
-        imdbRating
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { add("IMDb $it") }
     }.joinToString(" • ")
 
 private class HomePosterPreviewPositionProvider(

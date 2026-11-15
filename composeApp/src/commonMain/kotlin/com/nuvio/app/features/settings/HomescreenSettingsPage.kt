@@ -2,22 +2,28 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
@@ -35,9 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.controller.controllerFocusable
@@ -49,6 +58,7 @@ import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.home.HomeHeroStyle
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.Res
@@ -105,6 +115,7 @@ internal fun LazyListScope.homescreenSettingsContent(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                val homescreenState by HomeCatalogSettingsRepository.uiState.collectAsState()
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_homescreen_show_hero),
                     description = stringResource(Res.string.settings_homescreen_show_hero_description),
@@ -113,6 +124,12 @@ internal fun LazyListScope.homescreenSettingsContent(
                     isTablet = isTablet,
                     onMoveUp = { true },
                     onCheckedChange = HomeCatalogSettingsRepository::setHeroEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                HomeHeroStyleSelector(
+                    isTablet = isTablet,
+                    selectedStyle = homescreenState.heroStyle,
+                    onStyleSelected = HomeCatalogSettingsRepository::setHeroStyle,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
@@ -131,7 +148,6 @@ internal fun LazyListScope.homescreenSettingsContent(
                     onCheckedChange = HomeCatalogSettingsRepository::setHideUnreleasedContent,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
-                val homescreenState by HomeCatalogSettingsRepository.uiState.collectAsState()
                 SettingsSwitchRow(
                     title = "My List",
                     description = "Show your Library as a My List row at the top of the home screen.",
@@ -484,6 +500,326 @@ private fun HomescreenCatalogList(
                                 onEnabledChange = { HomeCatalogSettingsRepository.setEnabled(item.key, it) },
                                 dragHandleScope = this@ReorderableItem,
                                 onPinnedDragAttempt = onPinnedDragAttempt,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeHeroStyleSelector(
+    isTablet: Boolean,
+    selectedStyle: HomeHeroStyle,
+    onStyleSelected: (HomeHeroStyle) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = if (isTablet) 20.dp else 16.dp, vertical = if (isTablet) 18.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "Hero Section",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Choose how the featured banner is rendered at the top of the home screen.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            HomeHeroStyle.entries.forEach { style ->
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeHeroStyleOption(
+                        style = style,
+                        selected = selectedStyle == style,
+                        isTablet = isTablet,
+                        onClick = { onStyleSelected(style) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeHeroStyleOption(
+    style: HomeHeroStyle,
+    selected: Boolean,
+    isTablet: Boolean,
+    onClick: () -> Unit,
+) {
+    val focusId = "settings_homescreen_hero_style_${style.name}"
+    val isFocused = isControllerNodeFocused(focusId)
+    val tokens = MaterialTheme.nuvio
+    val containerColor = when {
+        isFocused -> tokens.colors.accent.copy(alpha = 0.24f)
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val borderStroke = if (isFocused) {
+        BorderStroke(1.5.dp, Color.White.copy(alpha = 0.85f))
+    } else {
+        null
+    }
+    val title = when (style) {
+        HomeHeroStyle.Default -> "Default"
+        HomeHeroStyle.Poster -> "Poster"
+    }
+    val description = when (style) {
+        HomeHeroStyle.Default -> "Edge-to-edge top fade banner"
+        HomeHeroStyle.Poster -> "Framed full-width landscape card"
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .controllerFocusable(
+                id = focusId,
+                groupKey = "settings_content",
+                cornerRadius = 12.dp,
+                focusScale = 1.0f,
+                hideFocusRing = true,
+                selectLabel = "$title Style",
+                onSelect = onClick,
+            )
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        color = containerColor,
+        border = borderStroke,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(148.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                HomeHeroStylePreview(style = style)
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Rounded.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.TopEnd).size(if (isTablet) 24.dp else 18.dp),
+                    )
+                }
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = description,
+                style = if (isTablet) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeHeroStylePreview(
+    style: HomeHeroStyle,
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        when (style) {
+            HomeHeroStyle.Default -> {
+                Box(
+                    modifier = Modifier
+                        .width(136.dp)
+                        .height(86.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)),
+                ) {
+                    // Full-bleed edge-to-edge backdrop fading into lower content
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .align(Alignment.TopCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                        Color.Transparent,
+                                    ),
+                                ),
+                            ),
+                    )
+                    // Minimal title + pill bars aligned on lower-left fade
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 8.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(56.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(22.dp)
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)),
+                        )
+                    }
+                    // Bottom shelf peek
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        repeat(4) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(5.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                            )
+                        }
+                    }
+                }
+            }
+
+            HomeHeroStyle.Poster -> {
+                Column(
+                    modifier = Modifier
+                        .width(136.dp)
+                        .height(86.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    // Simulated top nav bar above framed card
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(14.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(12.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(12.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+                        )
+                    }
+                    // Framed rounded landscape poster card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.26f),
+                                shape = RoundedCornerShape(7.dp),
+                            ),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.36f)),
+                        )
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 7.dp, bottom = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(42.dp)
+                                    .height(7.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(58.dp)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(20.dp)
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.26f)),
+                            )
+                        }
+                    }
+                    // Shelf row peeking underneath poster frame
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        repeat(4) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
                             )
                         }
                     }

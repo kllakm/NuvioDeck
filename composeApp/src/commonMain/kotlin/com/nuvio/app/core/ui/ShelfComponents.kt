@@ -304,7 +304,11 @@ fun NuvioPosterCard(
         basePosterWidthDp = effectiveBasePosterWidthDp,
         shape = shape,
     )
-    val shouldShowTitleBelow = showTitleBelow && !posterCardStyle.hideLabelsEnabled
+    val effectiveFocusId = focusId ?: remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" }
+    val isDwellExpanded = com.nuvio.app.controller.isControllerPosterDwellExpanded(effectiveFocusId)
+    val shouldShowTitleBelow = showTitleBelow &&
+        !posterCardStyle.hideLabelsEnabled &&
+        !isDwellExpanded
     val normalizedPrimary = imageUrl?.trim()?.takeIf { it.isNotEmpty() }
     val normalizedFallback = fallbackImageUrl?.trim()?.takeIf { it.isNotEmpty() }
     val normalizedSecondary = secondaryFallbackImageUrl?.trim()?.takeIf { it.isNotEmpty() }
@@ -318,106 +322,114 @@ fun NuvioPosterCard(
         mutableStateOf(false)
     }
     val showFallbackArtwork = resolvedPrimaryUrl == null || imageLoadFailed
-    val effectiveFocusId = focusId ?: remember(title, imageUrl) { "poster_${title.hashCode()}_${imageUrl?.hashCode() ?: 0}" }
 
     Column(
         modifier = Modifier
             .desktopPosterHoverScale(focusId = effectiveFocusId)
             .then(modifier)
-            .width(cardWidth),
+            .widthIn(min = cardWidth),
         verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(shape.aspectRatio)
-                .posterCardClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                    zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
-                    zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
-                    hoverScaleEnabled = false,
-                    focusId = effectiveFocusId,
-                )
-                .clip(cardShape)
-                .background(tokens.colors.surface)
-                .nuvioCardDepth(
-                    shape = cardShape,
-                    surface = NuvioCardDepthSurface.Posters,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (imageModel != null && !imageLoadFailed) {
-                NuvioAsyncImage(
-                    model = imageModel,
-                    contentDescription = title,
-                    modifier = Modifier.matchParentSize(),
-                    onSuccess = { imageLoadFailed = false },
-                    onError = { imageLoadFailed = true },
-                    contentScale = ContentScale.Crop,
-                    desktopAnimation = posterCardStyle.animatedArtworkMode.toDesktopAnimation(),
-                )
-            }
-            if (showFallbackArtwork) {
-                NuvioFallbackPosterArtwork(
-                    title = title,
-                    modifier = Modifier.matchParentSize(),
-                    showTitle = true,
-                    isLandscape = shape == NuvioPosterShape.Landscape,
-                )
-            }
+        com.nuvio.app.controller.ControllerPosterDwellCardFrame(
+            focusId = effectiveFocusId,
+            cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+            isLandscape = shape == NuvioPosterShape.Landscape,
+            cardWidth = cardWidth,
+            posterAspectRatio = shape.aspectRatio,
+        ) { innerCardShape ->
+            Box(
+                modifier = Modifier
+                    .width(cardWidth)
+                    .aspectRatio(shape.aspectRatio)
+                    .posterCardClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
+                        zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
+                        hoverScaleEnabled = false,
+                        focusId = effectiveFocusId,
+                    )
+                    .clip(innerCardShape)
+                    .background(tokens.colors.surface)
+                    .nuvioCardDepth(
+                        shape = innerCardShape,
+                        surface = NuvioCardDepthSurface.Posters,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (imageModel != null && !imageLoadFailed) {
+                    NuvioAsyncImage(
+                        model = imageModel,
+                        contentDescription = title,
+                        modifier = Modifier.matchParentSize(),
+                        onSuccess = { imageLoadFailed = false },
+                        onError = { imageLoadFailed = true },
+                        contentScale = ContentScale.Crop,
+                        desktopAnimation = posterCardStyle.animatedArtworkMode.toDesktopAnimation(),
+                    )
+                }
+                if (showFallbackArtwork) {
+                    NuvioFallbackPosterArtwork(
+                        title = title,
+                        modifier = Modifier.matchParentSize(),
+                        showTitle = true,
+                        isLandscape = shape == NuvioPosterShape.Landscape,
+                    )
+                }
 
-            val hasLogo = !bottomLeftLogoUrl.isNullOrBlank()
-            val hasBottomText = !showFallbackArtwork && !bottomLeftText.isNullOrBlank() && !hasLogo
-            if (hasLogo || hasBottomText) {
-                // Gradient scrim for readability — matching NuvioTV Modern Home style
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .drawWithCache {
-                            val gradient = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.58f to Color.Transparent,
-                                    1.0f to Color.Black.copy(alpha = 0.75f)
+                val hasLogo = !bottomLeftLogoUrl.isNullOrBlank()
+                val hasBottomText = !showFallbackArtwork && !bottomLeftText.isNullOrBlank() && !hasLogo
+                if (hasLogo || hasBottomText) {
+                    // Gradient scrim for readability — matching NuvioTV Modern Home style
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .drawWithCache {
+                                val gradient = Brush.verticalGradient(
+                                    colorStops = arrayOf(
+                                        0.0f to Color.Transparent,
+                                        0.58f to Color.Transparent,
+                                        1.0f to Color.Black.copy(alpha = 0.75f)
+                                    )
                                 )
+                                onDrawBehind { drawRect(gradient) }
+                            }
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(horizontal = NuvioTokens.Space.s10, vertical = NuvioTokens.Space.s10),
+                    ) {
+                        if (hasLogo) {
+                            NuvioAsyncImage(
+                                model = bottomLeftLogoUrl,
+                                contentDescription = stringResource(Res.string.poster_logo_content_description, title),
+                                modifier = Modifier
+                                    .width(catalogLogoOverlaySize.width)
+                                    .height(catalogLogoOverlaySize.height),
+                                contentScale = ContentScale.Fit,
+                                alignment = Alignment.CenterStart,
                             )
-                            onDrawBehind { drawRect(gradient) }
+                        } else {
+                            Text(
+                                text = bottomLeftText.orEmpty(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = tokens.colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = catalogLogoOverlaySize.textMaxWidth),
+                            )
                         }
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = NuvioTokens.Space.s10, vertical = NuvioTokens.Space.s10),
-                ) {
-                    if (hasLogo) {
-                        NuvioAsyncImage(
-                            model = bottomLeftLogoUrl,
-                            contentDescription = stringResource(Res.string.poster_logo_content_description, title),
-                            modifier = Modifier
-                                .width(catalogLogoOverlaySize.width)
-                                .height(catalogLogoOverlaySize.height),
-                            contentScale = ContentScale.Fit,
-                            alignment = Alignment.CenterStart,
-                        )
-                    } else {
-                        Text(
-                            text = bottomLeftText.orEmpty(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = tokens.colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = catalogLogoOverlaySize.textMaxWidth),
-                        )
                     }
                 }
-            }
 
-            NuvioPosterWatchedOverlay(isWatched = isWatched)
+                NuvioPosterWatchedOverlay(isWatched = isWatched)
+            }
         }
         if (shouldShowTitleBelow) {
             Text(
                 text = title,
+                modifier = Modifier.width(cardWidth),
                 style = MaterialTheme.typography.bodyMedium,
                 color = tokens.colors.textPrimary,
                 maxLines = 1,
@@ -426,6 +438,7 @@ fun NuvioPosterCard(
             if (!detailLine.isNullOrBlank()) {
                 Text(
                     text = detailLine,
+                    modifier = Modifier.width(cardWidth),
                     style = MaterialTheme.typography.labelSmall,
                     color = tokens.colors.textMuted,
                     maxLines = 1,
@@ -857,10 +870,11 @@ internal fun Modifier.desktopPosterHoverScale(
 
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
     val isControllerFocused = isControllerActive && !focusId.isNullOrEmpty() && isControllerNodeFocused(focusId)
+    val isDwellExpanded = !focusId.isNullOrEmpty() && com.nuvio.app.controller.isControllerPosterDwellExpanded(focusId)
     val rawHovered by interactionSource.collectIsHoveredAsState()
     val hovered = rawHovered && !isControllerActive
     val targetScale = when {
-        isControllerFocused -> controllerFocusScale
+        isControllerFocused -> if (isDwellExpanded) 1.02f else controllerFocusScale
         hovered -> DesktopPosterHoverScale
         else -> 1f
     }

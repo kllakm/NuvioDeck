@@ -142,6 +142,7 @@ object TopBarTabOrderController {
     internal var closeDropdownsAction: (() -> Unit)? = null
     internal var activateTabAction: ((AppScreenTab) -> Unit)? = null
     internal var focusTabAction: ((Int) -> Unit)? = null
+    internal var resolveTabFocusIdAction: ((Int) -> String)? = null
 
     /**
      * Cycles through the 7 top bar items in visual left-to-right order:
@@ -177,22 +178,27 @@ object TopBarTabOrderController {
 
         return when (nextSlot) {
             in 0 until tabs.size -> {
+                val targetFocusId = resolveTabFocusIdAction?.invoke(nextSlot)
+                ControllerFocusEngine.beginTopBarBumperNavigation(targetFocusId)
                 closeDropdownsAction?.invoke()
                 activateTab(tabs[nextSlot])
                 focusTabAction?.invoke(nextSlot)
                 true
             }
             tabs.size -> {
+                ControllerFocusEngine.beginTopBarBumperNavigation(TOP_NAV_FULLSCREEN_ID)
                 closeDropdownsAction?.invoke()
                 focusFullscreenAction?.invoke()
                 true
             }
             tabs.size + 1 -> {
+                ControllerFocusEngine.beginTopBarBumperNavigation(TOP_NAV_NOTIFICATIONS_ID)
                 closeDropdownsAction?.invoke()
                 focusNotificationsAction?.invoke()
                 true
             }
             tabs.size + 2 -> {
+                ControllerFocusEngine.beginTopBarBumperNavigation(TOP_NAV_PROFILE_ID)
                 closeDropdownsAction?.invoke()
                 focusProfileAction?.invoke()
                 true
@@ -391,6 +397,10 @@ internal fun NuvioDeckTopNavigationBar(
         "top_nav_${items[lastIdx].label}_$lastIdx"
     }
 
+    TopBarTabOrderController.resolveTabFocusIdAction = { index ->
+        val targetItem = items.getOrNull(index)
+        if (targetItem != null) "top_nav_${targetItem.label}_$index" else lastTabFocusId
+    }
     TopBarTabOrderController.focusTabAction = { index ->
         ControllerFocusEngine.setTopBarVisibleByScroll(true)
         isNotificationDropdownOpen = false

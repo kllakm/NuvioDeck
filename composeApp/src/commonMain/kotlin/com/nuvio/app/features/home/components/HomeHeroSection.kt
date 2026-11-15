@@ -4,8 +4,12 @@ import com.nuvio.app.controller.controllerFocusable
 import com.nuvio.app.controller.nuvioHeroBackdropMask
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -131,6 +135,7 @@ fun HomeHeroSection(
     stretchPx: () -> Float = { 0f },
     showImdbRating: Boolean = true,
     showMdbListRatings: Boolean = false,
+    heroStyle: com.nuvio.app.features.home.HomeHeroStyle = com.nuvio.app.features.home.HomeHeroStyle.Default,
     onItemClick: ((MetaPreview) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
@@ -195,13 +200,19 @@ fun HomeHeroSection(
             mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHint?.value,
             preferDesktopLayout = isDesktop,
         )
+        val isPosterHeroStyle = isDesktop && heroStyle == com.nuvio.app.features.home.HomeHeroStyle.Poster
+        val effectiveHeroHeight = if (isPosterHeroStyle) {
+            (maxWidth.value * 0.44f).dp.coerceIn(400.dp, 540.dp)
+        } else {
+            layout.heroHeight
+        }
         val heroWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
-        val heroHeightPx = with(LocalDensity.current) { layout.heroHeight.toPx() }
+        val heroHeightPx = with(LocalDensity.current) { effectiveHeroHeight.toPx() }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heroStretchHeight(layout.heroHeight, stretchPx),
+                .heroStretchHeight(effectiveHeroHeight, stretchPx),
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -214,24 +225,45 @@ fun HomeHeroSection(
             }
 
             if (isDesktop) {
-                DesktopHomeHeroFrame(
-                    items = items,
-                    pagerState = pagerState,
-                    listState = listState,
-                    layout = layout,
-                    heroWidthPx = heroWidthPx,
-                    heroHeightPx = heroHeightPx,
-                    stretchPx = stretchPx,
-                    includePagerNeighbors = pagerDragActive,
-                    contentHorizontalPadding = maxOf(
-                        sectionPadding ?: layout.contentHorizontalPadding,
-                        layout.contentHorizontalPadding,
-                    ),
-                    coroutineScope = coroutineScope,
-                    showImdbRating = showImdbRating,
-                    showMdbListRatings = showMdbListRatings,
-                    onItemClick = onItemClick,
-                )
+                if (isPosterHeroStyle) {
+                    DesktopPosterHeroFrame(
+                        items = items,
+                        pagerState = pagerState,
+                        listState = listState,
+                        layout = layout,
+                        heroWidthPx = heroWidthPx,
+                        heroHeightPx = heroHeightPx,
+                        stretchPx = stretchPx,
+                        includePagerNeighbors = pagerDragActive,
+                        contentHorizontalPadding = maxOf(
+                            sectionPadding ?: layout.contentHorizontalPadding,
+                            layout.contentHorizontalPadding,
+                        ),
+                        coroutineScope = coroutineScope,
+                        showImdbRating = showImdbRating,
+                        showMdbListRatings = showMdbListRatings,
+                        onItemClick = onItemClick,
+                    )
+                } else {
+                    DesktopHomeHeroFrame(
+                        items = items,
+                        pagerState = pagerState,
+                        listState = listState,
+                        layout = layout,
+                        heroWidthPx = heroWidthPx,
+                        heroHeightPx = heroHeightPx,
+                        stretchPx = stretchPx,
+                        includePagerNeighbors = pagerDragActive,
+                        contentHorizontalPadding = maxOf(
+                            sectionPadding ?: layout.contentHorizontalPadding,
+                            layout.contentHorizontalPadding,
+                        ),
+                        coroutineScope = coroutineScope,
+                        showImdbRating = showImdbRating,
+                        showMdbListRatings = showMdbListRatings,
+                        onItemClick = onItemClick,
+                    )
+                }
             } else {
                 DefaultHomeHeroFrame(
                     items = items,
@@ -284,6 +316,22 @@ private fun HeroBackgroundLayers(
                 .height(layout.heroHeight)
                 .heroStretchZoom(stretchPx)
         }
+        val isCurrentPage = pagerState.currentPage == page
+        val subtleZoom = remember(page, item.id) { Animatable(1f) }
+        LaunchedEffect(isCurrentPage, page, item.id) {
+            if (isCurrentPage) {
+                subtleZoom.snapTo(1f)
+                subtleZoom.animateTo(
+                    targetValue = 1.055f,
+                    animationSpec = tween(
+                        durationMillis = 8_500,
+                        easing = LinearEasing,
+                    ),
+                )
+            } else {
+                subtleZoom.snapTo(1f)
+            }
+        }
         AsyncImage(
             model = if (desktopFrame) originalTmdbImageUrl(imageUrl) else imageUrl,
             contentDescription = item.name,
@@ -301,13 +349,13 @@ private fun HeroBackgroundLayers(
                     alpha = heroPageVisibility(pageOffset)
                     translationX = -pageOffset * heroWidthPx * HERO_BACKGROUND_PARALLAX
                     translationY = if (desktopFrame) {
-                        heroDesktopBackgroundScrollTranslationY(scrollOffsetPx) * backgroundMotionStrength
+                        0f
                     } else {
                         heroBackgroundScrollTranslationY(scrollOffsetPx)
                     }
                     val baseScale = if (desktopFrame) 1f else HERO_BACKGROUND_SCALE
-                    scaleX = baseScale * scrollScale
-                    scaleY = baseScale * scrollScale
+                    scaleX = baseScale * scrollScale * subtleZoom.value
+                    scaleY = baseScale * scrollScale * subtleZoom.value
                 },
             alignment = when {
                 desktopFrame -> BiasAlignment(
@@ -729,6 +777,125 @@ private fun DesktopHomeHeroFrame(
                     .padding(
                         end = contentHorizontalPadding,
                         bottom = space.s40,
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DesktopPosterHeroFrame(
+    items: List<MetaPreview>,
+    pagerState: PagerState,
+    listState: LazyListState?,
+    layout: HomeHeroLayout,
+    heroWidthPx: Float,
+    heroHeightPx: Float,
+    stretchPx: () -> Float,
+    includePagerNeighbors: Boolean,
+    contentHorizontalPadding: Dp,
+    coroutineScope: CoroutineScope,
+    showImdbRating: Boolean,
+    showMdbListRatings: Boolean,
+    onItemClick: ((MetaPreview) -> Unit)?,
+) {
+    val cardShape = RoundedCornerShape(22.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                start = contentHorizontalPadding,
+                end = contentHorizontalPadding,
+                top = 0.dp,
+                bottom = 18.dp,
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(cardShape)
+                .background(Color(0xFF0E1017))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.14f),
+                    shape = cardShape,
+                ),
+        ) {
+            HeroBackgroundLayers(
+                items = items,
+                pagerState = pagerState,
+                listState = listState,
+                layout = layout,
+                heroWidthPx = heroWidthPx,
+                heroHeightPx = heroHeightPx,
+                stretchPx = stretchPx,
+                includePagerNeighbors = includePagerNeighbors,
+                desktopFrame = true,
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Black.copy(alpha = 0.78f),
+                                0.28f to Color.Black.copy(alpha = 0.52f),
+                                0.56f to Color.Black.copy(alpha = 0.16f),
+                                0.78f to Color.Transparent,
+                            ),
+                        ),
+                    ),
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.72f),
+                            ),
+                        ),
+                    ),
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = 36.dp,
+                        end = 36.dp,
+                        bottom = 32.dp,
+                    )
+                    .fillMaxWidth(layout.contentWidthFraction)
+                    .widthIn(max = layout.contentMaxWidth),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                HeroDesktopContentLayers(
+                    items = items,
+                    pagerState = pagerState,
+                    layout = layout,
+                    heroWidthPx = heroWidthPx,
+                    showImdbRating = showImdbRating,
+                    showMdbListRatings = showMdbListRatings,
+                    onItemClick = onItemClick,
+                    includePagerNeighbors = includePagerNeighbors,
+                )
+            }
+
+            HeroPageIndicatorRow(
+                itemCount = items.size,
+                pagerState = pagerState,
+                coroutineScope = coroutineScope,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 32.dp,
+                        bottom = 28.dp,
                     ),
             )
         }

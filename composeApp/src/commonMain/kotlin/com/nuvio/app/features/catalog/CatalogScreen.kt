@@ -377,14 +377,17 @@ private fun CatalogPosterTile(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val cardFocusId = remember(item.id) { "poster_catalog_${item.id}" }
+    val isDwellExpanded = com.nuvio.app.controller.isControllerPosterDwellExpanded(cardFocusId)
     HomePosterHoverPreview(
         item = item,
         isWatched = isWatched,
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = Modifier.fillMaxWidth(),
+        focusId = cardFocusId,
+        isLandscapeCard = item.posterShape == PosterShape.Landscape,
     ) {
-        val cardFocusId = remember(item.id) { "poster_catalog_${item.id}" }
         val cleanPoster = item.poster?.trim()?.takeIf { it.isNotEmpty() }
         val cleanRawPoster = item.rawPosterUrl?.trim()?.takeIf { it.isNotEmpty() }
         val metahubFallback = remember(item.id) { metahubFallbackArtworkUrl(item.id) }
@@ -404,47 +407,55 @@ private fun CatalogPosterTile(
                 .then(it),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(item.posterShape.catalogAspectRatio())
-                    .posterCardClickable(
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                        zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
-                        zoomCornerRadius = cornerRadiusDp.dp,
-                        hoverScaleEnabled = false,
-                        focusId = cardFocusId,
-                    )
-                    .clip(RoundedCornerShape(cornerRadiusDp.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .nuvioCardDepth(
-                        shape = RoundedCornerShape(cornerRadiusDp.dp),
-                        surface = NuvioCardDepthSurface.Posters,
-                    ),
-            ) {
-                if (imageModel != null && !imageLoadFailed) {
-                    AsyncImage(
-                        model = imageModel,
-                        contentDescription = item.name,
-                        modifier = Modifier.fillMaxSize(),
-                        onSuccess = { imageLoadFailed = false },
-                        onError = { imageLoadFailed = true },
-                        contentScale = ContentScale.Crop,
-                        desktopAnimation = rememberAnimatedArtworkAnimation(),
-                    )
+            com.nuvio.app.controller.ControllerPosterDwellCardFrame(
+                focusId = cardFocusId,
+                cornerRadiusDp = cornerRadiusDp,
+                isLandscape = item.posterShape == PosterShape.Landscape,
+                cardWidth = null,
+                posterAspectRatio = item.posterShape.catalogAspectRatio(),
+            ) { innerShape ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(item.posterShape.catalogAspectRatio())
+                        .posterCardClickable(
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                            zoomImageUrl = if (showFallbackArtwork) null else resolvedPrimaryUrl,
+                            zoomCornerRadius = cornerRadiusDp.dp,
+                            hoverScaleEnabled = false,
+                            focusId = cardFocusId,
+                        )
+                        .clip(innerShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .nuvioCardDepth(
+                            shape = innerShape,
+                            surface = NuvioCardDepthSurface.Posters,
+                        ),
+                ) {
+                    if (imageModel != null && !imageLoadFailed) {
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = item.name,
+                            modifier = Modifier.fillMaxSize(),
+                            onSuccess = { imageLoadFailed = false },
+                            onError = { imageLoadFailed = true },
+                            contentScale = ContentScale.Crop,
+                            desktopAnimation = rememberAnimatedArtworkAnimation(),
+                        )
+                    }
+                    if (showFallbackArtwork) {
+                        NuvioFallbackPosterArtwork(
+                            title = item.name,
+                            modifier = Modifier.fillMaxSize(),
+                            showTitle = true,
+                            isLandscape = item.posterShape == PosterShape.Landscape,
+                        )
+                    }
+                    NuvioPosterWatchedOverlay(isWatched = isWatched)
                 }
-                if (showFallbackArtwork) {
-                    NuvioFallbackPosterArtwork(
-                        title = item.name,
-                        modifier = Modifier.fillMaxSize(),
-                        showTitle = true,
-                        isLandscape = item.posterShape == PosterShape.Landscape,
-                    )
-                }
-                NuvioPosterWatchedOverlay(isWatched = isWatched)
             }
-            if (!hideLabels) {
+            if (!hideLabels && !isDwellExpanded) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
