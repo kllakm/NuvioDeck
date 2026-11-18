@@ -75,9 +75,13 @@ object WindowsControllerService {
 
     fun activateAndFocusWindow(window: java.awt.Window) {
         appWindow = window
-        val hwnd = runCatching {
-            com.nuvio.app.features.player.desktop.AwtNativeViewResolver.resolveNativeViewPointer(window)
-        }.getOrDefault(0L)
+        val hwnd = if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+            runCatching {
+                com.nuvio.app.features.player.desktop.AwtNativeViewResolver.resolveNativeViewPointer(window)
+            }.getOrDefault(0L)
+        } else {
+            0L
+        }
         if (hwnd != 0L) {
             appWindowHwnd = hwnd
         }
@@ -86,7 +90,7 @@ object WindowsControllerService {
             window.toFront()
             window.requestFocus()
             (window as? javax.swing.RootPaneContainer)?.contentPane?.requestFocusInWindow()
-            if (hwnd != 0L) {
+            if (DesktopHostOs.current == DesktopHostOs.WINDOWS && hwnd != 0L) {
                 runCatching {
                     user32?.SetForegroundWindow(hwnd)
                     user32?.BringWindowToTop(hwnd)
@@ -96,7 +100,16 @@ object WindowsControllerService {
     }
 
     fun isWindowCurrentlyFocused(): Boolean {
-        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return isAppWindowFocused
+        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) {
+            val win = appWindow
+            if (win != null) {
+                val iconified = ((win as? java.awt.Frame)?.extendedState ?: 0) and java.awt.Frame.ICONIFIED != 0
+                if (!win.isVisible || !win.isShowing || iconified) return false
+                if (win.isActive || win.isFocused) return true
+            }
+            if (DesktopPlayerPictureInPicture.pipWindow?.isActive == true) return true
+            return isAppWindowFocused
+        }
         val win = appWindow
         if (win != null) {
             val iconified = ((win as? java.awt.Frame)?.extendedState ?: 0) and java.awt.Frame.ICONIFIED != 0
@@ -153,12 +166,12 @@ object WindowsControllerService {
     private const val IDLE_POLL_INTERVAL_MS = 16L
     private const val HOTPLUG_PROBE_INTERVAL_MS = 450L
 
-    private const val LEFT_STICK_DEADZONE = 0.24f
-    private const val RIGHT_STICK_DEADZONE = 0.22f
+    internal const val LEFT_STICK_DEADZONE = 0.24f
+    internal const val RIGHT_STICK_DEADZONE = 0.22f
     private const val STICK_NAV_PRESS_THRESHOLD = 0.50f
     private const val STICK_NAV_RELEASE_THRESHOLD = 0.32f
-    private const val TRIGGER_PRESS_THRESHOLD = 0.38f
-    private const val TRIGGER_RELEASE_THRESHOLD = 0.24f
+    internal const val TRIGGER_PRESS_THRESHOLD = 0.38f
+    internal const val TRIGGER_RELEASE_THRESHOLD = 0.24f
 
     private const val REPEAT_INITIAL_DELAY_MS = 360L
     private const val REPEAT_INTERVAL_MS = 105L
@@ -318,7 +331,7 @@ object WindowsControllerService {
         XINPUT_MIRROR,
     }
 
-    private data class NormalizedGamepadState(
+    internal data class NormalizedGamepadState(
         val buttons: Set<XboxButton> = emptySet(),
         val leftStickX: Float = 0f,
         val leftStickY: Float = 0f, // Positive = Up, Negative = Down
@@ -357,10 +370,16 @@ object WindowsControllerService {
     }
 
     fun startIfNeeded() {
-        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return
+        val os = DesktopHostOs.current
+        if (os != DesktopHostOs.WINDOWS && os != DesktopHostOs.LINUX) return
         if (!started.compareAndSet(false, true)) return
 
-        Thread(::pollLoop, "nuvio-win11-controller-service").apply {
+        val threadName = if (os == DesktopHostOs.LINUX) {
+            "nuvio-linux-controller-service"
+        } else {
+            "nuvio-win11-controller-service"
+        }
+        Thread(::pollLoop, threadName).apply {
             isDaemon = true
             priority = Thread.NORM_PRIORITY + 1
             start()
@@ -394,6 +413,7 @@ object WindowsControllerService {
                 }
 
                 var activeXInputCount = 0
+                var activeDirectInputCount = 0
                 var mergedButtons = mutableSetOf<XboxButton>()
                 var maxLeftStickX = 0f
                 var maxLeftStickY = 0f
@@ -402,69 +422,85 @@ object WindowsControllerService {
                 var maxLeftTrigger = 0f
                 var maxRightTrigger = 0f
 
-                // 1. Poll XInput slots 0..3
-                val xinput = xInputLib
-                if (xinput != null) {
-                    for (slot in 0..3) {
-                        if (!xInputConnected[slot] && !probeDisconnected) continue
-                        val res = xinput.XInputGetState(slot, xInputStates[slot])
-                        if (res == ERROR_SUCCESS) {
-                            xInputConnected[slot] = true
-                            activeXInputCount++
-                            val state = normalizeXInputState(
-                                xInputStates[slot].Gamepad,
-                                ltWasPressed = ltPressed,
-                                rtWasPressed = rtPressed,
-                            )
-                            mergedButtons.addAll(state.buttons)
-                            if (abs(state.leftStickX) > abs(maxLeftStickX)) maxLeftStickX = state.leftStickX
-                            if (abs(state.leftStickY) > abs(maxLeftStickY)) maxLeftStickY = state.leftStickY
-                            if (abs(state.rightStickX) > abs(maxRightStickX)) maxRightStickX = state.rightStickX
-                            if (abs(state.rightStickY) > abs(maxRightStickY)) maxRightStickY = state.rightStickY
-                            maxLeftTrigger = max(maxLeftTrigger, state.leftTrigger)
-                            maxRightTrigger = max(maxRightTrigger, state.rightTrigger)
-                        } else {
-                            xInputConnected[slot] = false
+                if (DesktopHostOs.current == DesktopHostOs.LINUX) {
+                    val linuxResult = LinuxControllerPoller.poll(
+                        probeDisconnected = probeDisconnected,
+                        ltWasPressed = ltPressed,
+                        rtWasPressed = rtPressed,
+                    )
+                    activeDirectInputCount = linuxResult.connectedCount
+                    val state = linuxResult.state
+                    mergedButtons.addAll(state.buttons)
+                    maxLeftStickX = state.leftStickX
+                    maxLeftStickY = state.leftStickY
+                    maxRightStickX = state.rightStickX
+                    maxRightStickY = state.rightStickY
+                    maxLeftTrigger = state.leftTrigger
+                    maxRightTrigger = state.rightTrigger
+                } else {
+                    // 1. Poll XInput slots 0..3
+                    val xinput = xInputLib
+                    if (xinput != null) {
+                        for (slot in 0..3) {
+                            if (!xInputConnected[slot] && !probeDisconnected) continue
+                            val res = xinput.XInputGetState(slot, xInputStates[slot])
+                            if (res == ERROR_SUCCESS) {
+                                xInputConnected[slot] = true
+                                activeXInputCount++
+                                val state = normalizeXInputState(
+                                    xInputStates[slot].Gamepad,
+                                    ltWasPressed = ltPressed,
+                                    rtWasPressed = rtPressed,
+                                )
+                                mergedButtons.addAll(state.buttons)
+                                if (abs(state.leftStickX) > abs(maxLeftStickX)) maxLeftStickX = state.leftStickX
+                                if (abs(state.leftStickY) > abs(maxLeftStickY)) maxLeftStickY = state.leftStickY
+                                if (abs(state.rightStickX) > abs(maxRightStickX)) maxRightStickX = state.rightStickX
+                                if (abs(state.rightStickY) > abs(maxRightStickY)) maxRightStickY = state.rightStickY
+                                maxLeftTrigger = max(maxLeftTrigger, state.leftTrigger)
+                                maxRightTrigger = max(maxRightTrigger, state.rightTrigger)
+                            } else {
+                                xInputConnected[slot] = false
+                            }
                         }
                     }
-                }
 
-                // 2. Poll DirectInput / Switch / PlayStation / HID controllers via winmm
-                var activeDirectInputCount = 0
-                val winmm = winMmLib
-                if (winmm != null) {
-                    val numDevs = winmm.joyGetNumDevs().coerceAtMost(16)
-                    for (joyId in 0 until numDevs) {
-                        if (!joyConnected[joyId] && !probeDisconnected) continue
-                        joyInfo.dwSize = joyInfo.size()
-                        joyInfo.dwFlags = JOY_RETURNALL
-                        val res = winmm.joyGetPosEx(joyId, joyInfo)
-                        if (res == JOYERR_NOERROR) {
-                            if (!joyConnected[joyId]) {
-                                joyConnected[joyId] = true
-                                joyProfiles[joyId] = detectDirectInputProfile(winmm, joyId, joyCaps)
+                    // 2. Poll DirectInput / Switch / PlayStation / HID controllers via winmm
+                    val winmm = winMmLib
+                    if (winmm != null) {
+                        val numDevs = winmm.joyGetNumDevs().coerceAtMost(16)
+                        for (joyId in 0 until numDevs) {
+                            if (!joyConnected[joyId] && !probeDisconnected) continue
+                            joyInfo.dwSize = joyInfo.size()
+                            joyInfo.dwFlags = JOY_RETURNALL
+                            val res = winmm.joyGetPosEx(joyId, joyInfo)
+                            if (res == JOYERR_NOERROR) {
+                                if (!joyConnected[joyId]) {
+                                    joyConnected[joyId] = true
+                                    joyProfiles[joyId] = detectDirectInputProfile(winmm, joyId, joyCaps)
+                                }
+                                val profile = joyProfiles[joyId]
+                                // If XInput is already active, skip XInput-mirrored winmm slots so inputs aren't doubled
+                                if (profile == DirectInputProfile.XINPUT_MIRROR && activeXInputCount > 0) {
+                                    continue
+                                }
+                                activeDirectInputCount++
+                                val state = normalizeDirectInputState(
+                                    info = joyInfo,
+                                    profile = profile,
+                                    ltWasPressed = ltPressed,
+                                    rtWasPressed = rtPressed,
+                                )
+                                mergedButtons.addAll(state.buttons)
+                                if (abs(state.leftStickX) > abs(maxLeftStickX)) maxLeftStickX = state.leftStickX
+                                if (abs(state.leftStickY) > abs(maxLeftStickY)) maxLeftStickY = state.leftStickY
+                                if (abs(state.rightStickX) > abs(maxRightStickX)) maxRightStickX = state.rightStickX
+                                if (abs(state.rightStickY) > abs(maxRightStickY)) maxRightStickY = state.rightStickY
+                                maxLeftTrigger = max(maxLeftTrigger, state.leftTrigger)
+                                maxRightTrigger = max(maxRightTrigger, state.rightTrigger)
+                            } else {
+                                joyConnected[joyId] = false
                             }
-                            val profile = joyProfiles[joyId]
-                            // If XInput is already active, skip XInput-mirrored winmm slots so inputs aren't doubled
-                            if (profile == DirectInputProfile.XINPUT_MIRROR && activeXInputCount > 0) {
-                                continue
-                            }
-                            activeDirectInputCount++
-                            val state = normalizeDirectInputState(
-                                info = joyInfo,
-                                profile = profile,
-                                ltWasPressed = ltPressed,
-                                rtWasPressed = rtPressed,
-                            )
-                            mergedButtons.addAll(state.buttons)
-                            if (abs(state.leftStickX) > abs(maxLeftStickX)) maxLeftStickX = state.leftStickX
-                            if (abs(state.leftStickY) > abs(maxLeftStickY)) maxLeftStickY = state.leftStickY
-                            if (abs(state.rightStickX) > abs(maxRightStickX)) maxRightStickX = state.rightStickX
-                            if (abs(state.rightStickY) > abs(maxRightStickY)) maxRightStickY = state.rightStickY
-                            maxLeftTrigger = max(maxLeftTrigger, state.leftTrigger)
-                            maxRightTrigger = max(maxRightTrigger, state.rightTrigger)
-                        } else {
-                            joyConnected[joyId] = false
                         }
                     }
                 }
@@ -768,7 +804,7 @@ object WindowsControllerService {
         )
     }
 
-    private fun applyRadialDeadzone(x: Float, y: Float, deadzone: Float): Pair<Float, Float> {
+    internal fun applyRadialDeadzone(x: Float, y: Float, deadzone: Float): Pair<Float, Float> {
         val mag = hypot(x, y)
         if (mag <= deadzone) return 0f to 0f
         val normalizedMag = ((mag - deadzone) / (1f - deadzone)).coerceIn(0f, 1f)

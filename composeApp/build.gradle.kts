@@ -988,31 +988,44 @@ tasks.matching { it.name == "prepareAppResources" }.configureEach {
     }
 }
 
+val desktopNativePlayerTasks = setOf(
+    "run",
+    "runRelease",
+    "desktopRun",
+    "runDistributable",
+    "runReleaseDistributable",
+    "desktopRunHot",
+    "hotRunDesktop",
+    "hotRunDesktopAsync",
+    "hotDevDesktop",
+    "hotDevDesktopAsync",
+    "createDistributable",
+    "createReleaseDistributable",
+    "createRuntimeImage",
+    "package",
+    "packageDistributionForCurrentOS",
+    "packageMsi",
+    "packageUberJarForCurrentOS",
+    "packageReleaseDistributionForCurrentOS",
+    "packageReleaseMsi",
+    "packageReleaseUberJarForCurrentOS",
+    "packageDeb",
+    "packageReleaseDeb",
+    "packageRpm",
+    "packageReleaseRpm",
+    "packageAppImage",
+    "packageReleaseAppImage",
+)
+
 if (isWindowsHost) {
-    val desktopNativePlayerTasks = setOf(
-        "run",
-        "runRelease",
-        "desktopRun",
-        "runDistributable",
-        "runReleaseDistributable",
-        "desktopRunHot",
-        "hotRunDesktop",
-        "hotRunDesktopAsync",
-        "hotDevDesktop",
-        "hotDevDesktopAsync",
-        "createDistributable",
-        "createReleaseDistributable",
-        "createRuntimeImage",
-        "package",
-        "packageDistributionForCurrentOS",
-        "packageMsi",
-        "packageUberJarForCurrentOS",
-        "packageReleaseDistributionForCurrentOS",
-        "packageReleaseMsi",
-        "packageReleaseUberJarForCurrentOS",
-    )
     tasks.matching { it.name in desktopNativePlayerTasks }.configureEach {
         dependsOn(buildWindowsPlayerBridge, prepareWindowsPlayerRuntime, generateWindowsPlayerRuntimeIndex)
+    }
+}
+
+if (isLinuxHost) {
+    tasks.matching { it.name in desktopNativePlayerTasks }.configureEach {
+        dependsOn(buildLinuxPlayerBridge)
     }
 }
 
@@ -1619,7 +1632,7 @@ if (isLinuxHost) {
             ?: System.getenv("APPIMAGE_WEBSITE_URL")?.takeIf { it.isNotBlank() }
 
         val distributionName = if (release) "main-release" else "main"
-        val appImageName = "Nuvio-Linux-$linuxAppImageArch-$desktopReleaseVersionName.AppImage"
+        val appImageName = "NuvioDeck-Linux-$linuxAppImageArch-$desktopReleaseVersionName.AppImage"
         val outputAppImage = layout.buildDirectory
             .dir("compose/binaries/$distributionName/app")
             .get()

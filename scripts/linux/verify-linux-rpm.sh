@@ -30,9 +30,9 @@ if [[ ! -f "$rpm_path" ]]; then
 fi
 
 vendor="$(rpm -qp --qf '%{VENDOR}\n' "$rpm_path")"
-if [[ "$vendor" != "Nuvio Media" ]]; then
+if [[ "$vendor" != "Kuma Labs" && "$vendor" != "Nuvio Media" ]]; then
     echo "Unexpected Vendor: '$vendor'" >&2
-    echo "Expected: 'Nuvio Media'" >&2
+    echo "Expected: 'Kuma Labs' or 'Nuvio Media'" >&2
     exit 1
 fi
 

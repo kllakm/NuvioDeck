@@ -44,10 +44,10 @@ private const val MaxDesktopSourceSizePx = 1536
 private const val MaxScaledBitmapPixels = 2_500_000L
 private const val HighDpiSupersampleFactor = 1.25f
 
-private val IsWindowsDesktop: Boolean =
-    System.getProperty("os.name")
-        ?.startsWith("Windows", ignoreCase = true)
-        ?: false
+private val IsWindowsOrLinuxDesktop: Boolean =
+    System.getProperty("os.name").orEmpty().let { os ->
+        os.startsWith("Windows", ignoreCase = true) || os.contains("linux", ignoreCase = true)
+    }
 
 private val AlwaysPlaying: () -> Boolean = { true }
 private val NeverPlaying: () -> Boolean = { false }
@@ -89,7 +89,7 @@ internal actual fun NuvioAsyncImage(
 
     val context = LocalPlatformContext.current
     val effectiveDesktopImageScaling = remember(desktopImageScaling) {
-        if (IsWindowsDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
+        if (IsWindowsOrLinuxDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
     }
     val requestModel = remember(context, model, effectiveDesktopImageScaling, animated) {
         model.withDesktopImageOptions(
@@ -195,7 +195,7 @@ internal actual suspend fun prefetchNuvioImage(
     desktopAnimation: NuvioDesktopAnimation,
 ) {
     if (url.isBlank()) return
-    val highQualitySize = IsWindowsDesktop
+    val highQualitySize = IsWindowsOrLinuxDesktop
     val animated = desktopAnimation != NuvioDesktopAnimation.Off
     val request = url.withDesktopImageOptions(
         context = context,

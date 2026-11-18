@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-readonly NUVIO_LINUX_SHORTCUT_RELATIVE_PATH="usr/share/applications/nuvio.desktop"
-readonly NUVIO_LINUX_SHORTCUT_NAME="Nuvio"
-readonly NUVIO_LINUX_SHORTCUT_COMMENT="Nuvio Media Player"
+readonly NUVIO_LINUX_SHORTCUT_RELATIVE_PATH="usr/share/applications/nuviodeck.desktop"
+readonly NUVIO_LINUX_SHORTCUT_NAME="NuvioDeck"
+readonly NUVIO_LINUX_SHORTCUT_COMMENT="NuvioDeck Media Player"
 readonly NUVIO_LINUX_SHORTCUT_CATEGORIES="AudioVideo;"
 readonly NUVIO_LINUX_SHORTCUT_STARTUP_NOTIFY="true"
 readonly NUVIO_LINUX_SHORTCUT_STARTUP_WM_CLASS="com-nuvio-app-MainKt"
@@ -41,7 +41,11 @@ nuvio_linux_write_desktop_entry() {
     local root_dir="$1"
     local desktop_file="$root_dir/$NUVIO_LINUX_SHORTCUT_RELATIVE_PATH"
     mkdir -p "$(dirname "$desktop_file")"
-    nuvio_linux_write_desktop_entry_file "$desktop_file" "/opt/nuvio/bin/Nuvio %u" "/opt/nuvio/lib/Nuvio.png"
+    if [[ -e "$root_dir/opt/nuviodeck/bin/NuvioDeck" ]]; then
+        nuvio_linux_write_desktop_entry_file "$desktop_file" "/opt/nuviodeck/bin/NuvioDeck %u" "/opt/nuviodeck/lib/NuvioDeck.png"
+    else
+        nuvio_linux_write_desktop_entry_file "$desktop_file" "/opt/nuvio/bin/Nuvio %u" "/opt/nuvio/lib/Nuvio.png"
+    fi
 }
 
 nuvio_linux_ensure_uri_handler() {

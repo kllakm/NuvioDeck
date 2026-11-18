@@ -10,7 +10,7 @@
       <img src="https://img.shields.io/github/v/release/kllakm/NuvioDeck?include_prereleases&style=for-the-badge&logo=github&label=Release&color=E50914" alt="Latest Release" />
     </a>
     <a href="https://github.com/kllakm/NuvioDeck/releases">
-      <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Platform Windows 10/11" />
+      <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11%20%7C%20Linux%20(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Platform Windows and Linux" />
     </a>
     <img src="https://img.shields.io/badge/Input-Controller%20%26%20Handheld%20Ready-107C10?style=for-the-badge&logo=xbox&logoColor=white" alt="Controller & Handheld Ready" />
     <img src="https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin Multiplatform" />
@@ -24,9 +24,9 @@
   </p>
 
   <p>
-    <strong>A free, open-source 10-foot & handheld media center for Windows 10/11.</strong>
+    <strong>A free, open-source 10-foot & handheld media center for Windows 10/11 and Linux.</strong>
     <br />
-    Bring your own sources. <strong>NuvioDeck</strong> turns them into a rich streaming library with artwork, ratings, subtitles, and cloud progress sync—purpose-built with native controller navigation for Windows PCs, HTPCs, and handhelds.
+    Bring your own sources. <strong>NuvioDeck</strong> turns them into a rich streaming library with artwork, ratings, subtitles, and cloud progress sync—purpose-built with native controller navigation for Windows PCs, Linux desktops, HTPCs, and handhelds.
   </p>
 
   <p>
@@ -104,9 +104,12 @@
   - Full controller traversal on **Manage / Edit Profile** starting at the top Name input and stepping cleanly through Use Primary Addons, Custom Avatar URL, Profile Background & Avatar Picker grids, Set/Remove PIN Lock, Save, and Delete, with `B` returning cleanly to the profile screen.
   - Both the Profile Switcher dropdown and the Login / Profile Selection screen share a unified, minimalist **studio PIN pad** (`RoundedCornerShape(20.dp)`, borderless card & bare lock icon sitting cleanly on the backdrop, 4 greyed circular dots that fill bright white inside a transparent fixed-width slot that fades to the verification spinner without changing width, horizontal error micro-shake, borderless tonal keypad tiles with compact `5dp` spacing, **Netflix Sans** numerals, monochrome action keys, and full controller/keyboard/mouse support). On the Login screen, profile icons render as sleek `120dp` borderless rounded rectangles (`12dp` corners inside a `12dp` padded `144dp` selection frame) with crisp white **Netflix Sans** profile name labels (`FontWeight.Medium`), flat avatar backgrounds, and an always-visible semi-transparent **Add profile** tile (leaving circular/ringed profile avatars untouched everywhere else).
 
-### 🎮 Universal Windows 11 Controller Support & Spatial Focus Engine
-- **Multi-Backend Hardware Polling & Hot-Plugging:** Low-latency JNA polling across **XInput** (`XInput1_4.dll`, `XInput9_1_0.dll`, `XInput1_3.dll`) and **Windows Multimedia / DirectInput** (`winmm.dll`) with automatic device deduplication and normalization for Xbox, Sony DualSense / DualShock 4, Nintendo Switch Pro / Joy-Con, and built-in handheld controllers.
-- **Zero-Friction Auto-Hide Mouse Cursor:** Immediately hides the system cursor (via a `1x1` transparent cursor and Win32 stationary cursor refresh) and clears passive hover states the moment any controller button, trigger, or stick is used—and restores the cursor as soon as the physical mouse moves (`>= 6px`).
+### 🎮 Universal Windows & Linux Controller Support & Spatial Focus Engine
+- **Multi-Backend Hardware Polling & Hot-Plugging (`Windows` & `Linux`):**
+  - **Windows:** Low-latency JNA polling across **XInput** (`XInput1_4.dll`, `XInput9_1_0.dll`, `XInput1_3.dll`) and **Windows Multimedia / DirectInput** (`winmm.dll`) with automatic device deduplication.
+  - **Linux:** Native JNA `libc` polling across Linux kernel **`joydev` (`/dev/input/js*`)** with **`evdev` (`/dev/input/event*`)** fallback (`LinuxControllerPoller`), querying kernel button/axis maps (`JSIOCGAXMAP`, `JSIOCGBTNMAP`, `EVIOCGABS`) with hot-plugging and identical deadzones, triggers, sticks, cursor auto-hide, and `ControllerHintToolbar` prompts.
+  - Supports Xbox One/Series/360, Sony DualSense / DualShock 4, Nintendo Switch Pro / Joy-Con, Steam Deck, and generic HID controllers across both platforms.
+- **Zero-Friction Auto-Hide Mouse Cursor:** Immediately hides the system cursor (via a transparent cursor on AWT/Compose and Win32 stationary cursor refresh on Windows) and clears passive hover states the moment any controller button, trigger, or stick is used—and restores the cursor as soon as the physical mouse moves (`>= 6px`).
 - **Selected Artwork Brightening, Specular Cover Sheen & Sleek `1.6dp` Focus Ring:**
   - Focusing a poster or media card with the controller applies a smooth scale-up transition scaling **both the poster artwork and its title/subtitle labels below together** (`1.07x`, matching mouse hover), a subtle brightening wash (`6.5%` white), and a diagonal specular sheen gradient clipped to the card's rounded corners, framed by a refined **`1.6dp` solid white selection border** and diffused outer glow.
   - **Controller Inline Dwell Expansion (Row Shelves):** Pausing controller focus on any poster card inside horizontal shelf rows (on the main Home page and any row-based folder or collection; automatically disabled in grid layouts) for the configured **Hover Preview Open Delay** expands the card horizontally to the right (for both landscape and portrait posters, zero action buttons) to display the clearlogo/title, year/runtime metadata, official **IMDb** yellow badge rating, genres, and synopsis while smoothly pushing neighbouring shelf posters across—collapsing immediately on D-Pad navigation. (Mouse hover flyout popups also display the official **IMDb** yellow badge rating.)
@@ -161,7 +164,7 @@
 - **Unified Monochrome Stream Selection (App & Player OSD):** Both the main-app stream list and the in-player OSD stream selector share matching card styling (`12dp` radius, `0.32f` accent focus fill, `0.52f` active border) with flat monochrome vector/SVG metadata icons replacing emoji markers.
 - **App-Wide Netflix Sans Typography, Row Headings & Card Defaults:** Bundles both **Netflix Sans** weights (**`netflix_sans_bold.ttf`** for bold headings, `Bold`/`ExtraBold`/`Black`/`SemiBold` UI weights, Top 10 numerals, and bold PIN keys; **`netflix_sans_thin.ttf`** for body copy, movie descriptions, subtitles, badges, and standard/medium PIN keys) across the entire Material 3 & `NuvioTypeScale` hierarchy. Home (`Continue Watching for <Profile Name>`, `My List`, catalog, and collection shelves) and Library row headings share bold `22sp` (`titleMd`) section headings, while Search `"Discover"` retains its standalone display header. Under **Settings → Layout → Poster Card Style**, **Landscape Posters** and **Hide Labels** default to **ON** while **Always Backdrop with Logo for Landscape Posters** defaults to **OFF**; **Hero Section** defaults to **Poster**; **Prefer Episode Thumbnails** in Continue Watching defaults to **OFF**; and **Hover Preview Open Delay** defaults to **`0.5s`**.
 - **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, hide redundant Navigation Bar layout/sidebar style rows on Desktop where the top toolbar is always active, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, center **Folders in Collections** multi-row grids cleanly, always open folders scrolled at the very top (synchronizing route/tab focus before exit disposal and waiting for ordered tab loads), and move strictly by horizontal spatial alignment on D-Pad `Up`/`Down` across content rows without snapping back to old column memory.
-- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.30`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
+- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.32`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
 
 ---
 
@@ -173,9 +176,10 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 ## 📦 Installation & Downloads
 
-Download the latest Windows installer (`NuvioDeck-Windows-x64-0.1.30.msi`) from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/).
+Download the latest installers from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/):
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.30.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.32.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Linux (x64):** `.deb`, `.rpm`, `.AppImage` (`NuvioDeck-Linux-x86_64-0.1.32.*`), and **Flatpak** bundle (`com.nuvio.media.desktop`) — packaged with isolated `~/.config/nuviodeck` and `~/.cache/nuviodeck` directories and automatic `joydev`/`evdev` controller support.
 
 ---
 
@@ -206,7 +210,13 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.30.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.32.msi`
+
+### Package Linux Installers (Ubuntu / Linux x64)
+
+```bash
+./gradlew :composeApp:packageReleaseDeb :composeApp:packageReleaseRpm :composeApp:packageReleaseAppImage -Pcompose.desktop.packaging.checkJdkVendor=false --no-configuration-cache --no-daemon
+```
 
 ---
 

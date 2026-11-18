@@ -22,6 +22,7 @@ on:
           - windows
           - macos
           - linux
+          - linux-flatpak
         default: all
       exclude_commits:
         description: Optional comma-separated commit hashes to omit from the notes
@@ -296,7 +297,6 @@ jobs:
         run: |
           ./gradlew \
             :composeApp:notarizeReleaseDmgWithKeychain \
-            :desktopSentry:sentryUploadSourceBundleJava \
             "-Pnuvio.macos.arch=${MACOS_ARCH}" \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
@@ -312,7 +312,6 @@ jobs:
         run: |
           ./gradlew \
             :composeApp:packageReleaseDmg \
-            :desktopSentry:sentryUploadSourceBundleJava \
             "-Pnuvio.macos.arch=${MACOS_ARCH}" \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
@@ -465,7 +464,6 @@ jobs:
         run: |
           & .\gradlew.bat `
             :composeApp:packageReleaseMsi `
-            :desktopSentry:sentryUploadSourceBundleJava `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
             --no-configuration-cache `
@@ -477,7 +475,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
-          $msiRelativePath = "composeApp\build\compose\release-msis\Nuvio-Windows-x64-$env:RELEASE_VERSION.msi"
+          $msiRelativePath = "composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-$env:RELEASE_VERSION.msi"
           if (-not (Test-Path $msiRelativePath)) {
             throw "Expected MSI was not produced: $msiRelativePath"
           }
@@ -540,13 +538,13 @@ jobs:
             throw "The extracted MSI does not contain the bundled Java runtime."
           }
 
-          $manifestPath = "composeApp\build\compose\release-msis\Nuvio-Windows-x64-$env:RELEASE_VERSION-contents.txt"
+          $manifestPath = "composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-$env:RELEASE_VERSION-contents.txt"
           $extractedFiles = Get-ChildItem $extractDir -Recurse -File | Sort-Object FullName
           $nativeEntries = $jarEntries `
             | Where-Object { $_ -like "native/windows/*" } `
             | Sort-Object
           $manifest = [Collections.Generic.List[string]]::new()
-          $manifest.Add("MSI=Nuvio-Windows-x64-$env:RELEASE_VERSION.msi")
+          $manifest.Add("MSI=NuvioDeck-Windows-x64-$env:RELEASE_VERSION.msi")
           $manifest.Add("MSI_SHA256=$((Get-FileHash $msiPath -Algorithm SHA256).Hash.ToLowerInvariant())")
           $manifest.Add("MSI_SIGNATURE_STATUS=$((Get-AuthenticodeSignature $msiPath).Status)")
           $manifest.Add("EXTRACTED_FILE_COUNT=$($extractedFiles.Count)")
@@ -573,14 +571,14 @@ jobs:
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-windows-x64
           path: |
-            composeApp/build/compose/release-msis/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}.msi
-            composeApp/build/compose/release-msis/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}-contents.txt
+            composeApp/build/compose/release-msis/NuvioDeck-Windows-x64-${{ needs.metadata.outputs.version }}.msi
+            composeApp/build/compose/release-msis/NuvioDeck-Windows-x64-${{ needs.metadata.outputs.version }}-contents.txt
           if-no-files-found: error
           retention-days: 14
 
   linux_flatpak:
     name: Linux x64 - Flatpak
-    if: inputs.mode != 'dry-run' && (inputs.target == 'all' || inputs.target == 'linux')
+    if: inputs.mode != 'dry-run' && inputs.target == 'linux-flatpak'
     needs: metadata
     runs-on: ubuntu-latest
     environment: desktop-release
@@ -618,20 +616,28 @@ jobs:
           set -euo pipefail
           ./gradlew \
             :composeApp:createReleaseDistributable \
-            :desktopSentry:sentryUploadSourceBundleJava \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
             --no-daemon \
             --stacktrace
 
-          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
+          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioDeck"
           if [[ ! -d "${app_root}" ]]; then
-            echo "Expected the Linux app bundle at ${app_root} after createReleaseDistributable." >&2
+            app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
+          fi
+          if [[ ! -d "${app_root}" ]]; then
+            echo "Expected the Linux app bundle under composeApp/build/compose/binaries/main-release/app/ after createReleaseDistributable." >&2
             find composeApp/build/compose -maxdepth 6 2>/dev/null | head -n 200 >&2
             exit 1
           fi
 
-          executable_path="${app_root}/bin/Nuvio"
+          executable_path="${app_root}/bin/NuvioDeck"
+          if [[ ! -x "${executable_path}" ]]; then
+            executable_path="${app_root}/bin/nuviodeck"
+          fi
+          if [[ ! -x "${executable_path}" ]]; then
+            executable_path="${app_root}/bin/Nuvio"
+          fi
           if [[ ! -x "${executable_path}" ]]; then
             executable_path="${app_root}/bin/nuvio"
           fi
@@ -655,10 +661,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
-          alt_app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio/Nuvio"
-          if [[ -d "${alt_app_root}" ]]; then
-            app_root="${alt_app_root}"
+          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioDeck"
+          if [[ -d "${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioDeck/NuvioDeck" ]]; then
+            app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioDeck/NuvioDeck"
+          elif [[ ! -d "${app_root}" ]]; then
+            app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
           fi
 
           if [[ ! -d "${app_root}" ]]; then
@@ -667,7 +674,13 @@ jobs:
             exit 1
           fi
 
-          executable_path="${app_root}/bin/Nuvio"
+          executable_path="${app_root}/bin/NuvioDeck"
+          if [[ ! -x "${executable_path}" ]]; then
+            executable_path="${app_root}/bin/nuviodeck"
+          fi
+          if [[ ! -x "${executable_path}" ]]; then
+            executable_path="${app_root}/bin/Nuvio"
+          fi
           if [[ ! -x "${executable_path}" ]]; then
             executable_path="${app_root}/bin/nuvio"
           fi
@@ -690,13 +703,13 @@ jobs:
           sed -i "s|\${app_root}|${app_root}|g" flatpak/nuvio-flatpak.yml
           
           flatpak-builder --repo=flatpak-repo --force-clean flatpak-build flatpak/nuvio-flatpak.yml
-          flatpak build-bundle flatpak-repo "Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak" com.nuvio.media.desktop
+          flatpak build-bundle flatpak-repo "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.flatpak" com.nuvio.media.desktop
 
       - name: Verify Flatpak
         shell: bash
         run: |
           set -euo pipefail
-          flatpak_path="Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak"
+          flatpak_path="NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.flatpak"
           if [[ ! -f "${flatpak_path}" ]]; then
             echo "Expected Flatpak bundle was not produced: ${flatpak_path}" >&2
             exit 1
@@ -707,7 +720,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-linux-flatpak
-          path: Nuvio-Linux-x86_64-${{ needs.metadata.outputs.version }}.flatpak
+          path: NuvioDeck-Linux-x86_64-${{ needs.metadata.outputs.version }}.flatpak
           if-no-files-found: error
           retention-days: 14
 
@@ -752,7 +765,6 @@ jobs:
           set -euo pipefail
           ./gradlew \
             :composeApp:packageReleaseDeb \
-            :desktopSentry:sentryUploadSourceBundleJava \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
             --no-daemon \
@@ -772,13 +784,13 @@ jobs:
             exit 1
           fi
 
-          cp "${debs[0]}" "Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
+          cp "${debs[0]}" "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.deb"
 
       - name: Verify DEB
         shell: bash
         run: |
           set -euo pipefail
-          deb_path="Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
+          deb_path="NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.deb"
           if [[ ! -f "${deb_path}" ]]; then
             echo "Expected DEB package was not produced: ${deb_path}" >&2
             exit 1
@@ -790,7 +802,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-linux-deb
-          path: Nuvio-Linux-x86_64-${{ needs.metadata.outputs.version }}.deb
+          path: NuvioDeck-Linux-x86_64-${{ needs.metadata.outputs.version }}.deb
           if-no-files-found: error
           retention-days: 14
 
@@ -835,7 +847,6 @@ jobs:
           set -euo pipefail
           ./gradlew \
             :composeApp:packageReleaseRpm \
-            :desktopSentry:sentryUploadSourceBundleJava \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
             --no-daemon \
@@ -855,13 +866,13 @@ jobs:
             exit 1
           fi
 
-          cp "${rpms[0]}" "Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"
+          cp "${rpms[0]}" "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.rpm"
 
       - name: Verify RPM
         shell: bash
         run: |
           set -euo pipefail
-          rpm_path="Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"
+          rpm_path="NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.rpm"
           if [[ ! -f "${rpm_path}" ]]; then
             echo "Expected RPM package was not produced: ${rpm_path}" >&2
             exit 1
@@ -873,7 +884,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-linux-rpm
-          path: Nuvio-Linux-x86_64-${{ needs.metadata.outputs.version }}.rpm
+          path: NuvioDeck-Linux-x86_64-${{ needs.metadata.outputs.version }}.rpm
           if-no-files-found: error
           retention-days: 14
 
@@ -935,10 +946,10 @@ jobs:
 
           repo_owner="${GITHUB_REPOSITORY%%/*}"
           repo_name="${GITHUB_REPOSITORY#*/}"
-          update_information="gh-releases-zsync|${repo_owner}|${repo_name}|latest|Nuvio-Linux-x86_64-*.AppImage.zsync"
+          update_information="gh-releases-zsync|${repo_owner}|${repo_name}|latest|NuvioDeck-Linux-x86_64-*.AppImage.zsync"
 
           export APPIMAGETOOL="${appimagetool_path}"
-          export APPIMAGE_WEBSITE_URL="https://github.com/NuvioMedia/NuvioDesktop"
+          export APPIMAGE_WEBSITE_URL="https://github.com/kllakm/NuvioDeck"
 
           if [[ "${{ inputs.mode }}" == "publish" ]]; then
             export UPDATE_INFORMATION="${update_information}"
@@ -947,7 +958,6 @@ jobs:
 
           ./gradlew \
             :composeApp:packageReleaseAppImage \
-            :desktopSentry:sentryUploadSourceBundleJava \
             -Pcompose.desktop.packaging.checkJdkVendor=false \
             --no-configuration-cache \
             --no-daemon \
@@ -960,24 +970,24 @@ jobs:
             exit 1
           fi
 
-          appimage_path="${appimage_dir}/Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+          appimage_path="${appimage_dir}/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
           if [[ ! -f "${appimage_path}" ]]; then
             echo "Expected AppImage artifact was not produced: ${appimage_path}" >&2
             find "${appimage_dir}" -maxdepth 4 -type f | sort >&2 || true
             exit 1
           fi
 
-          cp "${appimage_path}" "Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
-          chmod +x "Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+          cp "${appimage_path}" "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+          chmod +x "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
 
-          zsyncmake "Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+          zsyncmake "NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
 
       - name: Verify AppImage
         shell: bash
         run: |
           set -euo pipefail
-          appimage_path="Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
-          zsync_path="Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
+          appimage_path="NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+          zsync_path="NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
           if [[ ! -f "${appimage_path}" ]]; then
             echo "Expected AppImage package was not produced: ${appimage_path}" >&2
             exit 1
@@ -1009,8 +1019,8 @@ jobs:
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-linux-appimage
           path: |
-            Nuvio-Linux-x86_64-${{ needs.metadata.outputs.version }}.AppImage
-            Nuvio-Linux-x86_64-${{ needs.metadata.outputs.version }}.AppImage.zsync
+            NuvioDeck-Linux-x86_64-${{ needs.metadata.outputs.version }}.AppImage
+            NuvioDeck-Linux-x86_64-${{ needs.metadata.outputs.version }}.AppImage.zsync
           if-no-files-found: error
           retention-days: 14
 
@@ -1046,12 +1056,12 @@ jobs:
           release_assets=(
             "release/Nuvio-macOS-arm64-${RELEASE_VERSION}.dmg"
             "release/Nuvio-macOS-x86_64-${RELEASE_VERSION}.dmg"
-            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.msi"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
+            "release/NuvioDeck-Windows-x64-${RELEASE_VERSION}.msi"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.flatpak"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.deb"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.rpm"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
           )
           if [[ ! -s release/release-notes.md ]]; then
             echo "Release notes are missing." >&2
@@ -1075,12 +1085,12 @@ jobs:
           release_assets=(
             "release/Nuvio-macOS-arm64-${RELEASE_VERSION}.dmg"
             "release/Nuvio-macOS-x86_64-${RELEASE_VERSION}.dmg"
-            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.msi"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage"
-            "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
+            "release/NuvioDeck-Windows-x64-${RELEASE_VERSION}.msi"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.flatpak"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.deb"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.rpm"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage"
+            "release/NuvioDeck-Linux-x86_64-${RELEASE_VERSION}.AppImage.zsync"
             "release/SHA256SUMS.txt"
           )
           release_args=(

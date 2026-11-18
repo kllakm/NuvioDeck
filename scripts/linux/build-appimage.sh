@@ -78,9 +78,12 @@ if [[ -n "$update_information" ]]; then
     printf 'X-AppImage-UpdateInformation=%s\n' "$update_information" >> "$desktop_file"
 fi
 
-icon_source="$app_dir/lib/Nuvio.png"
+icon_source="$app_dir/lib/NuvioDeck.png"
 if [[ ! -f "$icon_source" ]]; then
-    echo "Expected AppImage icon at $icon_source" >&2
+    icon_source="$app_dir/lib/Nuvio.png"
+fi
+if [[ ! -f "$icon_source" ]]; then
+    echo "Expected AppImage icon at $app_dir/lib/NuvioDeck.png or $app_dir/lib/Nuvio.png" >&2
     exit 1
 fi
 cp "$icon_source" "$app_dir/${NUVIO_LINUX_SHORTCUT_NAME}.png"
@@ -90,9 +93,20 @@ cat > "$app_dir/AppRun" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-executable_path="$here/bin/Nuvio"
-if [[ ! -x "$executable_path" ]]; then
-    executable_path="$here/bin/nuvio"
+executable_path=""
+for candidate in \
+    "$here/bin/NuvioDeck" \
+    "$here/bin/nuviodeck" \
+    "$here/bin/Nuvio" \
+    "$here/bin/nuvio"; do
+    if [[ -x "$candidate" ]]; then
+        executable_path="$candidate"
+        break
+    fi
+done
+if [[ -z "$executable_path" ]]; then
+    echo "Expected launcher binary under $here/bin" >&2
+    exit 1
 fi
 exec "$executable_path" "$@"
 EOF

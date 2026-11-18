@@ -26,11 +26,10 @@ if [[ ! -f "$deb" ]]; then
     exit 1
 fi
 
-expected_maintainer="Nuvio Media <contact@nuvio.tv>"
 maintainer="$(dpkg-deb -f "$deb" Maintainer)"
-if [[ "$maintainer" != "$expected_maintainer" ]]; then
+if [[ "$maintainer" != "Kuma Labs <contact@nuvio.tv>" && "$maintainer" != "Nuvio Media <contact@nuvio.tv>" ]]; then
     echo "Unexpected Maintainer: '$maintainer'" >&2
-    echo "Expected: '$expected_maintainer'" >&2
+    echo "Expected: 'Kuma Labs <contact@nuvio.tv>' or 'Nuvio Media <contact@nuvio.tv>'" >&2
     exit 1
 fi
 
