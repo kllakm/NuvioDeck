@@ -19,5 +19,12 @@ internal actual object NewArrivalsStorage {
     actual fun saveAppSoundsEnabled(enabled: Boolean) {
         store.putBoolean("app_sounds_enabled", enabled)
     }
+
+    actual fun loadControllerHintToolbarEnabled(): Boolean =
+        store.getBoolean("controller_hint_toolbar_enabled") ?: true
+
+    actual fun saveControllerHintToolbarEnabled(enabled: Boolean) {
+        store.putBoolean("controller_hint_toolbar_enabled", enabled)
+    }
 }
 

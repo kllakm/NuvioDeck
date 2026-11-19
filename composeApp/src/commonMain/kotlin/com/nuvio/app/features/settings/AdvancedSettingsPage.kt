@@ -78,6 +78,10 @@ internal fun LazyListScope.advancedSettingsContent(
                 ControllerSoundSettings.ensureLoaded()
                 ControllerSoundSettings.enabled
             }.collectAsStateWithLifecycle()
+            val controllerHintsEnabled by remember {
+                com.nuvio.app.controller.ControllerHintSettings.ensureLoaded()
+                com.nuvio.app.controller.ControllerHintSettings.enabled
+            }.collectAsStateWithLifecycle()
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_advanced_remember_last_profile),
@@ -93,6 +97,14 @@ internal fun LazyListScope.advancedSettingsContent(
                     checked = appSoundsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = ControllerSoundSettings::setEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = "Controller Hint Toolbars",
+                    description = "Show controller button hints at the bottom right of app pages and the video player",
+                    checked = controllerHintsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = com.nuvio.app.controller.ControllerHintSettings::setEnabled,
                 )
             }
         }

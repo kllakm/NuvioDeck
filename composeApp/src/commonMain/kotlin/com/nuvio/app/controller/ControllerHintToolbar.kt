@@ -49,7 +49,33 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.nuvio
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.roundToInt
+
+object ControllerHintSettings {
+    private var loaded = false
+    private val _enabled = MutableStateFlow(true)
+    val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
+
+    fun ensureLoaded() {
+        if (loaded) return
+        loaded = true
+        _enabled.value = runCatching { NewArrivalsStorage.loadControllerHintToolbarEnabled() }.getOrDefault(true)
+    }
+
+    fun isEnabled(): Boolean {
+        ensureLoaded()
+        return _enabled.value
+    }
+
+    fun setEnabled(value: Boolean) {
+        ensureLoaded()
+        _enabled.value = value
+        runCatching { NewArrivalsStorage.saveControllerHintToolbarEnabled(value) }
+    }
+}
 
 private val XboxGreen = Color(0xFF38D430)
 private val XboxRed = Color(0xFFFF3B30)
@@ -69,6 +95,10 @@ fun ControllerHintToolbar(
     hideForNativePlayer: Boolean = false,
 ) {
     val isControllerActive by ControllerManager.isControllerActive.collectAsState()
+    val hintsEnabled by remember {
+        ControllerHintSettings.ensureLoaded()
+        ControllerHintSettings.enabled
+    }.collectAsState()
     val screenContext by ControllerManager.screenContext.collectAsState()
     val focusedSnapshot by ControllerFocusEngine.focusedNodeSnapshot.collectAsState()
     val hasMountedContent by ControllerFocusEngine.hasInteractiveContent.collectAsState()
@@ -79,7 +109,7 @@ fun ControllerHintToolbar(
     }
 
     AnimatedVisibility(
-        visible = isControllerActive && !hideForNativePlayer && focusedSnapshot != null && hasMountedContent && hints.isNotEmpty(),
+        visible = hintsEnabled && isControllerActive && !hideForNativePlayer && focusedSnapshot != null && hasMountedContent && hints.isNotEmpty(),
         enter = fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) +
             slideInVertically(animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)) { it / 2 },
         exit = fadeOut(animationSpec = tween(durationMillis = 120)) +
@@ -210,7 +240,7 @@ internal fun buildContextHints(
             if (xLabel != null) add(ControllerHintItem(XboxGlyph.X, xLabel))
             add(ControllerHintItem(XboxGlyph.LB_RB, "Tabs"))
             add(ControllerHintItem(XboxGlyph.Menu, "Navigation"))
-            add(ControllerHintItem(XboxGlyph.B, if (context.canNavigateBack) "Back" else "Menu"))
+            add(ControllerHintItem(XboxGlyph.B, "Back"))
         }
 
         ControllerScreenType.Catalog -> buildList {

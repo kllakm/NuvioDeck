@@ -59,7 +59,11 @@ fun DialogSurface(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
+    BasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier.platformTouchScroll(),
+        properties = properties,
+    ) {
         RegisterControllerHandler(onBack = { onDismissRequest(); true })
         Surface(
             modifier = modifier

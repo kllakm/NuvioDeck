@@ -61,6 +61,57 @@ internal object NativePlayerBridge {
         eventSink: NativePlayerEventSink,
     ): Long
 
+    external fun createWithHdr(
+        hostViewPtr: Long,
+        sourceUrl: String,
+        headerLines: Array<String>,
+        playWhenReady: Boolean,
+        initialPositionMs: Long,
+        controlsPageUrl: String,
+        decoderPriority: Int,
+        nvidiaRtxSuperResolutionEnabled: Boolean,
+        nvidiaRtxHdrEnabled: Boolean,
+        eventSink: NativePlayerEventSink,
+    ): Long
+
+    fun createPlayer(
+        hostViewPtr: Long,
+        sourceUrl: String,
+        headerLines: Array<String>,
+        playWhenReady: Boolean,
+        initialPositionMs: Long,
+        controlsPageUrl: String,
+        decoderPriority: Int,
+        nvidiaRtxSuperResolutionEnabled: Boolean,
+        nvidiaRtxHdrEnabled: Boolean,
+        eventSink: NativePlayerEventSink,
+    ): Long = try {
+        createWithHdr(
+            hostViewPtr,
+            sourceUrl,
+            headerLines,
+            playWhenReady,
+            initialPositionMs,
+            controlsPageUrl,
+            decoderPriority,
+            nvidiaRtxSuperResolutionEnabled,
+            nvidiaRtxHdrEnabled,
+            eventSink,
+        )
+    } catch (_: UnsatisfiedLinkError) {
+        create(
+            hostViewPtr,
+            sourceUrl,
+            headerLines,
+            playWhenReady,
+            initialPositionMs,
+            controlsPageUrl,
+            decoderPriority,
+            nvidiaRtxSuperResolutionEnabled,
+            eventSink,
+        )
+    }
+
     external fun dispose(handle: Long)
     external fun updateControls(handle: Long, controlsJson: String)
 

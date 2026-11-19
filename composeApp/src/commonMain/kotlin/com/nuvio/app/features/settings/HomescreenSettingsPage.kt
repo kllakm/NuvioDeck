@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -28,14 +29,13 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,6 +54,7 @@ import com.nuvio.app.controller.isControllerNodeFocused
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.core.ui.Slider
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
@@ -156,88 +157,83 @@ internal fun LazyListScope.homescreenSettingsContent(
                     onCheckedChange = HomeCatalogSettingsRepository::setShowMyListRow,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                val minLimit = HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT.toFloat()
+                val maxLimit = HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT.toFloat()
                 val rowItemLimit = homescreenState.rowItemLimit.coerceIn(
                     HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
                     HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
                 )
-                val tokens = MaterialTheme.nuvio
-                val isRowLimitFocused = isControllerNodeFocused("settings_homescreen_row_item_limit")
-                val rowLimitBg = if (isRowLimitFocused) tokens.colors.accent.copy(alpha = 0.32f) else Color.Transparent
+                val hapticFeedback = LocalHapticFeedback.current
+                var sliderValue by remember(rowItemLimit) { mutableFloatStateOf(rowItemLimit.toFloat()) }
+                var lastHapticStep by remember(rowItemLimit) { mutableStateOf(rowItemLimit.toFloat()) }
+                val shownLimit = sliderValue.roundToInt().coerceIn(
+                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+                    HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+                )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(rowLimitBg, RoundedCornerShape(12.dp))
-                        .controllerFocusable(
+                        .controllerSliderFocus(
                             id = "settings_homescreen_row_item_limit",
-                            groupKey = "settings_content",
-                            cornerRadius = 12.dp,
-                            focusScale = 1.0f,
-                            hideFocusRing = true,
-                            selectLabel = "Row Poster Limit",
-                            onMoveLeft = {
-                                if (rowItemLimit > HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT) {
-                                    HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit - 1)
-                                }
-                                true
+                            label = "Row Poster Limit",
+                            onDecrement = {
+                                val next = (sliderValue.roundToInt() - 1).coerceIn(
+                                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+                                    HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+                                )
+                                sliderValue = next.toFloat()
+                                HomeCatalogSettingsRepository.setRowItemLimit(next)
                             },
-                            onMoveRight = {
-                                if (rowItemLimit < HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
-                                    HomeCatalogSettingsRepository.setRowItemLimit(rowItemLimit + 1)
-                                }
-                                true
-                            },
-                            onSelect = {
-                                val next = if (rowItemLimit >= HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT) {
-                                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT
-                                } else {
-                                    (rowItemLimit + 5).coerceAtMost(HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT)
-                                }
+                            onIncrement = {
+                                val next = (sliderValue.roundToInt() + 1).coerceIn(
+                                    HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+                                    HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+                                )
+                                sliderValue = next.toFloat()
                                 HomeCatalogSettingsRepository.setRowItemLimit(next)
                             },
                         )
-                        .padding(
-                            horizontal = if (isTablet) 18.dp else 16.dp,
-                            vertical = if (isTablet) 14.dp else 12.dp,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(horizontal = if (isTablet) 18.dp else 16.dp, vertical = 10.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
                                 text = "Row Poster Limit",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                color = tokens.colors.textPrimary,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = "Maximum posters shown per catalog row before the See All card (10–30)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = tokens.colors.textSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Text(
-                            text = "$rowItemLimit posters",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
+                        ValueBox(text = "$shownLimit posters", modifier = Modifier.wrapContentWidth())
                     }
                     Slider(
-                        value = rowItemLimit.toFloat(),
-                        onValueChange = { HomeCatalogSettingsRepository.setRowItemLimit(it.roundToInt()) },
-                        valueRange = HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT.toFloat()..HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT.toFloat(),
-                        steps = (HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT - HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT - 1),
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
-                        ),
+                        value = sliderValue.coerceIn(minLimit, maxLimit),
+                        onValueChange = {
+                            val snapped = snapToStep(it, 1f).coerceIn(minLimit, maxLimit)
+                            sliderValue = snapped
+
+                            if (snapped != lastHapticStep) {
+                                lastHapticStep = snapped
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        },
+                        onValueChangeFinished = {
+                            val limit = sliderValue.roundToInt().coerceIn(
+                                HomeCatalogSettingsRepository.MIN_ROW_ITEM_LIMIT,
+                                HomeCatalogSettingsRepository.MAX_ROW_ITEM_LIMIT,
+                            )
+                            HomeCatalogSettingsRepository.setRowItemLimit(limit)
+                        },
+                        valueRange = minLimit..maxLimit,
+                        steps = calculateSteps(minLimit, maxLimit, 1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }

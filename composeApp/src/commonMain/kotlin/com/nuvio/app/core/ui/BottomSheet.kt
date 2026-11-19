@@ -35,6 +35,7 @@ import com.nuvio.app.controller.ControllerFocusZone
 import com.nuvio.app.controller.LocalControllerFocusZone
 import com.nuvio.app.controller.RegisterControllerHandler
 import com.nuvio.app.controller.controllerFocusable
+import com.nuvio.app.isWindows
 
 private val SheetShape = RoundedCornerShape(NuvioTokens.Space.s28)
 
@@ -89,7 +90,14 @@ fun NuvioModalBottomSheet(
                     if (showDragHandle) {
                         NuvioBottomSheetDragHandle(Modifier.align(Alignment.CenterHorizontally))
                     }
-                    content()
+                    if (isWindows) {
+                        // Inside the sheet's draggable, so content scrolls before
+                        // the sheet can claim its drag. Keep the handle outside
+                        // this scope so dragging it still moves the sheet.
+                        Column(modifier = Modifier.platformTouchScroll(), content = content)
+                    } else {
+                        content()
+                    }
                 }
             }
         }

@@ -30,5 +30,12 @@ internal actual object NewArrivalsStorage {
     actual fun saveAppSoundsEnabled(enabled: Boolean) {
         preferences?.edit()?.putBoolean("app_sounds_enabled", enabled)?.apply()
     }
+
+    actual fun loadControllerHintToolbarEnabled(): Boolean =
+        preferences?.getBoolean("controller_hint_toolbar_enabled", true) ?: true
+
+    actual fun saveControllerHintToolbarEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean("controller_hint_toolbar_enabled", enabled)?.apply()
+    }
 }
 

@@ -47,7 +47,7 @@ fun Menu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = modifier.widthIn(min = MenuMinWidth),
+        modifier = modifier.platformTouchScroll().widthIn(min = MenuMinWidth),
         offset = offset,
         shape = MenuShape,
         containerColor = tokens.colors.surfacePopover,

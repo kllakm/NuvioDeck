@@ -138,7 +138,7 @@
 
 ### 🕹️ Xbox-Style Outlined Controller Hint Toolbar & UI Audio
 - **Xbox-Style Outlined Button Badges:** Bottom-right floating hint bar featuring unfilled circular outlines (`1.75dp` stroke) with Xbox-colored rings and optically cap-height-centered letters (`A` Green `#38D430`, `B` Red `#FF3B30`, `X` Blue `#2899FF`, `Y` Amber `#FFC800`) and crisp white outlines for `LB`, `RB`, `LT`, `RT`, `View`, and `Menu` inside a translucent dark rounded-rectangle pill (`RoundedCornerShape(8.dp)`).
-- **Decluttered Contextual Prompts:** Automatically omits self-evident `A` (Accept/Open) and `D-Pad` (Navigate) hints so only meaningful contextual shortcuts (`[Y] Search`, `[X] Options / Clear`, `[LB][RB] Tabs`, `[Menu] Navigation`, `[B] Back`) are shown.
+- **Decluttered Contextual Prompts:** Automatically omits self-evident `A` (Accept/Open) and `D-Pad` (Navigate) hints so only meaningful contextual shortcuts (`[Y] Search`, `[X] Options / Clear`, `[LB][RB] Tabs`, `[Menu] Navigation`, `[B] Back`) are shown. Includes a persistent **"Controller Hint Toolbars"** toggle under **Settings → System** (enabled by default) to show or hide the bottom-right hint toolbar across both app screens and the video player OSD.
 - **Persistent "App Sounds" Toggle:** Includes a toggle under **Settings → System** (enabled by default) to turn controller and UI navigation sound effects On or Off at any time.
 
 ### 🎬 3-Tier Media Player OSD & Streamlined Playback
@@ -164,7 +164,7 @@
 - **Unified Monochrome Stream Selection (App & Player OSD):** Both the main-app stream list and the in-player OSD stream selector share matching card styling (`12dp` radius, `0.32f` accent focus fill, `0.52f` active border) with flat monochrome vector/SVG metadata icons replacing emoji markers.
 - **App-Wide Netflix Sans Typography, Row Headings & Card Defaults:** Bundles both **Netflix Sans** weights (**`netflix_sans_bold.ttf`** for bold headings, `Bold`/`ExtraBold`/`Black`/`SemiBold` UI weights, Top 10 numerals, and bold PIN keys; **`netflix_sans_thin.ttf`** for body copy, movie descriptions, subtitles, badges, and standard/medium PIN keys) across the entire Material 3 & `NuvioTypeScale` hierarchy. Home (`Continue Watching for <Profile Name>`, `My List`, catalog, and collection shelves) and Library row headings share bold `22sp` (`titleMd`) section headings, while Search `"Discover"` retains its standalone display header. Under **Settings → Layout → Poster Card Style**, **Landscape Posters** and **Hide Labels** default to **ON** while **Always Backdrop with Logo for Landscape Posters** defaults to **OFF**; **Hero Section** defaults to **Poster**; **Prefer Episode Thumbnails** in Continue Watching defaults to **OFF**; and **Hover Preview Open Delay** defaults to **`0.5s`**.
 - **Comprehensive Settings & Folder Controller Navigation:** Split-pane Settings subpages auto-focus their top interactive control on entry, hide redundant Navigation Bar layout/sidebar style rows on Desktop where the top toolbar is always active, isolate `Left`/`Right` slider adjustments (Hover Preview Open Delay, Playback, Up Next, Card Depth), host **Collections** inline inside the Settings split-pane, traverse **Home Layout** catalogs and collections continuously without skipping, center **Folders in Collections** multi-row grids cleanly, always open folders scrolled at the very top (synchronizing route/tab focus before exit disposal and waiting for ordered tab loads), and move strictly by horizontal spatial alignment on D-Pad `Up`/`Down` across content rows without snapping back to old column memory.
-- **Synchronized with Upstream Nuvio Desktop (`v0.1.35` — NuvioDeck `v0.1.32`):** Includes the shared cross-platform AutoSync subtitle engine (with forced subtitles & AutoSync enabled by default), smart horizontal hero backdrop framing, detailed MPV error diagnostics on playback failure, PiP window aspect-ratio auto-sizing, resilient auth session refresh, MDBList anime episode remapping, Simkl & MDBList ratings, OpenSubtitles video hash computation, custom subtitle font importer, torrent stall auto-resume, smart skip intervals, chapter markers, and multi-language localization.
+- **Synchronized with Upstream Nuvio Desktop (`v0.1.38-alpha` — NuvioDeck `v0.1.33`):** Integrates upstream Plex & Silo media server support, Stremio player and library tracking addons with install-time consent dialogs, shared stream search sessions with debrid cache checking once per search and automatic next-source fallback on failure, Continue Watching click-action behavior (**Stream** / **Details** / **Details for Upcoming**) and content-ID Next Up dismissal, Library persistent list/type memory plus Genre/Year/Watched facet filters, Hero Rating chip & delayed hero reveal until source catalogs resolve, Windows touchscreen scrolling across surfaces & hand cursor over clickable targets (suppressed during active controller navigation), off-main-thread brand wordmark decoding, NVIDIA RTX True HDR video filter & chapter title toggle in the desktop OSD, Linux player bridge generic x86-64 tuning, and controls overlay performance optimizations.
 
 ---
 
@@ -178,8 +178,8 @@ NuvioDeck is currently in active alpha development. Features, settings, and stor
 
 Download the latest installers from [**GitHub Releases**](https://github.com/kllakm/NuvioDeck/releases/):
 
-- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.32.msi`) or Standalone Executable (`NuvioDeck.exe`)
-- **Linux (x64):** `.deb`, `.rpm`, `.AppImage` (`NuvioDeck-Linux-x86_64-0.1.32.*`), and **Flatpak** bundle (`com.nuvio.media.desktop`) — packaged with isolated `~/.config/nuviodeck` and `~/.cache/nuviodeck` directories and automatic `joydev`/`evdev` controller support.
+- **Windows 10 / 11 (x64):** MSI Installer (`NuvioDeck-Windows-x64-0.1.33.msi`) or Standalone Executable (`NuvioDeck.exe`)
+- **Linux (x64):** `.deb`, `.rpm`, `.AppImage` (`NuvioDeck-Linux-x86_64-0.1.33.*`), and **Flatpak** bundle (`com.nuvio.media.desktop`) — packaged with isolated `~/.config/nuviodeck` and `~/.cache/nuviodeck` directories and automatic `joydev`/`evdev` controller support.
 
 ---
 
@@ -210,7 +210,7 @@ The standalone application bundle is generated at:
 .\gradlew.bat :composeApp:packageMsi "-Pcompose.desktop.packaging.checkJdkVendor=false" --no-configuration-cache
 ```
 The MSI installer is generated at:
-`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.32.msi`
+`composeApp\build\compose\release-msis\NuvioDeck-Windows-x64-0.1.33.msi`
 
 ### Package Linux Installers (Ubuntu / Linux x64)
 

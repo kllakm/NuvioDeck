@@ -57,6 +57,7 @@ fun NuvioDropdownChip(
     onSelected: (NuvioDropdownOption) -> Unit,
     modifier: Modifier = Modifier,
     id: String? = null,
+    fillWidth: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
     var isSheetVisible by remember { mutableStateOf(false) }
@@ -94,6 +95,7 @@ fun NuvioDropdownChip(
                 color = if (enabled) tokens.colors.textPrimary else tokens.colors.textDisabled,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = if (fillWidth) Modifier.weight(1f) else Modifier,
             )
             Icon(
                 imageVector = Icons.Rounded.KeyboardArrowDown,
@@ -107,7 +109,7 @@ fun NuvioDropdownChip(
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { isSheetVisible = false },
-                modifier = Modifier.widthIn(min = 180.dp, max = 360.dp),
+                modifier = Modifier.platformTouchScroll().widthIn(min = 180.dp, max = 360.dp),
                 containerColor = tokens.colors.surfacePopover,
                 shape = tokens.shapes.compactCard,
             ) {

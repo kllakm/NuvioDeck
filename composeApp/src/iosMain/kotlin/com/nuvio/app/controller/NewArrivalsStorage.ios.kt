@@ -21,5 +21,14 @@ internal actual object NewArrivalsStorage {
     actual fun saveAppSoundsEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setObject(enabled.toString(), forKey = "app_sounds_enabled")
     }
+
+    actual fun loadControllerHintToolbarEnabled(): Boolean {
+        val raw = NSUserDefaults.standardUserDefaults.stringForKey("controller_hint_toolbar_enabled")
+        return if (raw == null) true else raw == "true"
+    }
+
+    actual fun saveControllerHintToolbarEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setObject(enabled.toString(), forKey = "controller_hint_toolbar_enabled")
+    }
 }
 

@@ -2,6 +2,7 @@ package com.nuvio.app
 import com.nuvio.app.controller.ControllerGateOverlay
 import com.nuvio.app.controller.nuvioAppBackground
 
+import com.nuvio.app.features.settings.PreloadAppBrandWordmark
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -123,6 +124,7 @@ internal fun AppGate(
     nativeProfileSwitcherController: NativeProfileSwitcherController?,
     appGateController: AppGateController?,
 ) {
+    PreloadAppBrandWordmark()
     if (bypassAppGate) {
         MainAppContent(
             initialTab = initialTab,
