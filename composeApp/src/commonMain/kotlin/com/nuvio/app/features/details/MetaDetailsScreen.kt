@@ -950,7 +950,7 @@ fun MetaDetailsScreen(
                 val isTrackingActive = isTrackedTitle || isTrackedEpisode
 
                 var streamAvailableByProbe by remember(meta.id, primaryVideoId) { mutableStateOf<Boolean?>(null) }
-                LaunchedEffect(meta.id, primaryVideoId, isTrackingActive) {
+                LaunchedEffect(meta.id, primaryVideoId, isTrackingActive, isPrimaryPlayEnabled) {
                     if (isTrackingActive) {
                         streamAvailableByProbe = false
                         return@LaunchedEffect
@@ -963,9 +963,13 @@ fun MetaDetailsScreen(
                         streamAvailableByProbe = false
                         return@LaunchedEffect
                     }
+                    streamAvailableByProbe = null
                     val hasCleanStream = com.nuvio.app.controller.NewArrivalsManager.probeHasAnyStreams(
                         type = meta.type,
                         videoId = primaryVideoId,
+                        parentMetaId = meta.id,
+                        seasonNumber = seriesAction?.seasonNumber,
+                        episodeNumber = seriesAction?.episodeNumber,
                     )
                     streamAvailableByProbe = hasCleanStream
                 }

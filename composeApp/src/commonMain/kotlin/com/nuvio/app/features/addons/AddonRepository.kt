@@ -83,9 +83,8 @@ object AddonRepository {
         )
 
         storedUrls.forEach { manifestUrl ->
-            val existing = existingByUrl[manifestUrl]
             val addon = _uiState.value.addons.firstOrNull { it.manifestUrl == manifestUrl }
-            if (addon?.enabled == true && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
+            if (addon?.enabled == true && addon.manifest == null && activeRefreshJobs[manifestUrl]?.isActive != true) {
                 refreshAddon(manifestUrl)
             }
         }
@@ -146,9 +145,8 @@ object AddonRepository {
             )
             persist()
             urls.forEach { url ->
-                val existing = existingByUrl[url]
                 val addon = _uiState.value.addons.firstOrNull { it.manifestUrl == url }
-                if (addon?.enabled == true && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
+                if (addon?.enabled == true && addon.manifest == null && activeRefreshJobs[url]?.isActive != true) {
                     refreshAddon(url)
                 }
             }
@@ -490,9 +488,15 @@ private fun ManagedAddon?.toPendingAddon(
 private fun dedupeManifestUrls(urls: List<String>): List<String> =
     urls.map(::ensureManifestSuffix).distinct()
 
-private fun ensureManifestSuffix(url: String): String {
-    val path = url.substringBefore("?").trimEnd('/')
-    val query = url.substringAfter("?", "")
+internal fun ensureManifestSuffix(url: String): String {
+    val trimmed = url.trim()
+    val schemeNormalized = if (trimmed.startsWith("stremio://", ignoreCase = true)) {
+        "https://${trimmed.substring("stremio://".length)}"
+    } else {
+        trimmed
+    }
+    val path = schemeNormalized.substringBefore("?").trimEnd('/')
+    val query = schemeNormalized.substringAfter("?", "")
     val withSuffix = if (path.endsWith("/manifest.json")) path else "$path/manifest.json"
     val manifestUrl = if (query.isEmpty()) withSuffix else "$withSuffix?$query"
     return manifestUrl.encodeUnsafeHttpUrlCharacters()

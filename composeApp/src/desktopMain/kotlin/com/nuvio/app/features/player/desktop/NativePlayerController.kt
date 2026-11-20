@@ -1158,7 +1158,7 @@ internal class NativePlayerController(
     }
 
     override fun setSubtitleVisible(visible: Boolean) {
-        handle.takeIf { it != 0L }?.let { NativePlayerBridge.setSubtitleVisible(it, visible) }
+        handle.takeIf { it != 0L }?.let { NativePlayerBridge.setSubtitleVisibleSafe(it, visible) }
     }
 
     override fun setSubtitleDelayMs(delayMs: Int) {
@@ -1201,7 +1201,7 @@ internal class NativePlayerController(
             stripSdh = style.stripSdh,
         )
         val shadowAlpha = if (style.appearance.shadowEnabled) (style.appearance.shadowOpacity * 255 / 100) else 0
-        NativePlayerBridge.setSubtitleAppearance(
+        NativePlayerBridge.setSubtitleAppearanceSafe(
             handle = handle,
             font = SubtitleFontResolver.mpvFontName(style.appearance.fontId),
             fontsDir = SubtitleFontResolver.fontsDir(),

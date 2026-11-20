@@ -1,6 +1,7 @@
 package com.nuvio.app.controller
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.core.time.parseEpisodeReleaseEpochMs
 import com.nuvio.app.features.addons.AddonRepository
@@ -10,20 +11,28 @@ import com.nuvio.app.features.addons.fetchAddonResponseText
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
+import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
+import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.servers.ServerStreams
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamParser
 import com.nuvio.app.features.streams.supportsStream
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +89,7 @@ object NewArrivalsManager {
     private const val STREAM_CHECK_DELAY_MS = 2_500L
     private const val PERIODIC_SCAN_INTERVAL_MS = 30L * 60L * 1_000L
     private const val ADDON_FETCH_TIMEOUT_MS = 6_500L
+    private const val PROBE_ADDON_TIMEOUT_MS = 10_000L
     private const val MILLIS_PER_DAY = 24L * 60L * 60L * 1_000L
     private const val MOVIE_RELEASE_WINDOW_DAYS = 120L
     private const val SERIES_EPISODE_WINDOW_DAYS = 7L
@@ -91,7 +101,6 @@ object NewArrivalsManager {
         encodeDefaults = true
     }
 
-    private val camOrScreenerRegex = CamStreamFilter.CAM_OR_FAKE_STREAM_REGEX
     private val uhd4kRegex = Regex(
         """\b(2160p|4K|UHD)\b""",
         RegexOption.IGNORE_CASE,
@@ -687,15 +696,197 @@ object NewArrivalsManager {
         val has4K: Boolean,
     )
 
+    private enum class SourceProbeOutcome {
+        PLAYABLE_FOUND,
+        NO_PLAYABLE_STREAMS,
+        INDETERMINATE,
+    }
+
+    private data class ProbeOutcome(
+        val playableFound: Boolean,
+        val hadIndeterminate: Boolean,
+    )
+
     internal suspend fun probeHasAnyStreams(
         type: String,
         videoId: String,
+        parentMetaId: String = videoId,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null,
     ): Boolean {
-        return verifyCleanHdStreamAvailable(
-            type = type,
-            videoId = videoId,
-            embeddedStreams = emptyList(),
-        ).isAvailable
+        val normalizedType = MetaDetailsRepository.normalizePlaybackType(type)
+
+        if (
+            DownloadsRepository.findPlayableDownload(
+                parentMetaId = parentMetaId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                videoId = videoId,
+            ) != null
+        ) {
+            return true
+        }
+        if (ServerStreams.isNativeRequest(videoId)) return true
+        if (
+            MetaDetailsRepository.findEmbeddedStreams(videoId)
+                .any { it.hasPlayableSource && !CamStreamFilter.isCamOrFake(it) }
+        ) {
+            return true
+        }
+
+        MetaDetailsRepository.waitForReadyAddonManifests()
+
+        val resolvedTarget = if (
+            videoId.startsWith("tmdb:", ignoreCase = true) ||
+            parentMetaId.startsWith("tmdb:", ignoreCase = true)
+        ) {
+            try {
+                MetaDetailsRepository.resolvePlaybackTarget(
+                    type = normalizedType,
+                    videoId = videoId,
+                    parentMetaId = parentMetaId,
+                    parentMetaType = normalizedType,
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNumber,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                null
+            }
+        } else {
+            null
+        }
+        val effectiveType = resolvedTarget?.type ?: normalizedType
+        val effectiveVideoId = resolvedTarget?.videoId ?: videoId
+
+        if (
+            effectiveVideoId != videoId &&
+            MetaDetailsRepository.findEmbeddedStreams(effectiveVideoId)
+                .any { it.hasPlayableSource && !CamStreamFilter.isCamOrFake(it) }
+        ) {
+            return true
+        }
+
+        val streamAddons = AddonRepository.uiState.value.addons
+            .enabledAddons()
+            .mapNotNull { addon ->
+                val manifest = addon.manifest ?: return@mapNotNull null
+                if (!manifest.supportsStream(effectiveType, effectiveVideoId)) return@mapNotNull null
+                Triple(
+                    addon.displayTitle.ifBlank { manifest.name },
+                    "addon:${manifest.id}:${addon.manifestUrl}",
+                    manifest,
+                )
+            }
+        val hasEnabledPlugins = AppFeaturePolicy.pluginsEnabled &&
+            PluginRepository.getEnabledScrapersForType(effectiveType).isNotEmpty()
+        val serverSources = ServerStreams.sources(
+            type = effectiveType,
+            videoId = effectiveVideoId,
+            season = seasonNumber,
+            episode = episodeNumber,
+            forceRefresh = false,
+        )
+
+        if (streamAddons.isEmpty()) {
+            return hasEnabledPlugins || serverSources.isNotEmpty()
+        }
+
+        val outcomeDeferred = CompletableDeferred<ProbeOutcome>()
+        val probeJob = scope.launch {
+            try {
+                val outcomes = coroutineScope {
+                    val tasks = buildList<Deferred<SourceProbeOutcome>> {
+                        streamAddons.forEach { (displayName, addonId, manifest) ->
+                            add(
+                                async {
+                                    val url = buildAddonResourceUrl(
+                                        manifestUrl = manifest.transportUrl,
+                                        resource = "stream",
+                                        type = effectiveType,
+                                        id = effectiveVideoId,
+                                    )
+                                    try {
+                                        val payload = withTimeoutOrNull(PROBE_ADDON_TIMEOUT_MS) {
+                                            fetchAddonResponseText(url = url, forceRefresh = false)
+                                        }
+                                        if (payload == null) {
+                                            SourceProbeOutcome.INDETERMINATE
+                                        } else {
+                                            val streams = StreamParser.parse(
+                                                payload = payload,
+                                                addonName = displayName,
+                                                addonId = addonId,
+                                                addonLogo = manifest.logoUrl,
+                                            )
+                                            if (streams.any { it.hasPlayableSource && !CamStreamFilter.isCamOrFake(it) }) {
+                                                outcomeDeferred.complete(
+                                                    ProbeOutcome(playableFound = true, hadIndeterminate = false),
+                                                )
+                                                SourceProbeOutcome.PLAYABLE_FOUND
+                                            } else {
+                                                SourceProbeOutcome.NO_PLAYABLE_STREAMS
+                                            }
+                                        }
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Throwable) {
+                                        SourceProbeOutcome.INDETERMINATE
+                                    }
+                                },
+                            )
+                        }
+                        serverSources.forEach { source ->
+                            add(
+                                async {
+                                    try {
+                                        val group = withTimeoutOrNull(PROBE_ADDON_TIMEOUT_MS) {
+                                            source.load()
+                                        }
+                                        when {
+                                            group == null -> SourceProbeOutcome.INDETERMINATE
+                                            group.streams.any { it.hasPlayableSource } -> {
+                                                outcomeDeferred.complete(
+                                                    ProbeOutcome(playableFound = true, hadIndeterminate = false),
+                                                )
+                                                SourceProbeOutcome.PLAYABLE_FOUND
+                                            }
+                                            !group.error.isNullOrBlank() -> SourceProbeOutcome.INDETERMINATE
+                                            else -> SourceProbeOutcome.NO_PLAYABLE_STREAMS
+                                        }
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Throwable) {
+                                        SourceProbeOutcome.INDETERMINATE
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    tasks.awaitAll()
+                }
+                outcomeDeferred.complete(
+                    ProbeOutcome(
+                        playableFound = outcomes.any { it == SourceProbeOutcome.PLAYABLE_FOUND },
+                        hadIndeterminate = outcomes.any { it == SourceProbeOutcome.INDETERMINATE },
+                    ),
+                )
+            } catch (e: CancellationException) {
+                outcomeDeferred.complete(ProbeOutcome(playableFound = false, hadIndeterminate = true))
+                throw e
+            } catch (_: Throwable) {
+                outcomeDeferred.complete(ProbeOutcome(playableFound = false, hadIndeterminate = true))
+            }
+        }
+
+        val outcome = try {
+            outcomeDeferred.await()
+        } finally {
+            probeJob.cancel()
+        }
+
+        return outcome.playableFound || hasEnabledPlugins || outcome.hadIndeterminate
     }
 
     internal suspend fun verifyCleanHdStreamAvailable(
@@ -774,7 +965,7 @@ object NewArrivalsManager {
             if (combinedText.isBlank()) continue
 
             // Explicitly reject CAM, TS, HDTS, TELESYNC, SCREENER, etc.
-            if (camOrScreenerRegex.containsMatchIn(combinedText)) continue
+            if (CamStreamFilter.containsCamOrFakeMarker(combinedText)) continue
 
             val is4KStream = uhd4kRegex.containsMatchIn(combinedText)
             val is1080pStream = fullHd1080pRegex.containsMatchIn(combinedText)

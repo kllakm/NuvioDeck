@@ -128,4 +128,77 @@ class CamStreamFilterTest {
         assertFalse(CamStreamFilter.isCamOrFake(fakeStream))
         assertEquals(all, CamStreamFilter.filterCamStreams(all))
     }
+
+    @Test
+    fun `ignores query parameters and opaque url path tokens`() {
+        val streamsWithOpaqueUrlTokens = listOf(
+            StreamItem(
+                name = "HTTP Stream",
+                description = "1080p WEB-DL",
+                url = "https://cdn.example.com/play/master.m3u8?ts=1732100000&ld=1",
+                addonName = "Example",
+                addonId = "addon:example",
+            ),
+            StreamItem(
+                name = "Proxy Stream",
+                description = "2160p HDR",
+                url = "https://proxy.example.com/wp/tc/scr/stream/42?token=abc",
+                addonName = "Example",
+                addonId = "addon:example",
+            ),
+            StreamItem(
+                name = "Transport Stream",
+                description = "1080p",
+                url = "https://cdn.example.com/d/Show%20S01E01%201080p.ts?ts=1732100000&ld=1",
+                addonName = "Example",
+                addonId = "addon:example",
+            ),
+        )
+        for (stream in streamsWithOpaqueUrlTokens) {
+            assertFalse(
+                CamStreamFilter.isCamOrFake(stream),
+                "Expected opaque URL tokens not to trigger CAM filter for '${stream.url}'",
+            )
+        }
+    }
+
+    @Test
+    fun `permits ts container extension and movie titles containing line`() {
+        val legitimateReleases = listOf(
+            "Show.S01E01.1080p.WEB-DL.ts",
+            "Walk.the.Line.2005.1080p.BluRay.x264.mkv",
+            "Line.of.Duty.S01E01.1080p.WEB-DL.mkv",
+            "The.Thin.Red.Line.1998.2160p.UHD.BluRay.mkv",
+        )
+        for (name in legitimateReleases) {
+            assertFalse(
+                CamStreamFilter.isCamOrFake(name),
+                "Expected legitimate title/container '$name' NOT to trigger CAM filter",
+            )
+        }
+
+        assertTrue(CamStreamFilter.isCamOrFake("Movie.2026.1080p.LINE.AAC.mkv"))
+        assertTrue(CamStreamFilter.isCamOrFake("Movie.2026.TS.ts"))
+    }
+
+    @Test
+    fun `still flags cam filename stems in direct playback urls`() {
+        val camUrlStream = StreamItem(
+            name = "Direct HTTP",
+            description = "1080p",
+            url = "https://cdn.example.com/d/Movie.2026.HDCAM.1080p.mp4?ts=123",
+            addonName = "Example",
+            addonId = "addon:example",
+        )
+        assertTrue(CamStreamFilter.isCamOrFake(camUrlStream))
+
+        val encodedCamUrlStream = StreamItem(
+            name = "Direct HTTP",
+            description = "720p",
+            url = "https://cdn.example.com/d/Movie%202026%20TELESYNC%20x264.mkv",
+            addonName = "Example",
+            addonId = "addon:example",
+        )
+        assertTrue(CamStreamFilter.isCamOrFake(encodedCamUrlStream))
+    }
 }

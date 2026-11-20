@@ -22,6 +22,8 @@ internal object NativePlayerBridge {
         "WebView2Loader.dll",
     )
     private val preloadStarted = AtomicBoolean(false)
+    private val missingSubtitleVisibleLogged = AtomicBoolean(false)
+    private val missingSubtitleAppearanceLogged = AtomicBoolean(false)
 
     private val log = Logger.withTag("NativePlayerBridge")
 
@@ -188,6 +190,32 @@ internal object NativePlayerBridge {
         shadowColor: String,
         shadowOffset: Float,
     )
+
+    fun setSubtitleVisibleSafe(handle: Long, visible: Boolean) {
+        try {
+            setSubtitleVisible(handle, visible)
+        } catch (_: UnsatisfiedLinkError) {
+            if (missingSubtitleVisibleLogged.compareAndSet(false, true)) {
+                log.w { "Native player bridge does not export setSubtitleVisible; ignoring subtitle visibility toggle." }
+            }
+        }
+    }
+
+    fun setSubtitleAppearanceSafe(
+        handle: Long,
+        font: String,
+        fontsDir: String,
+        shadowColor: String,
+        shadowOffset: Float,
+    ) {
+        try {
+            setSubtitleAppearance(handle, font, fontsDir, shadowColor, shadowOffset)
+        } catch (_: UnsatisfiedLinkError) {
+            if (missingSubtitleAppearanceLogged.compareAndSet(false, true)) {
+                log.w { "Native player bridge does not export setSubtitleAppearance; using default subtitle font/shadow." }
+            }
+        }
+    }
     external fun warmupWebView2(controlsPageUrl: String): Boolean
     external fun shutdownWebView2Warmup()
     external fun setWindowsDisplaySleepInhibited(inhibited: Boolean): Boolean

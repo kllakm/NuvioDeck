@@ -49,4 +49,20 @@ class AddonTransportUrlsTest {
             catalogUrl,
         )
     }
+
+    @Test
+    fun `ensureManifestSuffix normalizes stremio schemes and query strings`() {
+        assertEquals(
+            "https://torrentio.strem.fun/stream/manifest.json",
+            ensureManifestSuffix("stremio://torrentio.strem.fun/stream/"),
+        )
+        assertEquals(
+            "https://addon.example.com/custom/manifest.json?foo=one%7Ctwo",
+            ensureManifestSuffix("STREMIO://addon.example.com/custom/manifest.json?foo=one|two"),
+        )
+        assertEquals(
+            "https://addon.example.com/manifest.json",
+            ensureManifestSuffix("  https://addon.example.com  "),
+        )
+    }
 }
