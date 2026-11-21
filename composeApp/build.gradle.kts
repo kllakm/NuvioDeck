@@ -1396,9 +1396,26 @@ tasks.withType<AbstractJPackageTask>()
             freeArgs.add("--license-file")
             freeArgs.add(licenseRtf.absolutePath)
         }
+        val stagedWindowsResourcesDir = layout.buildDirectory.dir("compose/tmp/windows-jpackage-resources").get().asFile
         if (packagingWindowsDir.exists()) {
             freeArgs.add("--resource-dir")
-            freeArgs.add(packagingWindowsDir.absolutePath)
+            freeArgs.add(stagedWindowsResourcesDir.absolutePath)
+            doFirst {
+                stagedWindowsResourcesDir.mkdirs()
+                packagingWindowsDir.listFiles()?.filter { it.isFile }?.forEach { file ->
+                    val target = stagedWindowsResourcesDir.resolve(file.name)
+                    if (file.name.equals("main.wxs", ignoreCase = true)) {
+                        val dialogBmp = packagingWindowsDir.resolve("dialog.bmp").absolutePath
+                        val bannerBmp = packagingWindowsDir.resolve("banner.bmp").absolutePath
+                        val rendered = file.readText()
+                            .replace("@WINDOWS_DIALOG_BMP@", dialogBmp)
+                            .replace("@WINDOWS_BANNER_BMP@", bannerBmp)
+                        target.writeText(rendered)
+                    } else {
+                        file.copyTo(target, overwrite = true)
+                    }
+                }
+            }
         }
     }
 

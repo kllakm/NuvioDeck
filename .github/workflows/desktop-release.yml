@@ -445,6 +445,15 @@ jobs:
             --no-daemon `
             --stacktrace
 
+      - name: Dump jpackage failure logs
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "composeApp\build\compose\logs" -Recurse -Filter "*.txt" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Output "=== $($_.FullName) ==="
+            Get-Content $_.FullName
+          }
+
       - name: Verify MSI
         shell: pwsh
         env:
