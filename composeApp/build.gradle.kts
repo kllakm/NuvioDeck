@@ -1390,6 +1390,9 @@ tasks.withType<AbstractJPackageTask>()
     .matching { it.name.endsWith("Msi") || it.name.endsWith("Exe") }
     .configureEach {
         freeArgs.add("--win-shortcut-prompt")
+        if (providers.gradleProperty("nuvio.jpackage.verbose").orNull.equals("true", ignoreCase = true)) {
+            freeArgs.add("--verbose")
+        }
         val packagingWindowsDir = rootProject.file("packaging/windows")
         val licenseRtf = packagingWindowsDir.resolve("LICENSE.rtf")
         if (licenseRtf.exists()) {

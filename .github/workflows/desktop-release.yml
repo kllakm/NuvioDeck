@@ -401,8 +401,8 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: microsoft
+          java-version: 25
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -441,6 +441,7 @@ jobs:
             :composeApp:packageReleaseMsi `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
+            "-Pnuvio.jpackage.verbose=true" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace
@@ -453,6 +454,15 @@ jobs:
             Write-Output "=== $($_.FullName) ==="
             Get-Content $_.FullName
           }
+
+      - name: Upload Windows Player Bridge
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuvio-desktop-${{ needs.metadata.outputs.version }}-windows-bridge
+          path: composeApp/build/native/windows/player_bridge.dll
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Verify MSI
         shell: pwsh
