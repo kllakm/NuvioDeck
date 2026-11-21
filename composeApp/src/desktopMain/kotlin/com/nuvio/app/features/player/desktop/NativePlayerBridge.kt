@@ -189,6 +189,7 @@ internal object NativePlayerBridge {
         fontsDir: String,
         shadowColor: String,
         shadowOffset: Float,
+        shadowBlur: Float,
     )
 
     fun setSubtitleVisibleSafe(handle: Long, visible: Boolean) {
@@ -207,9 +208,10 @@ internal object NativePlayerBridge {
         fontsDir: String,
         shadowColor: String,
         shadowOffset: Float,
+        shadowBlur: Float = 0f,
     ) {
         try {
-            setSubtitleAppearance(handle, font, fontsDir, shadowColor, shadowOffset)
+            setSubtitleAppearance(handle, font, fontsDir, shadowColor, shadowOffset, shadowBlur)
         } catch (_: UnsatisfiedLinkError) {
             if (missingSubtitleAppearanceLogged.compareAndSet(false, true)) {
                 log.w { "Native player bridge does not export setSubtitleAppearance; using default subtitle font/shadow." }
