@@ -2455,7 +2455,7 @@ button:disabled {
   flex-direction: column;
   overflow: auto;
   max-height: calc(100vh - clamp(152px, 22vh, 220px));
-  padding: 0 8px 8px 0;
+  padding: 4px 8px 8px 6px;
 }
 
 .style-card {
@@ -2481,7 +2481,7 @@ button:disabled {
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 10px 8px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -2606,6 +2606,7 @@ button:disabled {
 
 .swatch.selected {
   border-color: #fff;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .55);
 }
 
 .sync-cue {
@@ -3852,6 +3853,54 @@ svg {
   background: rgba(255, 255, 255, 0.24) !important;
   transition: background 120ms ease;
   z-index: 10;
+}
+
+.player.controller-active .panel-button.primary:focus,
+.player.controller-active .panel-button.primary.focused {
+  background: var(--theme-accent-strong) !important;
+  color: var(--theme-on-accent) !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: 2px !important;
+  z-index: 11;
+}
+
+.player.controller-active .style-panel .round-step:focus,
+.player.controller-active .style-panel .round-step.focused,
+.player.controller-active .style-panel .panel-button:not(.primary):focus,
+.player.controller-active .style-panel .panel-button:not(.primary).focused,
+.player.controller-active .style-panel .sync-cue:focus,
+.player.controller-active .style-panel .sync-cue.focused,
+.player.controller-active .style-panel .font-row:focus,
+.player.controller-active .style-panel .font-row.focused {
+  background: rgba(255, 255, 255, 0.24) !important;
+  outline: 2px solid rgba(255, 255, 255, 0.85) !important;
+  outline-offset: 1px !important;
+  z-index: 11;
+}
+
+.player.controller-active .swatch:focus,
+.player.controller-active .swatch.focused {
+  background: var(--swatch) !important;
+  outline: 2.5px solid #ffffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28) !important;
+  transform: scale(1.14) !important;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  z-index: 12;
+}
+
+.player.controller-active .swatch.transparent:focus,
+.player.controller-active .swatch.transparent.focused {
+  background:
+    linear-gradient(45deg, rgba(255,255,255,.16) 25%, transparent 25% 75%, rgba(255,255,255,.16) 75%),
+    linear-gradient(45deg, rgba(255,255,255,.16) 25%, transparent 25% 75%, rgba(255,255,255,.16) 75%) !important;
+  background-position: 0 0, 6px 6px !important;
+  background-size: 12px 12px !important;
+}
+
+.player.controller-active .swatch.selected:focus,
+.player.controller-active .swatch.selected.focused {
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.32) !important;
 }
 
 .player.controller-active .source-row:focus,

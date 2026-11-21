@@ -1099,10 +1099,14 @@ const setModalVisibility = (modal, visible, animated = true) => {
 };
 
 let lastTriggeringElement = null;
+let lastAutoSyncCuesSignature = "";
+let lastFontPickerSignature = "";
+let lastFocusedSubtitleStyleEl = null;
 
 const closePlayerModal = (notifyDismiss = false, animated = true) => {
   const closingModal = activeModal;
   activeModal = "";
+  lastFocusedSubtitleStyleEl = null;
   if (fontPickerOpen) setFontPickerOpen(false);
   modalElements.forEach(modal => {
     setModalVisibility(modal, false, animated);
@@ -1337,7 +1341,13 @@ const appendSubtitleLanguageRow = item => {
     if (item.key !== "__off__") {
       window.requestAnimationFrame(() => {
         const firstOption = addonSubtitleList.querySelector('.track-row:not([disabled]):not([hidden])');
-        if (firstOption) firstOption.focus();
+        if (firstOption) {
+          if (state.isControllerActive && typeof focusSubtitleModalElement === "function") {
+            focusSubtitleModalElement(firstOption);
+          } else {
+            firstOption.focus();
+          }
+        }
       });
     }
   });
@@ -1433,6 +1443,8 @@ const renderSubtitleSelectionRails = (forceRerender = false) => {
     pendingSubtitleOptionId = selected.id;
   }
   const activeOptions = options.filter(option => option.languageKey === activeSubtitleLanguageKey);
+  const styleVisible = activeSubtitleLanguageKey !== "__off__" && activeOptions.some(option =>
+    option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected));
   const signature = [
     activeSubtitleLanguageKey,
     pendingSubtitleOptionId,
@@ -1442,6 +1454,10 @@ const renderSubtitleSelectionRails = (forceRerender = false) => {
   ].join("||");
 
   if (!forceRerender && signature === lastSubtitleRailsSignature && subtitleTrackList.children.length > 0) {
+    subtitleStyleRail.hidden = !styleVisible;
+    subtitleStyleRail.parentElement.classList.toggle("style-visible", styleVisible);
+    if (styleVisible) renderSubtitleStylePanel();
+    else if (fontPickerOpen) setFontPickerOpen(false);
     return;
   }
   lastSubtitleRailsSignature = signature;
@@ -1458,11 +1474,10 @@ const renderSubtitleSelectionRails = (forceRerender = false) => {
   } else {
     appendSubtitleOptionsEmptyState(state.fetchSubtitlesLabel || "Tap to fetch subtitles", true);
   }
-  const styleVisible = activeSubtitleLanguageKey !== "__off__" && activeOptions.some(option =>
-    option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected));
   subtitleStyleRail.hidden = !styleVisible;
   subtitleStyleRail.parentElement.classList.toggle("style-visible", styleVisible);
   if (styleVisible) renderSubtitleStylePanel();
+  else if (fontPickerOpen) setFontPickerOpen(false);
 
   if (state.isControllerActive && activeModal === "subtitles" && forceRerender) {
     window.requestAnimationFrame(() => {
@@ -1508,13 +1523,35 @@ const sameRgb = (left, right) => {
 };
 
 const renderSwatches = (container, colors, selectedColor, eventType) => {
-  container.textContent = "";
   const items = Array.isArray(colors) ? colors : [];
+  const existing = Array.from(container.children);
+  const canReuse = existing.length === items.length &&
+    items.every((color, index) => existing[index] && existing[index].dataset.color === String(color));
+
+  if (canReuse) {
+    items.forEach((color, index) => {
+      const parsed = parseArgb(color);
+      const swatch = existing[index];
+      const isSelected = sameRgb(color, selectedColor);
+      swatch.classList.toggle("transparent", parsed.alpha === 0);
+      swatch.classList.toggle("selected", isSelected);
+      swatch.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      swatch.style.setProperty("--swatch", parsed.css);
+    });
+    return;
+  }
+
+  const focusedIdx = existing.indexOf(document.activeElement);
+  container.textContent = "";
   items.forEach((color, index) => {
     const parsed = parseArgb(color);
     const swatch = document.createElement("button");
     swatch.type = "button";
-    swatch.className = `swatch${parsed.alpha === 0 ? " transparent" : ""}${sameRgb(color, selectedColor) ? " selected" : ""}`;
+    const isSelected = sameRgb(color, selectedColor);
+    swatch.dataset.color = String(color);
+    swatch.className = `swatch${parsed.alpha === 0 ? " transparent" : ""}${isSelected ? " selected" : ""}`;
+    swatch.setAttribute("aria-label", String(color));
+    swatch.setAttribute("aria-pressed", isSelected ? "true" : "false");
     swatch.style.setProperty("--swatch", parsed.css);
     swatch.addEventListener("click", event => {
       event.stopPropagation();
@@ -1522,26 +1559,45 @@ const renderSwatches = (container, colors, selectedColor, eventType) => {
     });
     container.appendChild(swatch);
   });
+  if (focusedIdx >= 0 && container.children.length > 0) {
+    const target = container.children[Math.min(focusedIdx, container.children.length - 1)];
+    if (target) {
+      if (state.isControllerActive && typeof focusSubtitleModalElement === "function") {
+        focusSubtitleModalElement(target, target.closest(".style-section"));
+      } else {
+        target.focus({ preventScroll: true });
+      }
+    }
+  }
 };
 
 const renderAutoSyncCues = () => {
-  autoSyncCueList.textContent = "";
   autoSyncReload.disabled = !state.hasSelectedAddonSubtitle;
   autoSyncCapture.disabled = !state.hasSelectedAddonSubtitle;
   if (!state.hasSelectedAddonSubtitle) {
     autoSyncStatus.textContent = state.selectAddonSubtitleFirstLabel || "Select an addon subtitle first";
+    lastAutoSyncCuesSignature = "";
+    autoSyncCueList.textContent = "";
     return;
   }
+  const cues = normalizeItems(state.subtitleAutoSyncCues);
   if (state.subtitleAutoSyncIsLoading) {
     autoSyncStatus.textContent = state.loadingSubtitleLinesLabel || "Loading subtitle lines...";
   } else if (state.subtitleAutoSyncErrorMessage) {
     autoSyncStatus.textContent = state.subtitleAutoSyncErrorMessage;
-  } else if (Number(state.subtitleAutoSyncCapturedPositionMs) >= 0 && normalizeItems(state.subtitleAutoSyncCues).length === 0) {
+  } else if (Number(state.subtitleAutoSyncCapturedPositionMs) >= 0 && cues.length === 0) {
     autoSyncStatus.textContent = state.noSubtitleLinesFoundLabel || "No subtitle lines found";
   } else {
     autoSyncStatus.textContent = "";
   }
-  normalizeItems(state.subtitleAutoSyncCues).forEach(cue => {
+  const cueSignature = cues.map(cue => `${cue.index}:${cue.timeLabel || ""}:${cue.text || ""}`).join("||");
+  if (cueSignature === lastAutoSyncCuesSignature && autoSyncCueList.children.length === cues.length) {
+    return;
+  }
+  const focusedCueIdx = Array.from(autoSyncCueList.children).indexOf(document.activeElement);
+  lastAutoSyncCuesSignature = cueSignature;
+  autoSyncCueList.textContent = "";
+  cues.forEach(cue => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "sync-cue";
@@ -1559,6 +1615,16 @@ const renderAutoSyncCues = () => {
     row.appendChild(text);
     autoSyncCueList.appendChild(row);
   });
+  if (focusedCueIdx >= 0 && autoSyncCueList.children.length > 0) {
+    const target = autoSyncCueList.children[Math.min(focusedCueIdx, autoSyncCueList.children.length - 1)];
+    if (target) {
+      if (state.isControllerActive && typeof focusSubtitleModalElement === "function") {
+        focusSubtitleModalElement(target, target);
+      } else {
+        target.focus({ preventScroll: true });
+      }
+    }
+  }
 };
 
 const renderSubtitleStylePanel = () => {
@@ -1606,6 +1672,20 @@ const renderSubtitleStylePanel = () => {
   shadowOpacitySection.hidden = !style.shadowEnabled;
   shadowSizeSection.hidden = !style.shadowEnabled;
   renderAutoSyncCues();
+  if (
+    state.isControllerActive &&
+    activeModal === "subtitles" &&
+    !fontPickerOpen &&
+    subtitleStylePanel.contains(document.activeElement) &&
+    typeof isVisibleSubtitleControl === "function" &&
+    !isVisibleSubtitleControl(document.activeElement)
+  ) {
+    const rows = typeof getSubtitleStyleRows === "function" ? getSubtitleStyleRows() : [];
+    const fallback = (rows[0] && rows[0].items[0]) || subtitleStyleReset;
+    if (fallback && typeof focusSubtitleModalElement === "function") {
+      focusSubtitleModalElement(fallback, rows[0] ? rows[0].section : null);
+    }
+  }
 };
 
 const isBuiltInFont = id => ["default", "sans", "serif", "mono"].includes(id);
@@ -1619,11 +1699,43 @@ const renderFontPicker = () => {
   subtitleFontError.textContent = state.fontImportError || "";
   subtitleFontError.hidden = !state.subtitleFontImportFailed;
   if (!fontPickerOpen) return;
+  const fonts = state.subtitleFonts || [];
   const selectedId = (state.subtitleStyle || {}).fontId || "default";
+  const fontSignature = fonts.map(font => `${font.id}:${font.label || ""}`).join("||");
+  if (fontSignature === lastFontPickerSignature && subtitleFontList.children.length === fonts.length) {
+    Array.from(subtitleFontList.children).forEach((wrapper, index) => {
+      const font = fonts[index];
+      const row = wrapper.querySelector(".track-row");
+      if (!font || !row) return;
+      const isSelected = font.id === selectedId;
+      row.classList.toggle("selected", isSelected);
+      const existingCheck = row.querySelector("svg.track-check, svg:last-child");
+      const hasCheck = existingCheck && existingCheck.parentElement === row && existingCheck.classList.contains("track-check");
+      if (isSelected && !hasCheck) {
+        row.appendChild(buildCheckIcon());
+      } else if (!isSelected && hasCheck) {
+        existingCheck.remove();
+      }
+    });
+    return;
+  }
+
+  let focusedFontId = "";
+  let focusedRemove = false;
+  if (subtitleFontList.contains(document.activeElement)) {
+    const activeWrapper = document.activeElement.closest(".font-option");
+    if (activeWrapper) {
+      focusedFontId = activeWrapper.dataset.fontId || "";
+      focusedRemove = document.activeElement.classList.contains("panel-button");
+    }
+  }
+
+  lastFontPickerSignature = fontSignature;
   subtitleFontList.textContent = "";
-  (state.subtitleFonts || []).forEach((font, index) => {
+  fonts.forEach((font, index) => {
     const wrapper = document.createElement("div");
     wrapper.className = "font-option";
+    wrapper.dataset.fontId = font.id;
     const row = document.createElement("button");
     row.type = "button";
     row.className = `track-row${font.id === selectedId ? " selected" : ""}`;
@@ -1655,6 +1767,20 @@ const renderFontPicker = () => {
     }
     subtitleFontList.appendChild(wrapper);
   });
+
+  if (focusedFontId) {
+    const matchingWrapper = Array.from(subtitleFontList.children).find(w => w.dataset.fontId === focusedFontId) || subtitleFontList.children[0];
+    if (matchingWrapper) {
+      const targetBtn = (focusedRemove && matchingWrapper.querySelector(".panel-button")) || matchingWrapper.querySelector(".track-row");
+      if (targetBtn) {
+        if (state.isControllerActive) {
+          subtitleFontModal.querySelectorAll(".focused").forEach(el => el.classList.remove("focused"));
+          targetBtn.classList.add("focused");
+        }
+        targetBtn.focus({ preventScroll: true });
+      }
+    }
+  }
 };
 
 const setFontPickerOpen = open => {
@@ -3576,7 +3702,11 @@ subtitleFontDone.addEventListener("click", event => {
   setFontPickerOpen(false);
   if (state.isControllerActive) {
     window.setTimeout(() => {
-      subtitleFontRow.focus({ preventScroll: true });
+      if (typeof focusSubtitleModalElement === "function") {
+        focusSubtitleModalElement(subtitleFontRow, subtitleFontRow.closest(".style-section"));
+      } else {
+        subtitleFontRow.focus({ preventScroll: true });
+      }
     }, 50);
   }
 });
@@ -4941,10 +5071,105 @@ function syncControllerStateAndToolbar() {
   toolbar.classList.toggle("visible", shouldBeVisible);
 }
 
+function isVisibleSubtitleControl(el) {
+  if (!el || el.disabled || el.hidden) return false;
+  if (el.closest("[hidden]")) return false;
+  return el.offsetWidth > 0 || el.offsetHeight > 0;
+}
+
+function getSubtitleStyleRows() {
+  const rows = [];
+  if (!subtitleStylePanel) return rows;
+  const sections = Array.from(subtitleStylePanel.querySelectorAll(".style-section"));
+  sections.forEach(section => {
+    if (section.hidden || section.closest("[hidden]") || (section.offsetWidth === 0 && section.offsetHeight === 0)) {
+      return;
+    }
+    const cueList = section.querySelector("#autoSyncCueList");
+    if (cueList) {
+      const headerButtons = Array.from(section.querySelectorAll(".style-control-row button")).filter(isVisibleSubtitleControl);
+      if (headerButtons.length > 0) {
+        rows.push({
+          section,
+          items: headerButtons,
+          isSwatchRow: false,
+          isStepperRow: false,
+        });
+      }
+      Array.from(cueList.querySelectorAll(".sync-cue")).filter(isVisibleSubtitleControl).forEach(cueBtn => {
+        rows.push({
+          section: cueBtn,
+          items: [cueBtn],
+          isSwatchRow: false,
+          isStepperRow: false,
+        });
+      });
+      return;
+    }
+    const buttons = Array.from(section.querySelectorAll("button")).filter(isVisibleSubtitleControl);
+    if (buttons.length > 0) {
+      rows.push({
+        section,
+        items: buttons,
+        isSwatchRow: Boolean(section.querySelector(".swatch-row")),
+        isStepperRow: Boolean(section.querySelector(".stepper")),
+      });
+    }
+  });
+  return rows;
+}
+
+function focusSubtitleModalElement(el, scrollContainer = null) {
+  if (!el) return;
+  if (subtitleModal) {
+    subtitleModal.querySelectorAll(".focused").forEach(node => node.classList.remove("focused"));
+  }
+  if (subtitleFontModal) {
+    subtitleFontModal.querySelectorAll(".focused").forEach(node => node.classList.remove("focused"));
+  }
+  el.classList.add("focused");
+  if (subtitleStylePanel && subtitleStylePanel.contains(el)) {
+    lastFocusedSubtitleStyleEl = el;
+  }
+  el.focus({ preventScroll: true });
+  if (scrollContainer && scrollContainer !== el && typeof scrollContainer.scrollIntoView === "function") {
+    scrollContainer.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  if (typeof el.scrollIntoView === "function") {
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
+function getFontPickerRows() {
+  const rows = [];
+  if (!subtitleFontModal) return rows;
+  Array.from(subtitleFontList.querySelectorAll(".font-option")).forEach(option => {
+    const buttons = Array.from(option.querySelectorAll("button")).filter(isVisibleSubtitleControl);
+    if (buttons.length > 0) rows.push(buttons);
+  });
+  const actionButtons = Array.from(subtitleFontModal.querySelectorAll(".panel-actions button")).filter(isVisibleSubtitleControl);
+  if (actionButtons.length > 0) rows.push(actionButtons);
+  return rows;
+}
+
 function focusFirstModalElement() {
   if (!activeModal && !fontPickerOpen) return;
   const modalEl = fontPickerOpen ? subtitleFontModal : (isPartyConfirmOpen() ? partyConfirm : modalByName[activeModal]);
   if (!modalEl) return;
+
+  if (fontPickerOpen) {
+    subtitleFontModal.querySelectorAll(".focused").forEach(node => node.classList.remove("focused"));
+    const target =
+      subtitleFontList.querySelector(".track-row.selected:not([disabled]):not([hidden])") ||
+      subtitleFontList.querySelector(".track-row:not([disabled]):not([hidden])") ||
+      (isVisibleSubtitleControl(subtitleFontDone) ? subtitleFontDone : null);
+    if (target) {
+      target.classList.add("focused");
+      target.focus({ preventScroll: false });
+      target.scrollIntoView({ block: "nearest" });
+    }
+    return;
+  }
 
   if (activeModal === "sources") {
     if (sourceVirtualItems.length > 0) {
@@ -4972,18 +5197,18 @@ function focusFirstModalElement() {
   }
 
   if (activeModal === "subtitles") {
-    const preferredOption = addonSubtitleList.querySelector(".track-row.selected:not([disabled]):not([hidden])") ||
-      addonSubtitleList.querySelector(".track-row:not([disabled]):not([hidden])");
+    const preferredOption =
+      Array.from(addonSubtitleList.querySelectorAll(".track-row.selected")).find(isVisibleSubtitleControl) ||
+      Array.from(addonSubtitleList.querySelectorAll(".track-row, .subtitle-fetch-row")).find(isVisibleSubtitleControl);
     if (preferredOption) {
-      preferredOption.focus({ preventScroll: false });
-      preferredOption.scrollIntoView({ block: "nearest" });
+      focusSubtitleModalElement(preferredOption);
       return;
     }
-    const preferredLang = subtitleTrackList.querySelector(".subtitle-language-row.selected:not([disabled]):not([hidden])") ||
-      subtitleTrackList.querySelector(".subtitle-language-row:not([disabled]):not([hidden])");
+    const preferredLang =
+      Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row.selected")).find(isVisibleSubtitleControl) ||
+      Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row")).find(isVisibleSubtitleControl);
     if (preferredLang) {
-      preferredLang.focus({ preventScroll: false });
-      preferredLang.scrollIntoView({ block: "nearest" });
+      focusSubtitleModalElement(preferredLang);
       return;
     }
   }
@@ -4997,9 +5222,43 @@ function focusFirstModalElement() {
   }
 }
 
-function moveModalControllerFocus(delta, axis = "vertical") {
+function moveModalControllerFocus(delta, axis = "vertical", forceRailJump = false) {
   const modalEl = fontPickerOpen ? subtitleFontModal : (isPartyConfirmOpen() ? partyConfirm : modalByName[activeModal]);
   if (!modalEl) return;
+
+  if (fontPickerOpen) {
+    const rows = getFontPickerRows();
+    if (!rows.length) return;
+    const activeEl = document.activeElement;
+    let rowIdx = -1;
+    let colIdx = 0;
+    for (let r = 0; r < rows.length; r++) {
+      const c = rows[r].indexOf(activeEl);
+      if (c !== -1) {
+        rowIdx = r;
+        colIdx = c;
+        break;
+      }
+    }
+    if (rowIdx === -1) {
+      rowIdx = rows.findIndex(r => r[0] && r[0].classList.contains("selected"));
+      if (rowIdx === -1) rowIdx = 0;
+      colIdx = 0;
+    } else if (axis === "horizontal") {
+      colIdx = Math.max(0, Math.min(rows[rowIdx].length - 1, colIdx + delta));
+    } else {
+      rowIdx = Math.max(0, Math.min(rows.length - 1, rowIdx + delta));
+      colIdx = Math.min(colIdx, rows[rowIdx].length - 1);
+    }
+    const target = rows[rowIdx][colIdx];
+    if (target) {
+      subtitleFontModal.querySelectorAll(".focused").forEach(node => node.classList.remove("focused"));
+      target.classList.add("focused");
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "nearest" });
+    }
+    return;
+  }
 
   if (activeModal === "sources") {
     const chips = Array.from(sourceFilterList.querySelectorAll(".filter-chip:not([hidden])")).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
@@ -5081,53 +5340,134 @@ function moveModalControllerFocus(delta, axis = "vertical") {
   }
 
   if (activeModal === "subtitles") {
+    const getLanguageItems = () => Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row")).filter(isVisibleSubtitleControl);
+    const getAddonItems = () => Array.from(addonSubtitleList.querySelectorAll(".track-row, .subtitle-fetch-row")).filter(isVisibleSubtitleControl);
+    const activeEl = document.activeElement;
+
     if (axis === "horizontal") {
-      const rails = [
-        {
-          container: subtitleTrackList,
-          getItems: () => Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row:not([disabled]):not([hidden])"))
-        },
-        {
-          container: addonSubtitleList,
-          getItems: () => Array.from(addonSubtitleList.querySelectorAll(".track-row:not([disabled]):not([hidden]), .subtitle-fetch-row:not([disabled]):not([hidden])"))
+      if (subtitleStylePanel.contains(activeEl) && !forceRailJump) {
+        const rows = getSubtitleStyleRows();
+        let rowIdx = -1;
+        let colIdx = 0;
+        for (let r = 0; r < rows.length; r++) {
+          const c = rows[r].items.indexOf(activeEl);
+          if (c !== -1) {
+            rowIdx = r;
+            colIdx = c;
+            break;
+          }
         }
-      ];
-      if (!subtitleStyleRail.hidden) {
-        rails.push({
-          container: subtitleStylePanel,
-          getItems: () => Array.from(subtitleStylePanel.querySelectorAll("button:not([disabled]):not([hidden])"))
-        });
-      }
-      const activeEl = document.activeElement;
-      let currentRailIdx = rails.findIndex(r => r.container.contains(activeEl));
-      if (currentRailIdx === -1) {
-        currentRailIdx = rails[1].getItems().length > 0 ? 1 : 0;
-      }
-      const nextRailIdx = Math.max(0, Math.min(rails.length - 1, currentRailIdx + delta));
-      if (nextRailIdx !== currentRailIdx) {
-        const targetItems = rails[nextRailIdx].getItems();
-        if (targetItems.length > 0) {
-          const target = targetItems.find(el => el.classList.contains("selected")) || targetItems[0];
-          if (target) {
-            target.focus();
-            target.scrollIntoView({ block: "nearest" });
+        if (rowIdx >= 0) {
+          const row = rows[rowIdx];
+          if (delta > 0) {
+            if (colIdx < row.items.length - 1) {
+              focusSubtitleModalElement(row.items[colIdx + 1], row.section);
+            }
+            return;
+          }
+          if (delta < 0) {
+            if (colIdx > 0) {
+              focusSubtitleModalElement(row.items[colIdx - 1], row.section);
+              return;
+            }
+            const prevItems = getAddonItems();
+            const fallbackItems = prevItems.length > 0 ? prevItems : getLanguageItems();
+            const target = fallbackItems.find(el => el.classList.contains("selected")) || fallbackItems[0];
+            if (target) focusSubtitleModalElement(target);
+            return;
           }
         }
       }
+
+      const rails = [
+        {
+          container: subtitleTrackList,
+          focusEntry: () => {
+            const items = getLanguageItems();
+            const target = items.find(el => el.classList.contains("selected")) || items[0];
+            if (target) focusSubtitleModalElement(target);
+            return Boolean(target);
+          },
+        },
+        {
+          container: addonSubtitleList,
+          focusEntry: () => {
+            const items = getAddonItems();
+            const target = items.find(el => el.classList.contains("selected")) || items[0];
+            if (target) focusSubtitleModalElement(target);
+            return Boolean(target);
+          },
+        },
+      ];
+      if (!subtitleStyleRail.hidden && getSubtitleStyleRows().length > 0) {
+        rails.push({
+          container: subtitleStylePanel,
+          focusEntry: () => {
+            const rows = getSubtitleStyleRows();
+            if (!rows.length) return false;
+            if (lastFocusedSubtitleStyleEl && subtitleStylePanel.contains(lastFocusedSubtitleStyleEl) && isVisibleSubtitleControl(lastFocusedSubtitleStyleEl)) {
+              const matchingRow = rows.find(r => r.items.includes(lastFocusedSubtitleStyleEl));
+              focusSubtitleModalElement(lastFocusedSubtitleStyleEl, matchingRow ? matchingRow.section : null);
+              return true;
+            }
+            const firstRow = rows[0];
+            const target = (firstRow.isSwatchRow && firstRow.items.find(el => el.classList.contains("selected"))) || firstRow.items[0];
+            focusSubtitleModalElement(target, firstRow.section);
+            return Boolean(target);
+          },
+        });
+      }
+
+      let currentRailIdx = rails.findIndex(r => r.container.contains(activeEl));
+      if (currentRailIdx === -1) {
+        currentRailIdx = getAddonItems().length > 0 ? 1 : 0;
+      }
+      const step = delta > 0 ? 1 : -1;
+      for (let i = currentRailIdx + step; i >= 0 && i < rails.length; i += step) {
+        if (rails[i].focusEntry()) break;
+      }
       return;
     }
+
     if (axis === "vertical") {
-      let activeEl = document.activeElement;
+      if (subtitleStylePanel.contains(activeEl)) {
+        const rows = getSubtitleStyleRows();
+        if (!rows.length) return;
+        let rowIdx = -1;
+        let colIdx = 0;
+        for (let r = 0; r < rows.length; r++) {
+          const c = rows[r].items.indexOf(activeEl);
+          if (c !== -1) {
+            rowIdx = r;
+            colIdx = c;
+            break;
+          }
+        }
+        if (rowIdx === -1) {
+          focusSubtitleModalElement(rows[0].items[0], rows[0].section);
+          return;
+        }
+        const nextRowIdx = Math.max(0, Math.min(rows.length - 1, rowIdx + delta));
+        const targetRow = rows[nextRowIdx];
+        let nextColIdx = 0;
+        if (targetRow.isSwatchRow) {
+          const selectedSwatchIdx = targetRow.items.findIndex(el => el.classList.contains("selected"));
+          nextColIdx = selectedSwatchIdx >= 0 ? selectedSwatchIdx : 0;
+        } else if (rows[rowIdx].isStepperRow && targetRow.isStepperRow) {
+          nextColIdx = Math.min(colIdx, targetRow.items.length - 1);
+        }
+        focusSubtitleModalElement(targetRow.items[nextColIdx], targetRow.section);
+        return;
+      }
+
       let items = [];
       if (addonSubtitleList.contains(activeEl)) {
-        items = Array.from(addonSubtitleList.querySelectorAll(".track-row:not([disabled]):not([hidden]), .subtitle-fetch-row:not([disabled]):not([hidden])"));
-      } else if (subtitleStylePanel.contains(activeEl)) {
-        items = Array.from(subtitleStylePanel.querySelectorAll("button:not([disabled]):not([hidden])"));
+        items = getAddonItems();
       } else if (subtitleTrackList.contains(activeEl)) {
-        items = Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row:not([disabled]):not([hidden])"));
+        items = getLanguageItems();
       } else {
-        const addonItems = Array.from(addonSubtitleList.querySelectorAll(".track-row:not([disabled]):not([hidden]), .subtitle-fetch-row:not([disabled]):not([hidden])"));
-        items = addonItems.length > 0 ? addonItems : Array.from(subtitleTrackList.querySelectorAll(".subtitle-language-row:not([disabled]):not([hidden])"));
+        const addonItems = getAddonItems();
+        items = addonItems.length > 0 ? addonItems : getLanguageItems();
       }
       if (!items.length) return;
       let idx = items.indexOf(activeEl);
@@ -5137,10 +5477,7 @@ function moveModalControllerFocus(delta, axis = "vertical") {
       } else {
         idx = Math.max(0, Math.min(items.length - 1, idx + delta));
       }
-      items.forEach(el => el.classList.remove("focused"));
-      items[idx].classList.add("focused");
-      items[idx].focus({ preventScroll: true });
-      items[idx].scrollIntoView({ block: "nearest" });
+      focusSubtitleModalElement(items[idx]);
       return;
     }
   }
@@ -5319,7 +5656,7 @@ function handleControllerCommand(command) {
     switch (command) {
       case "controllerBack":
         setFontPickerOpen(false);
-        if (state.isControllerActive) { window.setTimeout(() => { subtitleFontRow.focus({ preventScroll: true }); }, 50); }
+        if (state.isControllerActive) { window.setTimeout(() => { focusSubtitleModalElement(subtitleFontRow, subtitleFontRow.closest(".style-section")); }, 50); }
         syncControllerStateAndToolbar();
         return;
       case "controllerSelect":
@@ -5382,10 +5719,10 @@ function handleControllerCommand(command) {
         moveModalControllerFocus(1, "horizontal");
         return;
       case "controllerLB":
-        moveModalControllerFocus(-1, "horizontal");
+        moveModalControllerFocus(-1, "horizontal", true);
         return;
       case "controllerRB":
-        moveModalControllerFocus(1, "horizontal");
+        moveModalControllerFocus(1, "horizontal", true);
         return;
       case "controllerScrollUp":
         moveModalControllerFocus(-3, "vertical");

@@ -74,8 +74,8 @@
 
 Download the latest installers from [GitHub Releases](https://github.com/kllakm/NuvioDeck/releases/):
 
-- **Windows 10 / 11 (x64):** `NuvioDeck-Windows-x64-0.1.34.msi` or standalone `NuvioDeck.exe`
-- **Linux (x64):** `NuvioDeck-Linux-x86_64-0.1.34.AppImage`, `.deb`, or `.rpm`
+- **Windows 10 / 11 (x64):** `NuvioDeck-Windows-x64-0.1.35.msi` or standalone `NuvioDeck.exe`
+- **Linux (x64):** `NuvioDeck-Linux-x86_64-0.1.35.AppImage`, `.deb`, or `.rpm`
 
 > **Alpha Software:** NuvioDeck is in active alpha development. Please report bugs or controller feedback on [GitHub Issues](https://github.com/kllakm/NuvioDeck/issues).
 
