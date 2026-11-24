@@ -1384,6 +1384,7 @@ compose.desktop {
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png"))
                 debMaintainer = "contact@nuvio.tv"
+                appRelease = "1"
                 shortcut = true
                 menuGroup = "NuvioDeck"
                 appCategory = "AudioVideo"
