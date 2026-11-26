@@ -1433,6 +1433,20 @@ tasks.withType<AbstractJPackageTask>()
         }
     }
 
+val prepareLinuxJpackageResources = tasks.register<Sync>("prepareLinuxJpackageResources") {
+    from("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png")
+    rename { "Nuvio.png" }
+    into(layout.buildDirectory.dir("generated/linux-jpackage-resources"))
+}
+
+tasks.withType<AbstractJPackageTask>()
+    .matching { it.name.endsWith("Deb") || it.name.endsWith("Rpm") }
+    .configureEach {
+        dependsOn(prepareLinuxJpackageResources)
+        freeArgs.add("--resource-dir")
+        freeArgs.add(prepareLinuxJpackageResources.map { it.destinationDir.absolutePath })
+    }
+
 fun renameMacosDmgOutput(release: Boolean) {
     if (!isMacHost) return
 
