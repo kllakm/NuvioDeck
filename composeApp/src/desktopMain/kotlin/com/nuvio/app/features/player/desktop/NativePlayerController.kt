@@ -1214,7 +1214,6 @@ internal class NativePlayerController(
             useLibass = useLibass,
             stripSdh = style.stripSdh,
         )
-        val shadow = subtitleMpvShadow(style.appearance)
         NativePlayerBridge.setSubtitleAppearanceSafe(
             handle = handle,
             font = SubtitleFontResolver.mpvFontName(style.appearance.fontId),
