@@ -1435,7 +1435,7 @@ tasks.withType<AbstractJPackageTask>()
 
 val prepareLinuxJpackageResources = tasks.register<Sync>("prepareLinuxJpackageResources") {
     from("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png")
-    rename { "Nuvio.png" }
+    rename { "NuvioDeck.png" }
     into(layout.buildDirectory.dir("generated/linux-jpackage-resources"))
 }
 
