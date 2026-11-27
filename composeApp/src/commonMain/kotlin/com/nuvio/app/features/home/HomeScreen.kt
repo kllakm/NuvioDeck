@@ -1,6 +1,8 @@
 package com.nuvio.app.features.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
@@ -19,6 +21,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
@@ -1112,8 +1115,30 @@ fun HomeScreen(
             else -> topChromePadding
         }
 
+        val isHomeReadyForReveal = !isInitialHomeContentLoading && (!showHeroSlot || !showHeroSkeleton)
+        var homeContentRevealed by remember(activeProfileId) { mutableStateOf(isHomeReadyForReveal) }
+        LaunchedEffect(isHomeReadyForReveal, activeProfileId) {
+            if (isHomeReadyForReveal) {
+                if (!homeContentRevealed) {
+                    delay(60L)
+                    homeContentRevealed = true
+                }
+            } else {
+                delay(8_000L)
+                homeContentRevealed = true
+            }
+        }
+        val homeContentAlpha by animateFloatAsState(
+            targetValue = if (homeContentRevealed) 1f else 0f,
+            animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing),
+            label = "homeContentAlpha",
+        )
+
         NuvioScreen(
-            modifier = Modifier.fillMaxSize().then(heroStretchModifier),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = homeContentAlpha }
+                .then(heroStretchModifier),
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,
             listState = homeListState,

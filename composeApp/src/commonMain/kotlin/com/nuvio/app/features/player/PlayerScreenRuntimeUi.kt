@@ -726,7 +726,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                 showP2pRebufferStats = showP2pRebufferStats,
                 p2pRebufferMessage = p2pRebufferMessage,
                 p2pRebufferProgress = p2pRebufferProgress,
-                suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
+                suppressOpeningOverlay = isDesktop && initialLoadCompleted,
                 folded = fold != null,
             )
         }

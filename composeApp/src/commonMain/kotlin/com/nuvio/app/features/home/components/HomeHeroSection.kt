@@ -460,25 +460,74 @@ private fun HeroDesktopContentLayers(
         itemCount = items.size,
         includePagerNeighbors = includePagerNeighbors,
     )
+    val activeItem = items[pagerState.currentPage % items.size]
 
-    layerPages.forEach { page ->
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    val pageOffset = heroPageOffset(pagerState, page)
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.BottomStart,
+    ) {
+        layerPages.forEach { page ->
+            val item = items[page % items.size]
+            key(page) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = if (onItemClick != null) 72.dp else 0.dp)
+                        .graphicsLayer {
+                            val pageOffset = heroPageOffset(pagerState, page)
 
-                    alpha = heroPageVisibility(pageOffset)
-                    translationX = -pageOffset * heroWidthPx * HERO_CONTENT_PARALLAX
-                },
-        ) {
-            DesktopHeroContentBlock(
-                item = items[page % items.size],
-                layout = layout,
-                showImdbRating = showImdbRating,
-                showMdbListRatings = showMdbListRatings,
-                onItemClick = onItemClick,
+                            alpha = heroPageVisibility(pageOffset)
+                            translationX = -pageOffset * heroWidthPx * HERO_CONTENT_PARALLAX
+                        },
+                ) {
+                    DesktopHeroContentBlock(
+                        item = item,
+                        layout = layout,
+                        showImdbRating = showImdbRating,
+                        showMdbListRatings = showMdbListRatings,
+                        onItemClick = onItemClick,
+                    )
+                }
+            }
+        }
+
+        if (onItemClick != null) {
+            val colorScheme = MaterialTheme.colorScheme
+            val heroCtaFocusId = "home_hero_desktop_cta"
+            val heroCtaColors = rememberControllerWhiteButtonColors(
+                focusId = heroCtaFocusId,
+                defaultContainerColor = colorScheme.onBackground,
+                defaultContentColor = colorScheme.background,
             )
+            Surface(
+                modifier = Modifier
+                    .height(48.dp)
+                    .controllerFocusable(
+                        id = heroCtaFocusId,
+                        groupKey = "home_hero",
+                        isDefaultFocus = true,
+                        shape = RoundedCornerShape(40.dp),
+                        scaleOnFocus = 1.04f,
+                        onSelect = { onItemClick(activeItem) },
+                        selectLabel = "View Details",
+                    )
+                    .clickable { onItemClick(activeItem) },
+                color = heroCtaColors.containerColor,
+                contentColor = heroCtaColors.contentColor,
+                shape = RoundedCornerShape(40.dp),
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.home_view_details),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
@@ -1147,49 +1196,6 @@ private fun DesktopHeroContentBlock(
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
-
-        if (onItemClick != null) {
-            Spacer(modifier = Modifier.height(NuvioTokens.Space.s24))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val heroCtaFocusId = "home_hero_desktop_cta_${item.id}"
-                val heroCtaColors = rememberControllerWhiteButtonColors(
-                    focusId = heroCtaFocusId,
-                    defaultContainerColor = colorScheme.onBackground,
-                    defaultContentColor = colorScheme.background,
-                )
-                Surface(
-                    modifier = Modifier
-                        .height(48.dp)
-                        .controllerFocusable(
-                            id = heroCtaFocusId,
-                            groupKey = "home_hero",
-                            shape = RoundedCornerShape(40.dp),
-                            scaleOnFocus = 1.04f,
-                            onSelect = { onItemClick(item) },
-                            selectLabel = "View Details",
-                        )
-                        .clickable { onItemClick(item) },
-                    color = heroCtaColors.containerColor,
-                    contentColor = heroCtaColors.contentColor,
-                    shape = RoundedCornerShape(40.dp),
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.home_view_details),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
         }
     }
 }

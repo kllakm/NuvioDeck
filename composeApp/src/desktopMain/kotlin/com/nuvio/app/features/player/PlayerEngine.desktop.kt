@@ -138,6 +138,7 @@ private fun NativePlayerSurface(
     val controller = remember(host) { NativePlayerController(host) }
     val hostFirstPaintComplete = remember { mutableStateOf(false) }
     val hostFirstFullSizePaintComplete = remember { mutableStateOf(false) }
+    val initialPlaybackStarted = remember(sourceUrl) { mutableStateOf(false) }
     val playbackHeaders = remember(sourceHeaders) { sanitizePlaybackHeaders(sourceHeaders) }
     val latestExternalSubtitles = rememberUpdatedState(externalSubtitles)
     val latestPlayerControlsState = rememberUpdatedState(playerControlsState)
@@ -244,11 +245,11 @@ private fun NativePlayerSurface(
         decoderPriority,
         nvidiaRtxSuperResolutionEnabled,
         nvidiaRtxHdrEnabled,
-        hostFirstFullSizePaintComplete.value,
+        hostFirstPaintComplete.value,
         initialPositionMs,
         initialPositionRequestKey,
     ) {
-        if (!sourceAvailable || !hostFirstFullSizePaintComplete.value) {
+        if (!sourceAvailable || !hostFirstPaintComplete.value) {
             return@LaunchedEffect
         }
         delay(16L)
@@ -282,7 +283,7 @@ private fun NativePlayerSurface(
     }
 
     LaunchedEffect(controller, controlsState) {
-        controller.updateControls(controlsState)
+        controller.updateControls(controlsState.copy(showOpeningOverlay = false))
         DesktopPlayerPictureInPicture.setWindowTitle(controlsState.pipWindowTitle)
     }
 
@@ -396,7 +397,13 @@ private fun NativePlayerSurface(
 
     LaunchedEffect(controller) {
         while (true) {
-            if (!controller.isReleasing) onSnapshot(controller.snapshot())
+            if (!controller.isReleasing) {
+                val snap = controller.snapshot()
+                if (!snap.isLoading) {
+                    initialPlaybackStarted.value = true
+                }
+                onSnapshot(snap)
+            }
             delay(250L)
         }
     }
@@ -419,7 +426,7 @@ private fun NativePlayerSurface(
                     Modifier
                         .align(Alignment.BottomEnd)
                         .requiredSize(1.dp)
-                } else if (hostFirstPaintComplete.value) {
+                } else if (hostFirstPaintComplete.value && initialPlaybackStarted.value) {
                     Modifier.fillMaxSize()
                 } else {
                     Modifier

@@ -377,10 +377,12 @@ object ControllerFocusEngine {
 
     private var activeRouteKey: String? = null
     private var hasUserNavigatedOnCurrentRoute: Boolean = false
+    private var isFocusedByInternalCleanup: Boolean = false
 
     private fun saveCurrentRouteFocusMemory(overrideNodeId: String? = null) {
         val routeKey = activeRouteKey ?: return
-        val targetId = overrideNodeId ?: _focusedNodeId.value ?: lastFocusedByZone[ControllerFocusZone.Content]
+        val activeFocusId = _focusedNodeId.value?.takeUnless { isFocusedByInternalCleanup }
+        val targetId = overrideNodeId ?: activeFocusId ?: lastFocusedByZone[ControllerFocusZone.Content]
         if (targetId != null) {
             routeFocusHistory[routeKey] = RouteFocusMemory(
                 focusedNodeId = targetId,
@@ -395,7 +397,7 @@ object ControllerFocusEngine {
         focusImmediately: Boolean = true,
     ) {
         val newRouteStr = routeKey?.toString()
-        val routeChanged = activeRouteKey != null && activeRouteKey != newRouteStr
+        val routeChanged = activeRouteKey != newRouteStr
         if (routeChanged) {
             saveCurrentRouteFocusMemory()
         }
@@ -447,7 +449,7 @@ object ControllerFocusEngine {
                     pendingRestoredNodeId = targetId
                     val scope = activeCoroutineScope ?: nodes.values.firstNotNullOfOrNull { it.coroutineScope }
                     pendingRestoreFallbackJob = scope?.launch {
-                        delay(240)
+                        delay(500)
                         if (pendingRestoredNodeId == targetId) {
                             val lateNode = nodes[targetId]?.takeIf { it.isVisibleAndValid }
                             pendingRestoredNodeId = null
@@ -528,8 +530,8 @@ object ControllerFocusEngine {
                     suppressVerticalScroll = true,
                     suppressHorizontalScroll = false,
                 )
-                return
             }
+            return
         }
 
         if (currentId == node.id) {
@@ -807,6 +809,7 @@ object ControllerFocusEngine {
         }
         _focusedNodeId.value = node.id
         _focusedNodeSnapshot.value = node.toSnapshot()
+        isFocusedByInternalCleanup = isInternalCleanupFocus
         if (!isInternalCleanupFocus) {
             lastFocusedByZone[node.zone] = node.id
             node.groupKey?.let { group ->
